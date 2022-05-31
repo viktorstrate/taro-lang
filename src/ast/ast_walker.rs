@@ -1,27 +1,56 @@
-use super::{Expr, Stmt, AST};
+use std::fmt::Debug;
 
+use super::{Ident, Stmt, VarDecl, AST};
+
+#[allow(unused_variables)]
 pub trait AstWalker<'a> {
-    fn visit_expr(&mut self, expr: &Expr<'a>) {}
-    fn visit_stmt(&mut self, stmt: &Stmt<'a>) {}
-}
+    type Scope: Default = ();
+    type Error: Debug = ();
 
-pub fn walk_ast<'a, W: AstWalker<'a>>(walker: &mut W, ast: &AST<'a>) {
-    walk_stmt(walker, &ast.0)
-}
+    fn visit_declaration(
+        &mut self,
+        scope: &mut Self::Scope,
+        decl: &VarDecl<'a>,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
-fn walk_stmt<'a, W: AstWalker<'a>>(walker: &mut W, stmt: &Stmt<'a>) {
-    walker.visit_stmt(&stmt);
+    fn visit_scope_begin(
+        &mut self,
+        parent: &mut Self::Scope,
+        scope_ident: &Ident<'a>,
+    ) -> Result<Self::Scope, Self::Error> {
+        Ok(Self::Scope::default())
+    }
 
-    match stmt {
-        Stmt::VarDecl(vardecl) => walk_expr(walker, &vardecl.value),
-        Stmt::Compound(stmts) => {
-            for stmt in stmts {
-                walk_stmt(walker, stmt);
-            }
-        }
+    fn visit_scope_end(
+        &mut self,
+        parent: &mut Self::Scope,
+        child: Self::Scope,
+        scope_ident: &Ident<'a>,
+    ) -> Result<(), Self::Error> {
+        Ok(())
     }
 }
 
-fn walk_expr<'a, W: AstWalker<'a>>(walker: &mut W, expr: &Expr<'a>) {
-    walker.visit_expr(expr);
+pub fn walk_ast<'a, W: AstWalker<'a>>(walker: &mut W, ast: &AST<'a>) -> Result<W::Scope, W::Error> {
+    let mut global_scope = W::Scope::default();
+    walk_stmt(walker, &mut global_scope, &ast.0)?;
+    Ok(global_scope)
+}
+
+fn walk_stmt<'a, W: AstWalker<'a>>(
+    walker: &mut W,
+    scope: &mut W::Scope,
+    stmt: &Stmt<'a>,
+) -> Result<(), W::Error> {
+    match stmt {
+        Stmt::VarDecl(decl) => walker.visit_declaration(scope, decl),
+        Stmt::Compound(stmts) => {
+            for stmt in stmts {
+                walk_stmt(walker, scope, stmt)?;
+            }
+            Ok(())
+        }
+    }
 }

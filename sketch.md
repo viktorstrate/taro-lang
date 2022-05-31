@@ -98,11 +98,13 @@ let b: (Bool, Bool) = (true, false)
 ## Functions
 
 ```
-func test(a: number) {
+~~func test(a: number) {}~~
+
+let sum = (a: number, b: number) -> number => a + b
+
+let a: (number) -> () = (a: number) => {
   console.log(`hello ${a}`)
 }
-
-let a: (number) -> () = (a: number) => {}
 ```
 
 ## String interpolation

@@ -1,11 +1,23 @@
 use nom::{
     character::complete::{multispace0, multispace1},
+    combinator::complete,
     error::VerboseError,
     AsChar, IResult, InputTakeAtPosition,
 };
 
+use crate::ast::AST;
+
+use self::statements::statement;
+
 pub mod expressions;
 pub mod statements;
+
+pub fn parse_ast(input: &str) -> Result<AST, nom::Err<VerboseError<&str>>> {
+    match complete(statement)(input) {
+        Ok((_, stmt)) => Ok(AST::from(stmt)),
+        Err(err) => Err(err),
+    }
+}
 
 pub type Res<I, O> = IResult<I, O, VerboseError<I>>;
 

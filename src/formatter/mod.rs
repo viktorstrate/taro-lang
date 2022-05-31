@@ -1,9 +1,14 @@
-use crate::ast::{Expr, Mutability, Stmt, TypeSignature};
+use crate::ast::{Expr, Mutability, Stmt, TypeSignature, AST};
 
+#[derive(Default)]
 pub struct Formatter {}
 
 impl Formatter {
-    fn format_expr(&self, expr: &Expr) -> String {
+    pub fn format_ast(&self, ast: &AST) -> String {
+        self.format_stmt(ast.inner_stmt())
+    }
+
+    pub fn format_expr(&self, expr: &Expr) -> String {
         match expr {
             Expr::StringLiteral(string) => string.to_string(),
             Expr::NumberLiteral(num) => format!("{num}"),
@@ -11,7 +16,7 @@ impl Formatter {
         }
     }
 
-    fn format_stmt(&self, stmt: &Stmt) -> String {
+    pub fn format_stmt(&self, stmt: &Stmt) -> String {
         match stmt {
             Stmt::VarDecl(var_decl) => {
                 let mut result = "let".to_string();
@@ -41,7 +46,7 @@ impl Formatter {
         }
     }
 
-    fn format_type_sig(&self, type_sig: &TypeSignature) -> String {
+    pub fn format_type_sig(&self, type_sig: &TypeSignature) -> String {
         match type_sig {
             TypeSignature::Base(base) => base.as_str().to_string(),
             TypeSignature::Function(_, _, _) => todo!(),
@@ -52,16 +57,15 @@ impl Formatter {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser;
+    use crate::parser::parse_ast;
 
     use super::*;
 
     #[test]
     fn test_formatting() {
-        let (_, ast) =
-            parser::statements::statement("let  mut value: Number    =212; let x = 2").unwrap();
+        let ast = parse_ast("let  mut value: Number    =212; let x = 2").unwrap();
         assert_eq!(
-            Formatter {}.format_stmt(&ast),
+            Formatter::default().format_ast(&ast),
             "let mut value: Number = 212\n\
             let x = 2"
         );

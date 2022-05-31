@@ -6,7 +6,7 @@ use nom::{
         streaming::char,
     },
     combinator::{opt, recognize},
-    multi::{many1, separated_list1},
+    multi::separated_list1,
     sequence::{pair, preceded},
 };
 
