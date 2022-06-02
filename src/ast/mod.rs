@@ -1,3 +1,6 @@
+use crate::parser::Span;
+use std::hash::Hash;
+
 pub mod ast_walker;
 
 pub struct AST<'a>(Stmt<'a>);
@@ -46,11 +49,11 @@ pub enum Expr<'a> {
 }
 
 impl<'a> Expr<'a> {
-    fn value_type(&self) -> TypeSignature {
+    pub fn value_type(&self) -> TypeSignature<'a> {
         match self {
-            &Self::StringLiteral(..) => TypeSignature::BUILTIN_STRING,
-            &Self::NumberLiteral(..) => TypeSignature::BUILTIN_NUMBER,
-            &Self::BoolLiteral(..) => TypeSignature::BUILTIN_BOOL,
+            &Self::StringLiteral(..) => BuiltinType::String.into(),
+            &Self::NumberLiteral(..) => BuiltinType::Number.into(),
+            &Self::BoolLiteral(..) => BuiltinType::Bool.into(),
         }
     }
 }
@@ -86,34 +89,59 @@ pub enum TypeSignature<'a> {
         Box<TypeSignature<'a>>,
     ),
     Reference(Box<TypeSignature<'a>>),
-    // GenericBase(&'a str, Box<Vec<TypeSignatureValue<'a>>>),
-    // Array(Box<TypeSignatureValue<'a>>),
-    // Optional(Box<TypeSignatureValue<'a>>)
+    // GenericBase(Ident<'a>, Box<Vec<TypeSignatureValue<'a>>>),
 }
 
-impl TypeSignature<'static> {
-    const BUILTIN_STRING: Self = TypeSignature::Base(Ident("String"));
-    const BUILTIN_NUMBER: Self = TypeSignature::Base(Ident("Number"));
-    const BUILTIN_BOOL: Self = TypeSignature::Base(Ident("Bool"));
+#[derive(Debug)]
+pub enum BuiltinType {
+    String,
+    Number,
+    Bool,
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
-pub struct Ident<'a>(&'a str);
-
-impl<'a> Ident<'a> {
-    pub fn new(value: &'a str) -> Self {
-        Ident(value)
+impl Into<TypeSignature<'static>> for BuiltinType {
+    fn into(self) -> TypeSignature<'static> {
+        let value = match self {
+            BuiltinType::String => "String",
+            BuiltinType::Number => "Number",
+            BuiltinType::Bool => "Bool",
+        };
+        TypeSignature::Base(Ident::new_unplaced(value))
     }
 }
 
-impl<'a> From<&'a str> for Ident<'a> {
-    fn from(raw: &'a str) -> Self {
-        Ident(raw)
-    }
+#[derive(Debug, Clone)]
+pub struct Ident<'a> {
+    pub pos: Span<'a>,
+    pub value: &'a str,
 }
 
 impl<'a> Ident<'a> {
-    pub fn as_str(&self) -> &'a str {
-        self.0
+    pub fn new(pos: Span<'a>, value: &'a str) -> Self {
+        Ident {
+            pos: pos,
+            value: value,
+        }
+    }
+
+    fn new_unplaced(value: &'a str) -> Self {
+        Ident {
+            pos: Span::new(""),
+            value,
+        }
+    }
+}
+
+impl PartialEq for Ident<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
+}
+
+impl Eq for Ident<'_> {}
+
+impl Hash for Ident<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.value.hash(state);
     }
 }

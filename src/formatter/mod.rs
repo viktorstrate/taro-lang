@@ -26,7 +26,7 @@ impl Formatter {
                 }
 
                 result += " ";
-                result += var_decl.name.as_str();
+                result += var_decl.name.value;
 
                 if let Some(ref type_sig) = var_decl.type_sig {
                     result += ": ";
@@ -48,7 +48,7 @@ impl Formatter {
 
     pub fn format_type_sig(&self, type_sig: &TypeSignature) -> String {
         match type_sig {
-            TypeSignature::Base(base) => base.as_str().to_string(),
+            TypeSignature::Base(base) => base.value.to_string(),
             TypeSignature::Function(_, _, _) => todo!(),
             TypeSignature::Reference(_) => todo!(),
         }

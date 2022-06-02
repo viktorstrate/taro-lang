@@ -14,7 +14,7 @@
 let val: Any = @jsFunc()
 let a: Any = @{ key: 'value', foo: 23 }
 
-let array: [number] = unsafe val.unchecked_cast()
+let array: [Number] = unsafe val.unchecked_cast()
 
 let result = @( externalCall() )
 let isSafe = @( typeof result == 'object' && typeof result.key == 'string' )
@@ -67,16 +67,16 @@ extend Point {
 }
 
 extend Point: Equatable where T: Equatable {
-  static func == (lhs: Self, rhs: Self) -> boolean {
+  static func == (lhs: Self, rhs: Self) -> Boolean {
     lhs.x == rhs.x && lhs.y == rhs.y
   }
 }
 
-let a: Point<number> = Point(x: 2, y: 5)
+let a: Point<Number> = Point(x: 2, y: 5)
 let b = a // copy
 
 // Make aa a reference to a Point
-let aa: &Point<number> = &Point { x: 2, y: 3 }
+let aa: &Point<Number> = &Point { x: 2, y: 3 }
 let bb = aa // not a copy
 ```
 
@@ -98,20 +98,37 @@ let b: (Bool, Bool) = (true, false)
 ## Functions
 
 ```
-~~func test(a: number) {}~~
+~~func test(a: Number) {}~~
 
-let sum = (a: number, b: number) -> number => a + b
+let sum = <T: Combinable>(a: T, b: T) -> Number => a + b
 
-let a: (number) -> () = (a: number) => {
+let funcs = {
+  sum: <T: Combinable>(a: T, b: T) -> Number => a + b,
+  hello: () => console.log('hello world')
+}
+
+let a: (Number) -> () = (a) {
   console.log(`hello ${a}`)
 }
+```
+
+## Async functions
+
+```
+let fetch_data: (String) -> Promise<String> = async (url: String) -> String {
+  let res = await fetch(url)
+  let text = await res.text()
+  return text
+}
+
+let fetch_append = async (url: String) => (await fetch_data(url)) + "!"
 ```
 
 ## String interpolation
 
 ```
 trait StringExpressible {
-  init(string: string)
+  init(string: String)
 }
 
 trait StringInterpolationBaseExpressible: StringExpressible {
@@ -139,8 +156,6 @@ extend<T, I> T: Combinable where T: StringInterpolationExpressible<I> {
 ## Extensions
 
 ```
-
-
 trait Sequence: Indexable {
   associatedtype Element
 

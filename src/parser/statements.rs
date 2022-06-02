@@ -15,9 +15,9 @@ use crate::{
     parser::expressions::expression,
 };
 
-use super::{token, Res};
+use super::{token, Res, Span};
 
-pub fn statement(i: &str) -> Res<&str, Stmt> {
+pub fn statement(i: Span) -> Res<Span, Stmt> {
     // STMT <; STMT>*
     // STMT <\n STMT>*
 
@@ -32,11 +32,11 @@ pub fn statement(i: &str) -> Res<&str, Stmt> {
     }
 }
 
-pub fn single_statement(i: &str) -> Res<&str, Stmt> {
+pub fn single_statement(i: Span) -> Res<Span, Stmt> {
     declaration_variable(i)
 }
 
-pub fn declaration_variable(i: &str) -> Res<&str, Stmt> {
+pub fn declaration_variable(i: Span) -> Res<Span, Stmt> {
     // let IDENTIFIER [: TYPE_SIGNATURE] = EXPRESSION
 
     let (i, _) = token(tag("let"))(i)?;
@@ -56,38 +56,46 @@ pub fn declaration_variable(i: &str) -> Res<&str, Stmt> {
     Ok((i, Stmt::VarDecl(var_decl)))
 }
 
-pub fn identifier(i: &str) -> Res<&str, Ident> {
+pub fn identifier(i: Span) -> Res<Span, Ident> {
     token(recognize(pair(
         satisfy(|c| c.is_alphabetic()),
         alphanumeric0,
     )))(i)
-    .map(|(i, val)| (i, Ident::new(val)))
+    .map(|(i, val)| (i, Ident::new(i, &val)))
 }
 
-pub fn type_signature(i: &str) -> Res<&str, TypeSignature> {
+pub fn type_signature(i: Span) -> Res<Span, TypeSignature> {
     type_sig_base(i)
 }
 
-fn type_sig_base(i: &str) -> Res<&str, TypeSignature> {
+fn type_sig_base(i: Span) -> Res<Span, TypeSignature> {
     return identifier(i).map(|(i, ident)| (i, TypeSignature::Base(ident)));
 }
 
 #[cfg(test)]
 mod tests {
+    use std::assert_matches::assert_matches;
+
     use crate::ast::{Expr, Mutability};
 
     use super::*;
 
     #[test]
     fn test_stmt() {
-        assert_eq!(
-            statement("let mut name: Number = 23"),
+        assert_matches!(
+            statement(Span::new("let mut name: Number = 23")),
             Ok((
-                "",
+                _,
                 Stmt::VarDecl(VarDecl {
-                    name: "name".into(),
+                    name: Ident {
+                        pos: _,
+                        value: "name"
+                    },
                     mutability: Mutability::Mutable,
-                    type_sig: Some(TypeSignature::Base("Number".into())),
+                    type_sig: Some(TypeSignature::Base(Ident {
+                        pos: _,
+                        value: "Number"
+                    })),
                     value: Expr::NumberLiteral(23.0)
                 })
             ))
@@ -96,12 +104,15 @@ mod tests {
 
     #[test]
     fn test_stmt_type_inferrance() {
-        assert_eq!(
-            statement("let name = 23"),
+        assert_matches!(
+            statement(Span::new("let name = 23")),
             Ok((
-                "",
+                _,
                 Stmt::VarDecl(VarDecl {
-                    name: "name".into(),
+                    name: Ident {
+                        pos: _,
+                        value: "name"
+                    },
                     mutability: Mutability::Immutable,
                     type_sig: None,
                     value: Expr::NumberLiteral(23.0)

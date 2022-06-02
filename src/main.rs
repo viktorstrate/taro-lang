@@ -2,6 +2,7 @@
 #![feature(iter_intersperse)]
 #![feature(associated_type_defaults)]
 #![feature(assert_matches)]
+#![feature(let_else)]
 
 pub mod ast;
 pub mod formatter;

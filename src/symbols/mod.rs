@@ -11,26 +11,30 @@ pub struct SymbolTable<'a> {
 }
 
 #[derive(Debug)]
-pub enum SymbolsError {
-    SymbolAlreadyExistsInScope,
+pub enum SymbolsError<'a> {
+    SymbolAlreadyExistsInScope(Ident<'a>),
 }
 
 impl<'a> SymbolTable<'a> {
-    pub fn insert(&mut self, val: VarDecl<'a>) -> Result<&mut VarDecl<'a>, SymbolsError> {
+    pub fn insert(&mut self, val: VarDecl<'a>) -> Result<&mut VarDecl<'a>, SymbolsError<'a>> {
         let key: Ident<'a> = val.name().clone();
+        let error_ident = key.clone();
+
         self.table
             .try_insert(key, val)
-            .map_err(|_| SymbolsError::SymbolAlreadyExistsInScope)
+            .map_err(move |_| SymbolsError::SymbolAlreadyExistsInScope(error_ident))
     }
 
     pub fn insert_scope(
         &mut self,
         ident: Ident<'a>,
         scope: SymbolTable<'a>,
-    ) -> Result<&mut SymbolTable<'a>, SymbolsError> {
+    ) -> Result<&mut SymbolTable<'a>, SymbolsError<'a>> {
+        let error_ident = ident.clone();
+
         self.scopes
             .try_insert(ident, scope)
-            .map_err(|_| SymbolsError::SymbolAlreadyExistsInScope)
+            .map_err(move |_| SymbolsError::SymbolAlreadyExistsInScope(error_ident))
     }
 }
 
