@@ -12,7 +12,7 @@ impl<'a> AstWalker<'a> for SymbolCollector {
     type Scope = SymbolTable<'a>;
     type Error = SymbolsError<'a>;
 
-    fn visit_declaration(
+    fn visit_var_decl(
         &mut self,
         scope: &mut Self::Scope,
         decl: &VarDecl<'a>,

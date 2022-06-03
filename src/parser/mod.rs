@@ -9,15 +9,14 @@ use nom_locate::LocatedSpan;
 
 use crate::ast::AST;
 
-use self::statements::statement;
-
 pub mod expressions;
+pub mod module;
 pub mod statements;
 pub mod structures;
 
 pub fn parse_ast(input: &str) -> Result<AST, nom::Err<VerboseError<Span>>> {
-    match complete(statement)(Span::new(input)) {
-        Ok((_, stmt)) => Ok(AST::from(stmt)),
+    match complete(module::module)(Span::new(input)) {
+        Ok((_, module)) => Ok(AST::from(module)),
         Err(err) => Err(err),
     }
 }

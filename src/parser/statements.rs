@@ -21,7 +21,7 @@ use crate::{
 
 use super::{token, ws, Res, Span};
 
-pub fn statement(i: Span) -> Res<Span, Stmt> {
+pub fn statement<'a>(i: Span<'a>) -> Res<Span<'a>, Stmt<'a>> {
     // STMT <; STMT>*
     // STMT <\n STMT>*
 

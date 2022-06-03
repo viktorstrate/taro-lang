@@ -3,7 +3,7 @@ use nom::{
     bytes::complete::tag,
     character::streaming::char,
     combinator::opt,
-    multi::separated_list1,
+    multi::separated_list0,
     sequence::{preceded, tuple},
 };
 
@@ -52,7 +52,7 @@ pub fn struct_attrs<'a>(i: Span<'a>) -> Res<Span, Vec<StructAttr<'a>>> {
         ))
     };
 
-    separated_list1(alt((tag(";"), tag("\n"))), struct_attr)(i)
+    separated_list0(alt((tag(";"), tag("\n"))), struct_attr)(i)
 }
 
 #[cfg(test)]

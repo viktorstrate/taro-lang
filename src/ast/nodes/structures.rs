@@ -1,6 +1,6 @@
 use super::{
     expressions::Expr,
-    identifier::Ident,
+    identifier::{Ident, Identifiable},
     type_signature::{Mutability, TypeSignature},
 };
 
@@ -16,4 +16,16 @@ pub struct StructAttr<'a> {
     pub mutability: Mutability,
     pub type_sig: Option<TypeSignature<'a>>,
     pub default_value: Option<Expr<'a>>,
+}
+
+impl<'a> Identifiable<'a> for Struct<'a> {
+    fn name(&self) -> &Ident<'a> {
+        &self.name
+    }
+}
+
+impl<'a> Identifiable<'a> for StructAttr<'a> {
+    fn name(&self) -> &Ident<'a> {
+        &self.name
+    }
 }

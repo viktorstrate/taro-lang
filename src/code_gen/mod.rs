@@ -3,7 +3,9 @@ use std::fmt::Write;
 use crate::ast::{
     nodes::{
         expressions::Expr,
+        module::Module,
         statements::{Stmt, VarDecl},
+        structures::Struct,
         type_signature::Mutability,
     },
     AST,
@@ -11,8 +13,28 @@ use crate::ast::{
 
 pub fn ast_to_js(ast: &AST) -> String {
     let mut result = String::new();
-    format_stmt(&mut result, ast.inner_stmt());
+    format_module(&mut result, ast.inner_module());
     result
+}
+
+fn format_module(out: &mut String, module: &Module) {
+    for st in &module.structs {
+        format_struct(out, st);
+        *out += "\n";
+    }
+
+    if !module.structs.is_empty() {
+        *out += "\n";
+    }
+
+    for stmt in &module.stmts {
+        format_stmt(out, stmt);
+        *out += ";\n";
+    }
+}
+
+fn format_struct(out: &mut String, st: &Struct) {
+    writeln!(*out, "INSERT STRUCT {} HERE", st.name.value).unwrap();
 }
 
 fn format_stmt(out: &mut String, stmt: &Stmt) {
@@ -55,6 +77,6 @@ mod tests {
     #[test]
     fn test_code_gen() {
         let ast = parse_ast("let val = 23.4").unwrap();
-        assert_eq!(ast_to_js(&ast), "const val = 23.4")
+        assert_eq!(ast_to_js(&ast), "const val = 23.4;\n")
     }
 }
