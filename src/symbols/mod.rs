@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::ast::{Ident, Identifiable, VarDecl};
+use crate::ast::nodes::{
+    identifier::{Ident, Identifiable},
+    statements::VarDecl,
+};
 
 pub mod symbol_walker;
 

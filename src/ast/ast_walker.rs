@@ -1,6 +1,12 @@
 use std::fmt::Debug;
 
-use super::{Ident, Stmt, VarDecl, AST};
+use super::{
+    nodes::{
+        identifier::Ident,
+        statements::{Stmt, VarDecl},
+    },
+    AST,
+};
 
 #[allow(unused_variables)]
 pub trait AstWalker<'a> {

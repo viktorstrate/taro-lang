@@ -1,4 +1,7 @@
-use crate::{ast::ast_walker::AstWalker, symbols::SymbolTable};
+use crate::{
+    ast::{ast_walker::AstWalker, nodes::statements::VarDecl},
+    symbols::SymbolTable,
+};
 
 use super::TypeCheckerError;
 
@@ -12,7 +15,7 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
     fn visit_declaration(
         &mut self,
         scope: &mut Self::Scope,
-        decl: &crate::ast::VarDecl<'a>,
+        decl: &VarDecl<'a>,
     ) -> Result<(), Self::Error> {
         let Some(type_sig) = &decl.type_sig else {
             return Ok(());
@@ -35,7 +38,7 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
 mod tests {
 
     use crate::{
-        ast::{ast_walker::walk_ast, BuiltinType},
+        ast::{ast_walker::walk_ast, nodes::type_signature::BuiltinType},
         parser::parse_ast,
         symbols::SymbolTable,
         type_checker::{types_walker::TypeChecker, TypeCheckerError},

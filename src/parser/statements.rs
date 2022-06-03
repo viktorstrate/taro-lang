@@ -11,7 +11,11 @@ use nom::{
 };
 
 use crate::{
-    ast::{Ident, Stmt, TypeSignature, VarDecl},
+    ast::nodes::{
+        identifier::Ident,
+        statements::{Stmt, VarDecl},
+        type_signature::TypeSignature,
+    },
     parser::expressions::expression,
 };
 
@@ -37,7 +41,7 @@ pub fn single_statement(i: Span) -> Res<Span, Stmt> {
 }
 
 pub fn declaration_variable(i: Span) -> Res<Span, Stmt> {
-    // let IDENTIFIER [: TYPE_SIGNATURE] = EXPRESSION
+    // let [mut] IDENTIFIER [: TYPE_SIGNATURE] = EXPRESSION
 
     let (i, _) = token(tag("let"))(i)?;
     let (i, is_mut) = opt(token(tag("mut")))(i)?;
@@ -76,14 +80,14 @@ fn type_sig_base(i: Span) -> Res<Span, TypeSignature> {
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::ast::{Expr, Mutability};
+    use crate::ast::nodes::{expressions::Expr, type_signature::Mutability};
 
     use super::*;
 
     #[test]
     fn test_stmt() {
         assert_matches!(
-            statement(Span::new("let mut name: Number = 23")),
+            statement(Span::new("let mut name: String = \"John\"")),
             Ok((
                 _,
                 Stmt::VarDecl(VarDecl {
@@ -94,9 +98,9 @@ mod tests {
                     mutability: Mutability::Mutable,
                     type_sig: Some(TypeSignature::Base(Ident {
                         pos: _,
-                        value: "Number"
+                        value: "String"
                     })),
-                    value: Expr::NumberLiteral(23.0)
+                    value: Expr::StringLiteral("John")
                 })
             ))
         );
@@ -105,7 +109,7 @@ mod tests {
     #[test]
     fn test_stmt_type_inferrance() {
         assert_matches!(
-            statement(Span::new("let name = 23")),
+            statement(Span::new("let name = true")),
             Ok((
                 _,
                 Stmt::VarDecl(VarDecl {
@@ -115,7 +119,7 @@ mod tests {
                     },
                     mutability: Mutability::Immutable,
                     type_sig: None,
-                    value: Expr::NumberLiteral(23.0)
+                    value: Expr::BoolLiteral(true)
                 })
             ))
         );

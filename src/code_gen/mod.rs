@@ -1,5 +1,13 @@
-use crate::ast::{Expr, Mutability, Stmt, VarDecl, AST};
 use std::fmt::Write;
+
+use crate::ast::{
+    nodes::{
+        expressions::Expr,
+        statements::{Stmt, VarDecl},
+        type_signature::Mutability,
+    },
+    AST,
+};
 
 pub fn ast_to_js(ast: &AST) -> String {
     let mut result = String::new();

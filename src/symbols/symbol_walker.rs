@@ -1,4 +1,7 @@
-use crate::ast::{ast_walker::AstWalker, Ident};
+use crate::ast::{
+    ast_walker::AstWalker,
+    nodes::{identifier::Ident, statements::VarDecl},
+};
 
 use super::{SymbolTable, SymbolsError};
 
@@ -8,6 +11,14 @@ pub struct SymbolCollector {}
 impl<'a> AstWalker<'a> for SymbolCollector {
     type Scope = SymbolTable<'a>;
     type Error = SymbolsError<'a>;
+
+    fn visit_declaration(
+        &mut self,
+        scope: &mut Self::Scope,
+        decl: &VarDecl<'a>,
+    ) -> Result<(), Self::Error> {
+        scope.insert(decl.clone()).map(|_| ())
+    }
 
     fn visit_scope_end(
         &mut self,
@@ -19,11 +30,11 @@ impl<'a> AstWalker<'a> for SymbolCollector {
         parent.insert_scope(scope_ident.clone(), child).map(|_| ())
     }
 
-    fn visit_declaration(
+    fn visit_scope_begin(
         &mut self,
-        scope: &mut Self::Scope,
-        decl: &crate::ast::VarDecl<'a>,
-    ) -> Result<(), Self::Error> {
-        scope.insert(decl.clone()).map(|_| ())
+        parent: &mut Self::Scope,
+        scope_ident: &Ident<'a>,
+    ) -> Result<Self::Scope, Self::Error> {
+        Ok(Self::Scope::default())
     }
 }

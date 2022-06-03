@@ -1,4 +1,11 @@
-use crate::ast::{Expr, Mutability, Stmt, TypeSignature, AST};
+use crate::ast::{
+    nodes::{
+        expressions::Expr,
+        statements::Stmt,
+        type_signature::{Mutability, TypeSignature},
+    },
+    AST,
+};
 
 #[derive(Default)]
 pub struct Formatter {}

@@ -2,16 +2,20 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_until},
     character::complete::{char as char_parser, digit1},
-    combinator::{map, opt},
+    combinator::opt,
     sequence::{delimited, tuple},
 };
 
-use crate::ast::Expr;
+use crate::ast::nodes::expressions::Expr;
 
 use super::{Res, Span};
 
 pub fn expression(i: Span) -> Res<Span, Expr> {
-    return alt((expr_string_literal, expr_number_literal))(i);
+    return alt((
+        expr_string_literal,
+        expr_number_literal,
+        expr_boolean_literal,
+    ))(i);
 }
 
 pub fn expr_string_literal(i: Span) -> Res<Span, Expr> {
@@ -34,6 +38,11 @@ pub fn expr_number_literal(i: Span) -> Res<Span, Expr> {
     Ok((i, Expr::NumberLiteral(result)))
 }
 
+pub fn expr_boolean_literal(i: Span) -> Res<Span, Expr> {
+    let (i, result) = alt((tag("true"), tag("false")))(i)?;
+    Ok((i, Expr::BoolLiteral(*result == "true")))
+}
+
 #[cfg(test)]
 mod tests {
     use std::assert_matches::assert_matches;
@@ -47,14 +56,14 @@ mod tests {
             Ok((_, Expr::StringLiteral("hello")))
         );
 
-        assert_matches!(
-            expression(Span::new("23")),
-            Ok((_, Expr::NumberLiteral(23.0)))
+        assert_eq!(
+            expression(Span::new("23")).unwrap().1,
+            Expr::NumberLiteral(23.0)
         );
 
-        assert_matches!(
-            expression(Span::new("23.2")),
-            Ok((_, Expr::NumberLiteral(23.2)))
+        assert_eq!(
+            expression(Span::new("23.2")).unwrap().1,
+            Expr::NumberLiteral(23.2)
         );
     }
 
