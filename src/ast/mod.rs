@@ -3,6 +3,7 @@ use std::hash::Hash;
 
 pub mod ast_walker;
 
+#[derive(Debug)]
 pub struct AST<'a>(Stmt<'a>);
 
 impl<'a> AST<'a> {

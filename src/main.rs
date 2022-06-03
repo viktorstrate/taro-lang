@@ -5,6 +5,7 @@
 #![feature(let_else)]
 
 pub mod ast;
+pub mod code_gen;
 pub mod formatter;
 pub mod parser;
 pub mod symbols;

@@ -1,8 +1,9 @@
 use nom::{
     branch::alt,
-    bytes::complete::take_until,
+    bytes::complete::{tag, take_until},
     character::complete::{char as char_parser, digit1},
-    sequence::delimited,
+    combinator::{map, opt},
+    sequence::{delimited, tuple},
 };
 
 use crate::ast::Expr;
@@ -21,10 +22,16 @@ pub fn expr_string_literal(i: Span) -> Res<Span, Expr> {
 }
 
 pub fn expr_number_literal(i: Span) -> Res<Span, Expr> {
-    return digit1(i).map(|(i, digits)| {
-        let num: f64 = digits.parse().expect("digits should be parsable as number");
-        return (i, Expr::NumberLiteral(num));
-    });
+    let (i, num) = digit1(i)?;
+
+    let (i, maybe_decimal) = opt(tuple((tag("."), digit1)))(i)?;
+    let result: f64 = if let Some((_, decimal)) = maybe_decimal {
+        format!("{num}.{decimal}").parse().unwrap()
+    } else {
+        num.parse().unwrap()
+    };
+
+    Ok((i, Expr::NumberLiteral(result)))
 }
 
 #[cfg(test)]
@@ -43,7 +50,12 @@ mod tests {
         assert_matches!(
             expression(Span::new("23")),
             Ok((_, Expr::NumberLiteral(23.0)))
-        )
+        );
+
+        assert_matches!(
+            expression(Span::new("23.2")),
+            Ok((_, Expr::NumberLiteral(23.2)))
+        );
     }
 
     #[test]
