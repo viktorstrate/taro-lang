@@ -7,7 +7,7 @@ use nom::{
     },
     combinator::{opt, recognize},
     multi::separated_list1,
-    sequence::{pair, preceded},
+    sequence::{pair, preceded, tuple},
 };
 
 use crate::{
@@ -19,7 +19,7 @@ use crate::{
     parser::expressions::expression,
 };
 
-use super::{token, Res, Span};
+use super::{token, ws, Res, Span};
 
 pub fn statement(i: Span) -> Res<Span, Stmt> {
     // STMT <; STMT>*
@@ -43,8 +43,8 @@ pub fn single_statement(i: Span) -> Res<Span, Stmt> {
 pub fn declaration_variable(i: Span) -> Res<Span, Stmt> {
     // let [mut] IDENTIFIER [: TYPE_SIGNATURE] = EXPRESSION
 
-    let (i, _) = token(tag("let"))(i)?;
-    let (i, is_mut) = opt(token(tag("mut")))(i)?;
+    let (i, _) = token(tuple((tag("let"), ws)))(i)?;
+    let (i, is_mut) = opt(token(tuple((tag("mut"), ws))))(i)?;
     let (i, name) = identifier(i)?;
 
     let (i, type_sig) = opt(preceded(token(char(':')), type_signature))(i)?;

@@ -1,4 +1,5 @@
 use nom::{
+    bytes::complete::tag,
     character::complete::{multispace0, multispace1},
     combinator::complete,
     error::VerboseError,
@@ -25,7 +26,7 @@ pub type Res<I, O> = IResult<I, O, VerboseError<I>>;
 
 pub type Span<'a> = LocatedSpan<&'a str>;
 
-pub fn ws(i: &str) -> Res<&str, &str> {
+pub fn ws(i: Span) -> Res<Span, Span> {
     return multispace1(i);
 }
 
@@ -39,6 +40,46 @@ where
         let (i, _) = multispace0(i)?;
         let (i, res) = parser(i)?;
         let (i, _) = multispace0(i)?;
+
+        return Ok((i, res));
+    };
+}
+
+pub enum BracketType {
+    Round,
+    Square,
+    Curly,
+}
+
+impl BracketType {
+    pub fn open(&self) -> &'static str {
+        match self {
+            BracketType::Round => "(",
+            BracketType::Square => "[",
+            BracketType::Curly => "{",
+        }
+    }
+
+    pub fn close(&self) -> &'static str {
+        match self {
+            BracketType::Round => ")",
+            BracketType::Square => "]",
+            BracketType::Curly => "}",
+        }
+    }
+}
+
+pub fn surround_brackets<'a, F, O>(
+    brackets: BracketType,
+    mut parser: F,
+) -> impl FnMut(Span<'a>) -> Res<Span<'a>, O>
+where
+    F: FnMut(Span<'a>) -> Res<Span<'a>, O>,
+{
+    return move |i: Span| {
+        let (i, _) = token(tag(brackets.open()))(i)?;
+        let (i, res) = parser(i)?;
+        let (i, _) = token(tag(brackets.close()))(i)?;
 
         return Ok((i, res));
     };

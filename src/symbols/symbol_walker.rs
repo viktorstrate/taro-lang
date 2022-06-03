@@ -32,8 +32,8 @@ impl<'a> AstWalker<'a> for SymbolCollector {
 
     fn visit_scope_begin(
         &mut self,
-        parent: &mut Self::Scope,
-        scope_ident: &Ident<'a>,
+        _parent: &mut Self::Scope,
+        _scope_ident: &Ident<'a>,
     ) -> Result<Self::Scope, Self::Error> {
         Ok(Self::Scope::default())
     }
