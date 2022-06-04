@@ -19,12 +19,8 @@ pub fn ast_to_js(ast: &AST) -> String {
 }
 
 fn format_module(out: &mut String, module: &Module) {
-    format_with_separator(out, "\n", module.structs.iter(), format_struct);
-    if !module.structs.is_empty() {
-        *out += "\n\n";
-    }
-
     format_with_separator(out, "\n", module.stmts.iter(), format_stmt);
+    *out += "\n";
 }
 
 fn format_struct(out: &mut String, st: &Struct) {
@@ -36,11 +32,16 @@ fn format_stmt(out: &mut String, stmt: &Stmt) {
         Stmt::VariableDecl(var_decl) => format_var_decl(out, var_decl),
         Stmt::FunctionDecl(func_decl) => format_func_decl(out, func_decl),
         Stmt::Compound(stmts) => {
-            format_with_separator(out, ";\n", stmts.iter(), format_stmt);
+            format_with_separator(out, "\n", stmts.iter(), format_stmt);
         }
         Stmt::Expression(expr) => format_expr(out, expr),
+        Stmt::StructDecl(st) => format_struct(out, st),
+        Stmt::Return(expr) => {
+            *out += "return ";
+            format_expr(out, expr);
+            *out += ";";
+        }
     }
-    *out += ";\n";
 }
 
 fn format_var_decl(out: &mut String, var_decl: &VarDecl) {
@@ -53,6 +54,7 @@ fn format_var_decl(out: &mut String, var_decl: &VarDecl) {
     *out += var_decl.name.value;
     *out += " = ";
     format_expr(out, &var_decl.value);
+    *out += ";";
 }
 
 fn format_func_decl(out: &mut String, func: &FuncDecl) {
@@ -83,7 +85,7 @@ fn format_expr(out: &mut String, expr: &Expr) {
             format_with_separator(out, ", ", call.params.iter(), |out, param| {
                 format_expr(out, param);
             });
-            *out += ")";
+            *out += ");";
         }
         Expr::Identifier(ident) => *out += ident.value,
     };
@@ -105,7 +107,7 @@ where
     let len = items.len() as isize;
     for (i, elem) in items.enumerate() {
         format(out, elem);
-        if len < (i as isize) - 1 {
+        if (i as isize) < len - 1 {
             *out += sep;
         }
     }
@@ -113,6 +115,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::assert_matches::assert_matches;
+
     use super::ast_to_js;
     use crate::ast::test_utils::utils::final_ast;
 
@@ -124,7 +128,8 @@ mod tests {
 
     #[test]
     fn test_func_call() {
-        let ast = final_ast("func f() {}; f()").unwrap();
-        assert_eq!(ast_to_js(&ast), "const val = 23.4;\n")
+        let ast = final_ast("func f() {}; f()");
+        assert_matches!(ast, Ok(_));
+        assert_eq!(ast_to_js(&ast.unwrap()), "function f() {}\nf();\n")
     }
 }

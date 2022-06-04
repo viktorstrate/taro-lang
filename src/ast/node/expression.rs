@@ -1,12 +1,15 @@
-use crate::symbols::{
-    symbol_table::SymbolValue::{FuncDecl, VarDecl},
-    symbol_table_zipper::SymbolTableZipper,
+use crate::{
+    symbols::{
+        symbol_table::SymbolValue::{FuncDecl, VarDecl},
+        symbol_table_zipper::SymbolTableZipper,
+    },
+    type_checker::function_type::FunctionTypeError,
 };
 
 use super::{
     function::{FunctionCall, FunctionExpr},
     identifier::Ident,
-    type_signature::{BuiltinType, TypeSignature},
+    type_signature::{BuiltinType, TypeSignature, Typed},
 };
 
 #[derive(Debug, Clone)]
@@ -23,10 +26,13 @@ pub enum Expr<'a> {
 pub enum ExprValueError<'a> {
     CallNonFunction(TypeSignature<'a>),
     UnknownIdentifier(Ident<'a>),
+    FunctionBodyType(FunctionTypeError<'a>),
 }
 
-impl<'a> Expr<'a> {
-    pub fn value_type(
+impl<'a> Typed<'a> for Expr<'a> {
+    type Error = ExprValueError<'a>;
+
+    fn type_sig(
         &self,
         symbols: &SymbolTableZipper<'a>,
     ) -> Result<TypeSignature<'a>, ExprValueError<'a>> {
@@ -38,7 +44,7 @@ impl<'a> Expr<'a> {
                 args: Box::new(func.args.iter().map(|arg| arg.type_sig.clone()).collect()),
                 return_type: Box::new(func.return_type.clone()),
             }),
-            Expr::FunctionCall(call) => match call.func.value_type(symbols)? {
+            Expr::FunctionCall(call) => match call.func.type_sig(symbols)? {
                 TypeSignature::Function {
                     args: _,
                     return_type,
@@ -51,8 +57,10 @@ impl<'a> Expr<'a> {
                     .ok_or(ExprValueError::UnknownIdentifier(ident.clone()))?;
 
                 match sym_val {
-                    VarDecl(var_decl) => var_decl.value.value_type(symbols),
-                    FuncDecl(_) => todo!(),
+                    VarDecl(var_decl) => var_decl.value.type_sig(symbols),
+                    FuncDecl(func_decl) => Ok(func_decl
+                        .type_sig(symbols)
+                        .expect("function type sig always succeeds")),
                 }
             }
         }

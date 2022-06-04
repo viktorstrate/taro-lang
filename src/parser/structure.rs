@@ -2,12 +2,15 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::streaming::char,
-    combinator::opt,
+    combinator::{map, opt},
     multi::separated_list0,
     sequence::{preceded, tuple},
 };
 
-use crate::ast::node::structure::{Struct, StructAttr};
+use crate::ast::node::{
+    statement::Stmt,
+    structure::{Struct, StructAttr},
+};
 
 use super::{
     expression::expression, identifier::identifier, statement::type_signature, surround_brackets,
@@ -52,6 +55,10 @@ pub fn struct_attrs<'a>(i: Span<'a>) -> Res<Span, Vec<StructAttr<'a>>> {
     };
 
     separated_list0(alt((tag(";"), tag("\n"))), struct_attr)(i)
+}
+
+pub fn struct_stmt(i: Span) -> Res<Span, Stmt> {
+    map(structure, Stmt::StructDecl)(i)
 }
 
 #[cfg(test)]

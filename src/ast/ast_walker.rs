@@ -61,10 +61,6 @@ fn walk_module<'a, W: AstWalker<'a>>(
     scope: &mut W::Scope,
     module: &mut Module<'a>,
 ) -> Result<(), W::Error> {
-    for st in &mut module.structs {
-        walk_struct(walker, scope, st)?;
-    }
-
     for stmt in &mut module.stmts {
         walk_stmt(walker, scope, stmt)?;
     }
@@ -95,6 +91,8 @@ fn walk_stmt<'a, W: AstWalker<'a>>(
                 walk_stmt(walker, scope, stmt)?;
             }
         }
+        Stmt::StructDecl(st) => walk_struct(walker, scope, st)?,
+        Stmt::Return(expr) => walker.visit_expr(expr)?,
     };
     walker.visit_stmt(scope, stmt)?;
     Ok(())

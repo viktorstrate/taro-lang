@@ -1,5 +1,6 @@
 use crate::ast::node::{expression::ExprValueError, type_signature::TypeSignature};
 
+pub mod function_type;
 pub mod types_walker;
 
 #[derive(Debug)]

@@ -1,3 +1,5 @@
+use crate::symbols::symbol_table_zipper::SymbolTableZipper;
+
 use super::identifier::Ident;
 
 #[derive(PartialEq, Debug, Clone)]
@@ -9,6 +11,12 @@ pub enum TypeSignature<'a> {
     },
     Reference(Box<TypeSignature<'a>>),
     // GenericBase(Ident<'a>, Box<Vec<TypeSignatureValue<'a>>>),
+}
+
+pub trait Typed<'a> {
+    type Error = ();
+
+    fn type_sig(&self, symbols: &SymbolTableZipper<'a>) -> Result<TypeSignature<'a>, Self::Error>;
 }
 
 #[derive(Debug)]

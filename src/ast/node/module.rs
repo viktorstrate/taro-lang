@@ -1,7 +1,6 @@
-use super::{statement::Stmt, structure::Struct};
+use super::statement::Stmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Module<'a> {
-    pub structs: Vec<Struct<'a>>,
     pub stmts: Vec<Stmt<'a>>,
 }

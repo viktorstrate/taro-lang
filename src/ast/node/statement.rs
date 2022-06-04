@@ -2,6 +2,7 @@ use super::{
     expression::Expr,
     function::FuncDecl,
     identifier::{Ident, Identifiable},
+    structure::Struct,
     type_signature::{Mutability, TypeSignature},
 };
 
@@ -11,6 +12,8 @@ pub enum Stmt<'a> {
     FunctionDecl(FuncDecl<'a>),
     Compound(Vec<Stmt<'a>>),
     Expression(Expr<'a>),
+    StructDecl(Struct<'a>),
+    Return(Expr<'a>),
 }
 
 #[derive(Debug, Clone)]

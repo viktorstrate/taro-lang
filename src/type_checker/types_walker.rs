@@ -1,7 +1,12 @@
 use crate::{
     ast::{
         ast_walker::AstWalker,
-        node::{statement::Stmt, structure::Struct, type_signature::TypeSignature},
+        node::{
+            expression::Expr,
+            statement::Stmt,
+            structure::Struct,
+            type_signature::{TypeSignature, Typed},
+        },
     },
     symbols::{symbol_table::SymbolTable, symbol_table_zipper::SymbolTableZipper},
 };
@@ -57,7 +62,7 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
             Stmt::VariableDecl(var_decl) => {
                 let val_type = var_decl
                     .value
-                    .value_type(&self.symbols)
+                    .type_sig(&self.symbols)
                     .map_err(TypeCheckerError::ValueError)?;
 
                 if let Some(type_sig) = &var_decl.type_sig {
@@ -88,7 +93,7 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
             match (&attr.type_sig, &attr.default_value) {
                 (Some(type_sig), Some(val)) => {
                     let val_type = val
-                        .value_type(&self.symbols)
+                        .type_sig(&self.symbols)
                         .map_err(TypeCheckerError::ValueError)?;
                     if *type_sig != val_type {
                         return Err(TypeCheckerError::TypeSignatureMismatch::<'a> {
@@ -104,23 +109,20 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
         Ok(())
     }
 
-    fn visit_expr(
-        &mut self,
-        expr: &mut crate::ast::node::expression::Expr<'a>,
-    ) -> Result<(), Self::Error> {
+    fn visit_expr(&mut self, expr: &mut Expr<'a>) -> Result<(), Self::Error> {
         match expr {
-            crate::ast::node::expression::Expr::FunctionCall(call) => {
+            Expr::FunctionCall(call) => {
                 match call
                     .func
-                    .value_type(&self.symbols)
+                    .type_sig(&self.symbols)
                     .map_err(TypeCheckerError::ValueError)?
                 {
                     TypeSignature::Function { args, return_type } => {
                         let param_types = call
                             .params
                             .iter()
-                            .map(|param| param.value_type(&self.symbols).unwrap());
-                        let arg_count_match = call.params.len() != args.len();
+                            .map(|param| param.type_sig(&self.symbols).unwrap());
+                        let arg_count_match = call.params.len() == args.len();
 
                         let args_match = param_types.clone().zip(args.iter()).all(|(a, b)| a == *b);
                         if !arg_count_match || !args_match {

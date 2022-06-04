@@ -4,13 +4,13 @@ use super::{
     type_signature::{Mutability, TypeSignature},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Struct<'a> {
     pub name: Ident<'a>,
     pub attrs: Vec<StructAttr<'a>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StructAttr<'a> {
     pub name: Ident<'a>,
     pub mutability: Mutability,

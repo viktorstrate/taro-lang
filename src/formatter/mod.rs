@@ -18,15 +18,6 @@ pub fn format_ast(ast: &AST) -> String {
 }
 
 fn format_module(out: &mut String, module: &Module) {
-    for st in &module.structs {
-        format_struct(out, st);
-        *out += "\n";
-    }
-
-    if !module.structs.is_empty() {
-        *out += "\n";
-    }
-
     for stmt in &module.stmts {
         format_stmt(out, stmt);
         *out += "\n";
@@ -79,6 +70,11 @@ fn format_stmt(out: &mut String, stmt: &Stmt) {
             }
         }
         Stmt::Expression(expr) => format_expr(out, expr),
+        Stmt::StructDecl(st) => format_struct(out, st),
+        Stmt::Return(expr) => {
+            *out += "return ";
+            format_expr(out, expr);
+        }
     }
 }
 
