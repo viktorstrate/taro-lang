@@ -34,7 +34,10 @@ fn format_stmt(out: &mut String, stmt: &Stmt) {
         Stmt::Compound(stmts) => {
             format_with_separator(out, "\n", stmts.iter(), format_stmt);
         }
-        Stmt::Expression(expr) => format_expr(out, expr),
+        Stmt::Expression(expr) => {
+            format_expr(out, expr);
+            *out += ";";
+        }
         Stmt::StructDecl(st) => format_struct(out, st),
         Stmt::Return(expr) => {
             *out += "return ";
@@ -85,7 +88,7 @@ fn format_expr(out: &mut String, expr: &Expr) {
             format_with_separator(out, ", ", call.params.iter(), |out, param| {
                 format_expr(out, param);
             });
-            *out += ");";
+            *out += ")";
         }
         Expr::Identifier(ident) => *out += ident.value,
     };
@@ -118,7 +121,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use super::ast_to_js;
-    use crate::ast::test_utils::utils::final_ast;
+    use crate::ast::test_utils::utils::{final_ast, FinalAstError};
 
     #[test]
     fn test_let_assign_simple() {
@@ -131,5 +134,27 @@ mod tests {
         let ast = final_ast("func f() {}; f()");
         assert_matches!(ast, Ok(_));
         assert_eq!(ast_to_js(&ast.unwrap()), "function f() {}\nf();\n")
+    }
+
+    #[test]
+    fn test_assign_func_call() {
+        let ast1 = final_ast("func f() -> Boolean { return true }; let x: Boolean = f()");
+        let ast2 = final_ast("let f = () { return true }; let x: Boolean = f()");
+        assert_matches!(ast1, Ok(_));
+        assert_matches!(ast2, Ok(_));
+        assert_eq!(
+            ast_to_js(&ast1.unwrap()),
+            "function f() {return true;}\nconst x = f();\n"
+        );
+        assert_eq!(
+            ast_to_js(&ast2.unwrap()),
+            "const f = () => {return true;};\nconst x = f();\n"
+        );
+    }
+
+    #[test]
+    fn test_assign_func_call_mismatched_types() {
+        let ast = final_ast("func f() { return 123 }; let x: Boolean = f()");
+        assert_matches!(ast, Err(FinalAstError::TypeCheck(_)));
     }
 }

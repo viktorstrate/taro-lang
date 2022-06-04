@@ -1,3 +1,5 @@
+use crate::type_checker::function_type::{func_body_type_sig, FunctionTypeError};
+
 use super::{
     expression::Expr,
     identifier::{Ident, Identifiable},
@@ -9,20 +11,20 @@ use super::{
 pub struct FuncDecl<'a> {
     pub name: Ident<'a>,
     pub args: Vec<FunctionArg<'a>>,
-    pub return_type: TypeSignature<'a>,
+    pub return_type: Option<TypeSignature<'a>>,
     pub body: Box<Stmt<'a>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct FunctionExpr<'a> {
     pub args: Vec<FunctionArg<'a>>,
-    pub return_type: TypeSignature<'a>,
+    pub return_sig: Option<TypeSignature<'a>>,
     pub body: Box<Stmt<'a>>,
 }
 
 pub trait Function<'a> {
     fn args(&self) -> &Vec<FunctionArg<'a>>;
-    fn return_type(&self) -> &TypeSignature<'a>;
+    fn return_type(&self) -> &Option<TypeSignature<'a>>;
     fn body(&self) -> &Stmt<'a>;
 }
 
@@ -31,7 +33,7 @@ impl<'a> Function<'a> for FuncDecl<'a> {
         &self.args
     }
 
-    fn return_type(&self) -> &TypeSignature<'a> {
+    fn return_type(&self) -> &Option<TypeSignature<'a>> {
         &self.return_type
     }
 
@@ -45,8 +47,8 @@ impl<'a> Function<'a> for FunctionExpr<'a> {
         &self.args
     }
 
-    fn return_type(&self) -> &TypeSignature<'a> {
-        &self.return_type
+    fn return_type(&self) -> &Option<TypeSignature<'a>> {
+        &self.return_sig
     }
 
     fn body(&self) -> &Stmt<'a> {
@@ -58,11 +60,11 @@ impl<'a, F> Typed<'a> for F
 where
     F: Function<'a>,
 {
-    type Error = ();
+    type Error = FunctionTypeError<'a>;
 
     fn type_sig(
         &self,
-        _symbols: &crate::symbols::symbol_table_zipper::SymbolTableZipper<'a>,
+        symbols: &crate::symbols::symbol_table_zipper::SymbolTableZipper<'a>,
     ) -> Result<TypeSignature<'a>, Self::Error> {
         let args = self
             .args()
@@ -70,9 +72,11 @@ where
             .map(|arg| arg.type_sig.clone())
             .collect::<Vec<_>>();
 
+        let return_type = func_body_type_sig(symbols, self)?;
+
         Ok(TypeSignature::Function {
             args: Box::new(args),
-            return_type: Box::new(self.return_type().clone()),
+            return_type: Box::new(return_type),
         })
     }
 }

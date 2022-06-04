@@ -14,7 +14,7 @@ pub enum FunctionTypeError<'a> {
     ConflictingReturnTypes,
 }
 
-pub fn func_type_sig<'a, Func: Function<'a>>(
+pub fn func_body_type_sig<'a, Func: Function<'a>>(
     symbols: &SymbolTableZipper<'a>,
     func: &Func,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {

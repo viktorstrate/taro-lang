@@ -11,7 +11,7 @@ use crate::{
     symbols::{symbol_table::SymbolTable, symbol_table_zipper::SymbolTableZipper},
 };
 
-use super::TypeCheckerError;
+use super::{function_type::func_body_type_sig, TypeCheckerError};
 
 pub struct TypeChecker<'a> {
     symbols: SymbolTableZipper<'a>,
@@ -144,6 +144,21 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                         ident_type: type_sig,
                     }),
                 }
+            }
+            Expr::Function(func) => {
+                if let Some(return_sig) = &func.return_sig {
+                    let body_type = func_body_type_sig(&self.symbols, func)
+                        .map_err(TypeCheckerError::FunctionError)?;
+
+                    if body_type != *return_sig {
+                        return Err(TypeCheckerError::TypeSignatureMismatch {
+                            type_sig: return_sig.clone(),
+                            expr_type: body_type,
+                        });
+                    }
+                }
+
+                Ok(())
             }
             _ => Ok(()),
         }

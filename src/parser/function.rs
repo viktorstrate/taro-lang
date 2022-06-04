@@ -9,7 +9,6 @@ use crate::ast::node::{
     expression::Expr,
     function::{FuncDecl, FunctionArg, FunctionCall, FunctionExpr},
     statement::Stmt,
-    type_signature::BuiltinType,
 };
 
 use super::{
@@ -34,7 +33,7 @@ pub fn function_decl(i: Span) -> Res<Span, Stmt> {
         Stmt::FunctionDecl(FuncDecl {
             name,
             args,
-            return_type: return_type.unwrap_or(BuiltinType::Void.into()),
+            return_type: return_type,
             body: Box::new(body),
         }),
     ))
@@ -51,7 +50,7 @@ pub fn function_expr(i: Span) -> Res<Span, Expr> {
         i,
         Expr::Function(FunctionExpr {
             args,
-            return_type: return_type.unwrap_or(BuiltinType::Void.into()),
+            return_sig: return_type,
             body: Box::new(body),
         }),
     ))
@@ -89,7 +88,10 @@ pub fn function_call_expr(i: Span) -> Res<Span, Expr> {
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::{ast::node::identifier::Ident, parser::parse_ast};
+    use crate::{
+        ast::node::{identifier::Ident, type_signature::BuiltinType},
+        parser::parse_ast,
+    };
 
     use super::*;
 
@@ -100,7 +102,7 @@ mod tests {
         match func_stmt {
             Stmt::FunctionDecl(func) => {
                 assert_eq!(func.name.value, "f");
-                assert_eq!(func.return_type, BuiltinType::Void.into());
+                assert_eq!(func.return_type, None);
                 assert_eq!(func.args.len(), 0);
             }
             _ => assert!(false),
@@ -116,7 +118,7 @@ mod tests {
         match func_stmt {
             Stmt::FunctionDecl(func) => {
                 assert_eq!(func.name.value, "sum");
-                assert_eq!(func.return_type, BuiltinType::Number.into());
+                assert_eq!(func.return_type, Some(BuiltinType::Number.into()));
                 assert_eq!(func.args.len(), 2);
                 assert_eq!(func.args[0].name.value, "a");
                 assert_eq!(func.args[1].name.value, "b");
@@ -140,7 +142,7 @@ mod tests {
                 assert_eq!(func.args[0].type_sig, BuiltinType::Number.into());
                 assert_eq!(func.args[1].name.value, "b");
                 assert_eq!(func.args[1].type_sig, BuiltinType::Number.into());
-                assert_eq!(func.return_type, BuiltinType::Void.into())
+                assert_eq!(func.return_sig, None);
             }
             _ => assert!(false),
         }

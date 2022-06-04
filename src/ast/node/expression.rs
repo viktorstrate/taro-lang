@@ -40,10 +40,9 @@ impl<'a> Typed<'a> for Expr<'a> {
             Expr::StringLiteral(_) => Ok(BuiltinType::String.into()),
             Expr::NumberLiteral(_) => Ok(BuiltinType::Number.into()),
             Expr::BoolLiteral(_) => Ok(BuiltinType::Bool.into()),
-            Expr::Function(func) => Ok(TypeSignature::Function {
-                args: Box::new(func.args.iter().map(|arg| arg.type_sig.clone()).collect()),
-                return_type: Box::new(func.return_type.clone()),
-            }),
+            Expr::Function(func) => func
+                .type_sig(symbols)
+                .map_err(ExprValueError::FunctionBodyType),
             Expr::FunctionCall(call) => match call.func.type_sig(symbols)? {
                 TypeSignature::Function {
                     args: _,

@@ -1,5 +1,7 @@
 use crate::ast::node::{expression::ExprValueError, type_signature::TypeSignature};
 
+use self::function_type::FunctionTypeError;
+
 pub mod function_type;
 pub mod types_walker;
 
@@ -13,4 +15,5 @@ pub enum TypeCheckerError<'a> {
         ident_type: TypeSignature<'a>,
     },
     ValueError(ExprValueError<'a>),
+    FunctionError(FunctionTypeError<'a>),
 }
