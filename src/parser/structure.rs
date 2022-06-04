@@ -10,9 +10,8 @@ use nom::{
 use crate::ast::node::structure::{Struct, StructAttr};
 
 use super::{
-    expression::expression,
-    statement::{identifier, type_signature},
-    surround_brackets, token, ws, BracketType, Res, Span,
+    expression::expression, identifier::identifier, statement::type_signature, surround_brackets,
+    token, ws, BracketType, Res, Span,
 };
 
 pub fn structure<'a>(i: Span<'a>) -> Res<Span<'a>, Struct<'a>> {

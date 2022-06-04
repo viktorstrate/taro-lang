@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use super::{
     node::{
+        expression::Expr,
         function::FunctionDecl,
         identifier::Ident,
         module::Module,
@@ -44,6 +45,10 @@ pub trait AstWalker<'a> {
     ) -> Result<(), Self::Error> {
         Ok(())
     }
+
+    fn visit_expr(&mut self, expr: &Expr<'a>) -> Result<(), Self::Error> {
+        Ok(())
+    }
 }
 
 pub fn walk_ast<'a, W: AstWalker<'a>>(walker: &mut W, ast: &AST<'a>) -> Result<W::Scope, W::Error> {
@@ -83,7 +88,12 @@ fn walk_stmt<'a, W: AstWalker<'a>>(
     stmt: &Stmt<'a>,
 ) -> Result<(), W::Error> {
     match stmt {
-        Stmt::VariableDecl(decl) => walker.visit_var_decl(scope, decl),
+        Stmt::VariableDecl(decl) => {
+            walker.visit_var_decl(scope, decl)?;
+            walker.visit_expr(&decl.value)?;
+            Ok(())
+        }
+        Stmt::Expression(expr) => walker.visit_expr(&expr),
         Stmt::FunctionDecl(func) => walk_func_decl(walker, scope, func),
         Stmt::Compound(stmts) => {
             for stmt in stmts {

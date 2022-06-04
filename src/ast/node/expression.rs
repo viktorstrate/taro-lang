@@ -1,5 +1,6 @@
 use super::{
-    function::FunctionExpr,
+    function::{FunctionCall, FunctionExpr},
+    identifier::Ident,
     type_signature::{BuiltinType, TypeSignature},
 };
 
@@ -9,6 +10,8 @@ pub enum Expr<'a> {
     NumberLiteral(f64),
     BoolLiteral(bool),
     Function(FunctionExpr<'a>),
+    FunctionCall(Box<FunctionCall<'a>>),
+    Identifier(Ident<'a>),
 }
 
 impl<'a> Expr<'a> {
@@ -21,6 +24,8 @@ impl<'a> Expr<'a> {
                 args: Box::new(func.args.iter().map(|arg| arg.type_sig.clone()).collect()),
                 return_type: Box::new(func.return_type.clone()),
             },
+            Expr::FunctionCall(_) => todo!(),
+            Expr::Identifier(_) => todo!(),
         }
     }
 }

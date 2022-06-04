@@ -19,19 +19,12 @@ pub fn ast_to_js(ast: &AST) -> String {
 }
 
 fn format_module(out: &mut String, module: &Module) {
-    for st in &module.structs {
-        format_struct(out, st);
-        *out += "\n";
-    }
-
+    format_with_separator(out, "\n", module.structs.iter(), format_struct);
     if !module.structs.is_empty() {
-        *out += "\n";
+        *out += "\n\n";
     }
 
-    for stmt in &module.stmts {
-        format_stmt(out, stmt);
-        *out += ";\n";
-    }
+    format_with_separator(out, "\n", module.stmts.iter(), format_stmt);
 }
 
 fn format_struct(out: &mut String, st: &Struct) {
@@ -43,12 +36,11 @@ fn format_stmt(out: &mut String, stmt: &Stmt) {
         Stmt::VariableDecl(var_decl) => format_var_decl(out, var_decl),
         Stmt::FunctionDecl(func_decl) => format_func_decl(out, func_decl),
         Stmt::Compound(stmts) => {
-            for stmt in stmts {
-                format_stmt(out, stmt);
-                *out += ";\n";
-            }
+            format_with_separator(out, ";\n", stmts.iter(), format_stmt);
         }
+        Stmt::Expression(expr) => format_expr(out, expr),
     }
+    *out += ";\n";
 }
 
 fn format_var_decl(out: &mut String, var_decl: &VarDecl) {
@@ -85,20 +77,38 @@ fn format_expr(out: &mut String, expr: &Expr) {
             format_stmt(out, &func.body);
             *out += "}";
         }
+        Expr::FunctionCall(call) => {
+            format_expr(out, &call.func);
+            *out += "(";
+            format_with_separator(out, ", ", call.params.iter(), |out, param| {
+                format_expr(out, param);
+            });
+            *out += ")";
+        }
+        Expr::Identifier(ident) => *out += ident.value,
     };
 }
 
 fn format_func_args(out: &mut String, args: &Vec<FunctionArg>) {
     *out += "(";
-
-    for (i, arg) in args.iter().enumerate() {
+    format_with_separator(out, ", ", args.iter(), |out, arg| {
         *out += arg.name.value;
-        if args.len() < i - 1 {
-            *out += ", ";
+    });
+    *out += ")";
+}
+
+fn format_with_separator<I, T, F>(out: &mut String, sep: &str, items: I, format: F)
+where
+    F: Fn(&mut String, T),
+    I: ExactSizeIterator<Item = T>,
+{
+    let len = items.len() as isize;
+    for (i, elem) in items.enumerate() {
+        format(out, elem);
+        if len < (i as isize) - 1 {
+            *out += sep;
         }
     }
-
-    *out += ")";
 }
 
 #[cfg(test)]
@@ -108,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_code_gen() {
-        let ast = parse_ast("let val = 23.4").unwrap();
+        let ast = parse_ast("let val: Number = 23.4").unwrap();
         assert_eq!(ast_to_js(&ast), "const val = 23.4;\n")
     }
 }

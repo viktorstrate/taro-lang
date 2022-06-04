@@ -1,4 +1,5 @@
 use super::{
+    expression::Expr,
     identifier::{Ident, Identifiable},
     statement::Stmt,
     type_signature::TypeSignature,
@@ -23,6 +24,12 @@ pub struct FunctionExpr<'a> {
 pub struct FunctionArg<'a> {
     pub name: Ident<'a>,
     pub type_sig: TypeSignature<'a>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionCall<'a> {
+    pub func: Expr<'a>,
+    pub params: Vec<Expr<'a>>,
 }
 
 impl<'a> Identifiable<'a> for FunctionDecl<'a> {

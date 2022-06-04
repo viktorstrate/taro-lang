@@ -3,21 +3,54 @@ use crate::{
         ast_walker::AstWalker,
         node::{statement::VarDecl, structure::Struct},
     },
-    symbols::SymbolTable,
+    symbols::{SymbolTable, SymbolTableZipper},
 };
 
 use super::TypeCheckerError;
 
 pub struct TypeChecker<'a> {
-    symbols: SymbolTable<'a>,
+    symbols: SymbolTableZipper<'a>,
+}
+
+impl<'a> TypeChecker<'a> {
+    pub fn new(symbols: SymbolTable<'a>) -> Self {
+        TypeChecker {
+            symbols: symbols.into(),
+        }
+    }
 }
 
 impl<'a> AstWalker<'a> for TypeChecker<'a> {
     type Error = TypeCheckerError<'a>;
 
+    fn visit_scope_begin(
+        &mut self,
+        _parent: &mut Self::Scope,
+        scope_ident: &crate::ast::node::identifier::Ident<'a>,
+    ) -> Result<Self::Scope, Self::Error> {
+        self.symbols
+            .enter_scope(scope_ident.clone())
+            .expect("scope should exist");
+
+        Ok(())
+    }
+
+    fn visit_scope_end(
+        &mut self,
+        _parent: &mut Self::Scope,
+        _child: Self::Scope,
+        _scope_ident: &crate::ast::node::identifier::Ident<'a>,
+    ) -> Result<(), Self::Error> {
+        self.symbols
+            .exit_scope()
+            .expect("scope should not be global scope");
+
+        Ok(())
+    }
+
     fn visit_var_decl(
         &mut self,
-        scope: &mut Self::Scope,
+        _scope: &mut Self::Scope,
         decl: &VarDecl<'a>,
     ) -> Result<(), Self::Error> {
         let Some(type_sig) = &decl.type_sig else {
@@ -60,31 +93,24 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
 mod tests {
 
     use crate::{
-        ast::{ast_walker::walk_ast, node::type_signature::BuiltinType},
+        ast::{ast_walker::walk_ast, node::type_signature::BuiltinType, AST},
         parser::parse_ast,
-        symbols::SymbolTable,
+        symbols::symbol_walker::SymbolCollector,
         type_checker::{types_walker::TypeChecker, TypeCheckerError},
     };
 
     #[test]
     fn test_var_decl_matching_types() {
         let ast = parse_ast("let x: String = \"hello\"").unwrap();
-        let mut checker = TypeChecker {
-            symbols: SymbolTable::default(),
-        };
-        let result = walk_ast(&mut checker, &ast);
-        assert_eq!(result, Ok(()));
+        assert_eq!(type_check(&ast), Ok(()));
     }
 
     #[test]
     fn test_var_decl_mismatched_types() {
         let ast = parse_ast("let x: String = 2").unwrap();
-        let mut collector = TypeChecker {
-            symbols: SymbolTable::default(),
-        };
-        let result = walk_ast(&mut collector, &ast);
+
         assert_eq!(
-            result,
+            type_check(&ast),
             Err(TypeCheckerError::TypeSignatureMismatch {
                 type_sig: BuiltinType::String.into(),
                 expr_type: BuiltinType::Number.into()
@@ -95,16 +121,32 @@ mod tests {
     #[test]
     fn test_struct_decl_attr_mismatched_types() {
         let ast = parse_ast("struct Test { let attr: String = true }").unwrap();
-        let mut checker = TypeChecker {
-            symbols: SymbolTable::default(),
-        };
-        let result = walk_ast(&mut checker, &ast);
+
         assert_eq!(
-            result,
+            type_check(&ast),
             Err(TypeCheckerError::TypeSignatureMismatch {
                 type_sig: BuiltinType::String.into(),
                 expr_type: BuiltinType::Bool.into()
             })
         );
+    }
+
+    #[test]
+    fn test_call_non_function() {
+        let ast = parse_ast("let val = true; val()").unwrap();
+        assert_eq!(
+            type_check(&ast),
+            Err(TypeCheckerError::CallNonFunction {
+                ident_type: BuiltinType::Bool.into()
+            })
+        )
+    }
+
+    fn type_check<'a>(ast: &AST<'a>) -> Result<(), TypeCheckerError<'a>> {
+        let mut sym_collector = SymbolCollector {};
+        let symbols = walk_ast(&mut sym_collector, &ast).unwrap();
+
+        let mut checker = TypeChecker::new(symbols);
+        return walk_ast(&mut checker, &ast);
     }
 }

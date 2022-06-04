@@ -10,6 +10,7 @@ pub enum Stmt<'a> {
     VariableDecl(VarDecl<'a>),
     FunctionDecl(FunctionDecl<'a>),
     Compound(Vec<Stmt<'a>>),
+    Expression(Expr<'a>),
 }
 
 #[derive(Debug, Clone)]

@@ -8,13 +8,22 @@ use nom::{
 
 use crate::ast::node::expression::Expr;
 
-use super::{function::function_expr, Res, Span};
+use super::{
+    function::{function_call_expr, function_expr},
+    identifier::identifier,
+    Res, Span,
+};
 
 pub fn expression(i: Span) -> Res<Span, Expr> {
+    return alt((non_fn_call_expression, function_call_expr))(i);
+}
+
+pub fn non_fn_call_expression(i: Span) -> Res<Span, Expr> {
     return alt((
         expr_string_literal,
         expr_number_literal,
         expr_boolean_literal,
+        expr_identifier,
         function_expr,
     ))(i);
 }
@@ -42,6 +51,10 @@ pub fn expr_number_literal(i: Span) -> Res<Span, Expr> {
 pub fn expr_boolean_literal(i: Span) -> Res<Span, Expr> {
     let (i, result) = alt((tag("true"), tag("false")))(i)?;
     Ok((i, Expr::BoolLiteral(*result == "true")))
+}
+
+pub fn expr_identifier(i: Span) -> Res<Span, Expr> {
+    identifier(i).map(|(i, ident)| (i, Expr::Identifier(ident)))
 }
 
 #[cfg(test)]

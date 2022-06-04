@@ -1,25 +1,21 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::{
-        complete::{alphanumeric0, satisfy},
-        streaming::char,
-    },
-    combinator::{opt, recognize},
+    character::streaming::char,
+    combinator::opt,
     multi::separated_list0,
-    sequence::{pair, preceded, tuple},
+    sequence::{preceded, tuple},
 };
 
 use crate::{
     ast::node::{
-        identifier::Ident,
         statement::{Stmt, VarDecl},
         type_signature::TypeSignature,
     },
     parser::expression::expression,
 };
 
-use super::{token, ws, Res, Span};
+use super::{identifier::identifier, token, ws, Res, Span};
 
 pub fn statement<'a>(i: Span<'a>) -> Res<Span<'a>, Stmt<'a>> {
     // STMT <; STMT>*
@@ -37,7 +33,7 @@ pub fn statement<'a>(i: Span<'a>) -> Res<Span<'a>, Stmt<'a>> {
 }
 
 pub fn single_statement(i: Span) -> Res<Span, Stmt> {
-    variable_decl(i)
+    alt((variable_decl, stmt_expression))(i)
 }
 
 pub fn variable_decl(i: Span) -> Res<Span, Stmt> {
@@ -60,12 +56,8 @@ pub fn variable_decl(i: Span) -> Res<Span, Stmt> {
     Ok((i, Stmt::VariableDecl(var_decl)))
 }
 
-pub fn identifier(i: Span) -> Res<Span, Ident> {
-    token(recognize(pair(
-        satisfy(|c| c.is_alphabetic()),
-        alphanumeric0,
-    )))(i)
-    .map(|(i, val)| (i, Ident::new(i, &val)))
+pub fn stmt_expression(i: Span) -> Res<Span, Stmt> {
+    expression(i).map(|(i, expr)| (i, Stmt::Expression(expr)))
 }
 
 pub fn type_signature(i: Span) -> Res<Span, TypeSignature> {
@@ -80,7 +72,7 @@ fn type_sig_base(i: Span) -> Res<Span, TypeSignature> {
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::ast::node::{expression::Expr, type_signature::Mutability};
+    use crate::ast::node::{expression::Expr, identifier::Ident, type_signature::Mutability};
 
     use super::*;
 

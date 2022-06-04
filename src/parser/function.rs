@@ -7,13 +7,15 @@ use nom::{
 
 use crate::ast::node::{
     expression::Expr,
-    function::{FunctionArg, FunctionDecl, FunctionExpr},
+    function::{FunctionArg, FunctionCall, FunctionDecl, FunctionExpr},
     statement::Stmt,
     type_signature::BuiltinType,
 };
 
 use super::{
-    statement::{identifier, statement, type_signature},
+    expression::{expression, non_fn_call_expression},
+    identifier::identifier,
+    statement::{statement, type_signature},
     surround_brackets, token, ws, BracketType, Res, Span,
 };
 
@@ -69,9 +71,25 @@ fn function_arg(i: Span) -> Res<Span, FunctionArg> {
     Ok((i, FunctionArg { name, type_sig }))
 }
 
+pub fn function_call_expr(i: Span) -> Res<Span, Expr> {
+    // EXPR "(" FUNC_PARAMS ")"
+
+    let func_params = separated_list0(token(tag(",")), expression);
+
+    let (i, func) = non_fn_call_expression(i)?;
+    let (i, params) = surround_brackets(BracketType::Round, func_params)(i)?;
+
+    Ok((
+        i,
+        Expr::FunctionCall(Box::new(FunctionCall { func, params })),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::parser::parse_ast;
+    use std::assert_matches::assert_matches;
+
+    use crate::{ast::node::identifier::Ident, parser::parse_ast};
 
     use super::*;
 
@@ -128,6 +146,23 @@ mod tests {
                     }
                     _ => assert!(false),
                 }
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_function_call() {
+        let func_call = function_call_expr(Span::new("f(10, \"hello\")")).unwrap().1;
+
+        match func_call {
+            Expr::FunctionCall(func_call) => {
+                assert_matches!(
+                    func_call.func,
+                    Expr::Identifier(Ident { value: "f", pos: _ })
+                );
+
+                assert_eq!(func_call.params.len(), 2);
             }
             _ => assert!(false),
         }

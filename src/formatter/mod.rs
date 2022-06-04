@@ -43,6 +43,8 @@ fn format_expr(out: &mut String, expr: &Expr) {
         Expr::NumberLiteral(num) => write!(*out, "{}", num).unwrap(),
         Expr::BoolLiteral(bool) => *out += if *bool { "true" } else { "false" },
         Expr::Function(_) => todo!(),
+        Expr::FunctionCall(_) => todo!(),
+        Expr::Identifier(ident) => *out += ident.value,
     }
 }
 
@@ -76,6 +78,7 @@ fn format_stmt(out: &mut String, stmt: &Stmt) {
                 }
             }
         }
+        Stmt::Expression(expr) => format_expr(out, expr),
     }
 }
 

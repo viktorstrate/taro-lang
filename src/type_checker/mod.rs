@@ -8,4 +8,7 @@ pub enum TypeCheckerError<'a> {
         type_sig: TypeSignature<'a>,
         expr_type: TypeSignature<'a>,
     },
+    CallNonFunction {
+        ident_type: TypeSignature<'a>,
+    },
 }
