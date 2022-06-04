@@ -37,10 +37,10 @@ pub fn statement<'a>(i: Span<'a>) -> Res<Span<'a>, Stmt<'a>> {
 }
 
 pub fn single_statement(i: Span) -> Res<Span, Stmt> {
-    declaration_variable(i)
+    variable_decl(i)
 }
 
-pub fn declaration_variable(i: Span) -> Res<Span, Stmt> {
+pub fn variable_decl(i: Span) -> Res<Span, Stmt> {
     // let [mut] IDENTIFIER [: TYPE_SIGNATURE] = EXPRESSION
 
     let (i, _) = token(tuple((tag("let"), ws)))(i)?;
@@ -57,7 +57,7 @@ pub fn declaration_variable(i: Span) -> Res<Span, Stmt> {
         value,
     };
 
-    Ok((i, Stmt::VarDecl(var_decl)))
+    Ok((i, Stmt::VariableDecl(var_decl)))
 }
 
 pub fn identifier(i: Span) -> Res<Span, Ident> {
@@ -90,7 +90,7 @@ mod tests {
             statement(Span::new("let mut name: String = \"John\"")),
             Ok((
                 _,
-                Stmt::VarDecl(VarDecl {
+                Stmt::VariableDecl(VarDecl {
                     name: Ident {
                         pos: _,
                         value: "name"
@@ -112,7 +112,7 @@ mod tests {
             statement(Span::new("let name = true")),
             Ok((
                 _,
-                Stmt::VarDecl(VarDecl {
+                Stmt::VariableDecl(VarDecl {
                     name: Ident {
                         pos: _,
                         value: "name"

@@ -1,16 +1,18 @@
 use super::{
     expression::Expr,
+    function::FunctionDecl,
     identifier::{Ident, Identifiable},
     type_signature::{Mutability, TypeSignature},
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug, Clone)]
 pub enum Stmt<'a> {
-    VarDecl(VarDecl<'a>),
+    VariableDecl(VarDecl<'a>),
+    FunctionDecl(FunctionDecl<'a>),
     Compound(Vec<Stmt<'a>>),
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct VarDecl<'a> {
     pub name: Ident<'a>,
     pub mutability: Mutability,

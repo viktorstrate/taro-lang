@@ -33,8 +33,8 @@ fn format_module(out: &mut String, module: &Module) {
     }
 }
 
-fn format_struct(out: &mut String, st: &Struct) {
-    write!(*out, "INSERT STRUCT {} HERE", st.name.value).unwrap();
+fn format_struct(_out: &mut String, _st: &Struct) {
+    todo!()
 }
 
 fn format_expr(out: &mut String, expr: &Expr) {
@@ -42,12 +42,13 @@ fn format_expr(out: &mut String, expr: &Expr) {
         Expr::StringLiteral(string) => *out += string,
         Expr::NumberLiteral(num) => write!(*out, "{}", num).unwrap(),
         Expr::BoolLiteral(bool) => *out += if *bool { "true" } else { "false" },
+        Expr::Function(_) => todo!(),
     }
 }
 
 fn format_stmt(out: &mut String, stmt: &Stmt) {
     match stmt {
-        Stmt::VarDecl(var_decl) => {
+        Stmt::VariableDecl(var_decl) => {
             *out += "let ";
 
             if var_decl.mutability == Mutability::Mutable {
@@ -64,6 +65,9 @@ fn format_stmt(out: &mut String, stmt: &Stmt) {
             *out += " = ";
             format_expr(out, &var_decl.value);
         }
+        Stmt::FunctionDecl(_func) => {
+            todo!()
+        }
         Stmt::Compound(stmts) => {
             for (i, stmt) in stmts.iter().enumerate() {
                 format_stmt(out, stmt);
@@ -78,7 +82,10 @@ fn format_stmt(out: &mut String, stmt: &Stmt) {
 fn format_type_sig(out: &mut String, type_sig: &TypeSignature) {
     match type_sig {
         TypeSignature::Base(base) => *out += base.value,
-        TypeSignature::Function(_, _, _) => todo!(),
+        TypeSignature::Function {
+            args: _,
+            return_type: _,
+        } => todo!(),
         TypeSignature::Reference(_) => todo!(),
     }
 }

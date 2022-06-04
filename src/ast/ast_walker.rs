@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use super::{
     node::{
+        function::FunctionDecl,
         identifier::Ident,
         module::Module,
         statement::{Stmt, VarDecl},
@@ -82,7 +83,8 @@ fn walk_stmt<'a, W: AstWalker<'a>>(
     stmt: &Stmt<'a>,
 ) -> Result<(), W::Error> {
     match stmt {
-        Stmt::VarDecl(decl) => walker.visit_var_decl(scope, decl),
+        Stmt::VariableDecl(decl) => walker.visit_var_decl(scope, decl),
+        Stmt::FunctionDecl(func) => walk_func_decl(walker, scope, func),
         Stmt::Compound(stmts) => {
             for stmt in stmts {
                 walk_stmt(walker, scope, stmt)?;
@@ -90,4 +92,16 @@ fn walk_stmt<'a, W: AstWalker<'a>>(
             Ok(())
         }
     }
+}
+
+fn walk_func_decl<'a, W: AstWalker<'a>>(
+    walker: &mut W,
+    scope: &mut W::Scope,
+    func: &FunctionDecl<'a>,
+) -> Result<(), W::Error> {
+    let mut func_scope = walker.visit_scope_begin(scope, &func.name)?;
+    walk_stmt(walker, &mut func_scope, &func.body)?;
+    walker.visit_scope_end(scope, func_scope, &func.name)?;
+
+    Ok(())
 }

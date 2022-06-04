@@ -75,6 +75,6 @@ mod tests {
         assert_eq!(st.attrs[0].name.value, "attr");
         assert_eq!(st.attrs[0].mutability, Mutability::Immutable);
         assert_eq!(st.attrs[0].type_sig, Some(BuiltinType::String.into()));
-        assert_eq!(st.attrs[0].default_value, None);
+        assert!(st.attrs[0].default_value.is_none());
     }
 }

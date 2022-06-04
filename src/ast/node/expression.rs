@@ -1,18 +1,26 @@
-use super::type_signature::{BuiltinType, TypeSignature};
+use super::{
+    function::FunctionExpr,
+    type_signature::{BuiltinType, TypeSignature},
+};
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum Expr<'a> {
     StringLiteral(&'a str),
     NumberLiteral(f64),
     BoolLiteral(bool),
+    Function(FunctionExpr<'a>),
 }
 
 impl<'a> Expr<'a> {
     pub fn value_type(&self) -> TypeSignature<'a> {
         match self {
-            &Self::StringLiteral(..) => BuiltinType::String.into(),
-            &Self::NumberLiteral(..) => BuiltinType::Number.into(),
-            &Self::BoolLiteral(..) => BuiltinType::Bool.into(),
+            Expr::StringLiteral(_) => BuiltinType::String.into(),
+            Expr::NumberLiteral(_) => BuiltinType::Number.into(),
+            Expr::BoolLiteral(_) => BuiltinType::Bool.into(),
+            Expr::Function(func) => TypeSignature::Function {
+                args: Box::new(func.args.iter().map(|arg| arg.type_sig.clone()).collect()),
+                return_type: Box::new(func.return_type.clone()),
+            },
         }
     }
 }

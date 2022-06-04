@@ -3,11 +3,10 @@ use super::identifier::Ident;
 #[derive(PartialEq, Debug, Clone)]
 pub enum TypeSignature<'a> {
     Base(Ident<'a>),
-    Function(
-        Ident<'a>,
-        Box<Vec<TypeSignature<'a>>>,
-        Box<TypeSignature<'a>>,
-    ),
+    Function {
+        args: Box<Vec<TypeSignature<'a>>>,
+        return_type: Box<TypeSignature<'a>>,
+    },
     Reference(Box<TypeSignature<'a>>),
     // GenericBase(Ident<'a>, Box<Vec<TypeSignatureValue<'a>>>),
 }

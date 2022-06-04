@@ -100,17 +100,13 @@ let b: (Bool, Bool) = (true, false)
 ## Functions
 
 ```
-~~func test(a: Number) {}~~
+func test(a: Number) {}
 
-let sum = <T: Combinable>(a: T, b: T) -> Number => a + b
+let sum = <T: Combinable>(a: T, b: T) -> Number { a + b }
 
 let funcs = {
-  sum: <T: Combinable>(a: T, b: T) -> Number => a + b,
-  hello: () => console.log('hello world')
-}
-
-let a: (Number) -> () = (a) {
-  console.log(`hello ${a}`)
+  sum: <T: Combinable>(a: T, b: T) -> Number { a + b },
+  hello: (){ console.log('hello world') },
 }
 ```
 

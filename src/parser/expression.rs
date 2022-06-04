@@ -8,13 +8,14 @@ use nom::{
 
 use crate::ast::node::expression::Expr;
 
-use super::{Res, Span};
+use super::{function::function_expr, Res, Span};
 
 pub fn expression(i: Span) -> Res<Span, Expr> {
     return alt((
         expr_string_literal,
         expr_number_literal,
         expr_boolean_literal,
+        function_expr,
     ))(i);
 }
 
@@ -56,15 +57,15 @@ mod tests {
             Ok((_, Expr::StringLiteral("hello")))
         );
 
-        assert_eq!(
-            expression(Span::new("23")).unwrap().1,
-            Expr::NumberLiteral(23.0)
-        );
+        match expression(Span::new("23")).unwrap().1 {
+            Expr::NumberLiteral(val) => assert_eq!(val, 23.0),
+            _ => assert!(false),
+        }
 
-        assert_eq!(
-            expression(Span::new("23.2")).unwrap().1,
-            Expr::NumberLiteral(23.2)
-        );
+        match expression(Span::new("23.2")).unwrap().1 {
+            Expr::NumberLiteral(val) => assert_eq!(val, 23.2),
+            _ => assert!(false),
+        }
     }
 
     #[test]
