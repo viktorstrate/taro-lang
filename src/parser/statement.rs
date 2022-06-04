@@ -15,7 +15,7 @@ use crate::{
     parser::expression::expression,
 };
 
-use super::{identifier::identifier, token, ws, Res, Span};
+use super::{function::function_decl, identifier::identifier, token, ws, Res, Span};
 
 pub fn statement<'a>(i: Span<'a>) -> Res<Span<'a>, Stmt<'a>> {
     // STMT <; STMT>*
@@ -33,7 +33,7 @@ pub fn statement<'a>(i: Span<'a>) -> Res<Span<'a>, Stmt<'a>> {
 }
 
 pub fn single_statement(i: Span) -> Res<Span, Stmt> {
-    alt((variable_decl, stmt_expression))(i)
+    alt((variable_decl, function_decl, stmt_expression))(i)
 }
 
 pub fn variable_decl(i: Span) -> Res<Span, Stmt> {

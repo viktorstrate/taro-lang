@@ -1,6 +1,6 @@
 use super::{
     expression::Expr,
-    function::FunctionDecl,
+    function::FuncDecl,
     identifier::{Ident, Identifiable},
     type_signature::{Mutability, TypeSignature},
 };
@@ -8,7 +8,7 @@ use super::{
 #[derive(Debug, Clone)]
 pub enum Stmt<'a> {
     VariableDecl(VarDecl<'a>),
-    FunctionDecl(FunctionDecl<'a>),
+    FunctionDecl(FuncDecl<'a>),
     Compound(Vec<Stmt<'a>>),
     Expression(Expr<'a>),
 }

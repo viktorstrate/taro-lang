@@ -6,7 +6,7 @@ use super::{
 };
 
 #[derive(Debug, Clone)]
-pub struct FunctionDecl<'a> {
+pub struct FuncDecl<'a> {
     pub name: Ident<'a>,
     pub args: Vec<FunctionArg<'a>>,
     pub return_type: TypeSignature<'a>,
@@ -32,7 +32,7 @@ pub struct FunctionCall<'a> {
     pub params: Vec<Expr<'a>>,
 }
 
-impl<'a> Identifiable<'a> for FunctionDecl<'a> {
+impl<'a> Identifiable<'a> for FuncDecl<'a> {
     fn name(&self) -> &Ident<'a> {
         &self.name
     }

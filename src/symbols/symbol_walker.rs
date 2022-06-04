@@ -1,6 +1,9 @@
 use crate::ast::{
     ast_walker::AstWalker,
-    node::{identifier::Ident, statement::VarDecl},
+    node::{
+        identifier::Ident,
+        statement::Stmt::{self, FunctionDecl, VariableDecl},
+    },
 };
 
 use super::symbol_table::{SymbolTable, SymbolsError};
@@ -12,12 +15,16 @@ impl<'a> AstWalker<'a> for SymbolCollector {
     type Scope = SymbolTable<'a>;
     type Error = SymbolsError<'a>;
 
-    fn visit_var_decl(
+    fn visit_stmt(
         &mut self,
         scope: &mut Self::Scope,
-        decl: &mut VarDecl<'a>,
+        stmt: &mut Stmt<'a>,
     ) -> Result<(), Self::Error> {
-        scope.insert(decl.clone()).map(|_| ())
+        match stmt {
+            VariableDecl(var_decl) => scope.insert(var_decl.clone().into()).map(|_| ()),
+            FunctionDecl(func_decl) => scope.insert(func_decl.clone().into()).map(|_| ()),
+            _ => Ok(()),
+        }
     }
 
     fn visit_scope_end(
@@ -46,10 +53,13 @@ mod tests {
     use crate::{
         ast::{
             ast_walker::walk_ast,
-            node::{expression::Expr, identifier::Ident},
+            node::{
+                expression::Expr,
+                identifier::{Ident, Identifiable},
+            },
         },
         parser::parse_ast,
-        symbols::symbol_walker::SymbolCollector,
+        symbols::{symbol_table::SymbolValue, symbol_walker::SymbolCollector},
     };
 
     #[test]
@@ -65,9 +75,14 @@ mod tests {
         let mut ast = parse_ast("let x: Boolean = true").unwrap();
         let mut collector = SymbolCollector::default();
         let symtable = walk_ast(&mut collector, &mut ast).unwrap();
-        let var_decl = symtable.locate(&Ident::new_unplaced("x")).unwrap();
+        let sym_val = symtable.locate(&Ident::new_unplaced("x")).unwrap();
 
-        assert_eq!(var_decl.name.value, "x");
-        assert_matches!(var_decl.value, Expr::BoolLiteral(true));
+        assert_eq!(sym_val.name().value, "x");
+        match sym_val {
+            SymbolValue::VarDecl(var_decl) => {
+                assert_matches!(var_decl.value, Expr::BoolLiteral(true));
+            }
+            _ => assert!(false),
+        }
     }
 }

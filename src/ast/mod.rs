@@ -2,6 +2,7 @@ use self::node::module::Module;
 
 pub mod ast_walker;
 pub mod node;
+pub mod test_utils;
 
 #[derive(Debug)]
 pub struct AST<'a>(Module<'a>);

@@ -1,7 +1,8 @@
-use crate::ast::node::{identifier::Ident, statement::VarDecl};
+use crate::ast::node::identifier::Ident;
 
-use super::symbol_table::{SymbolTable, SymbolsError};
+use super::symbol_table::{SymbolTable, SymbolValue, SymbolsError};
 
+#[derive(Debug)]
 pub struct SymbolTableZipper<'a> {
     cursor: SymbolTable<'a>,
     breadcrumb: Vec<(Ident<'a>, SymbolTable<'a>)>,
@@ -41,7 +42,7 @@ impl<'a> SymbolTableZipper<'a> {
         Ok(())
     }
 
-    pub fn locate(&self, ident: &Ident<'a>) -> Option<&VarDecl<'a>> {
+    pub fn locate(&self, ident: &Ident<'a>) -> Option<&SymbolValue<'a>> {
         if let Some(value) = self.cursor.locate(ident) {
             return Some(value);
         }
@@ -55,7 +56,7 @@ impl<'a> SymbolTableZipper<'a> {
         return None;
     }
 
-    pub fn locate_current_scope(&self, ident: &Ident<'a>) -> Option<&VarDecl<'a>> {
+    pub fn locate_current_scope(&self, ident: &Ident<'a>) -> Option<&SymbolValue<'a>> {
         self.cursor.locate(ident)
     }
 }

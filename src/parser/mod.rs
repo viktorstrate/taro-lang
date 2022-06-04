@@ -3,7 +3,7 @@ use nom::{
     character::complete::{multispace0, multispace1},
     combinator::complete,
     error::VerboseError,
-    AsChar, IResult, InputTakeAtPosition,
+    AsChar, Finish, IResult, InputTakeAtPosition,
 };
 use nom_locate::LocatedSpan;
 
@@ -16,12 +16,14 @@ pub mod module;
 pub mod statement;
 pub mod structure;
 
-pub fn parse_ast(input: &str) -> Result<AST, nom::Err<VerboseError<Span>>> {
-    match complete(module::module)(Span::new(input)) {
+pub fn parse_ast(input: &str) -> Result<AST, ParserError> {
+    match complete(module::module)(Span::new(input)).finish() {
         Ok((_, module)) => Ok(AST::from(module)),
         Err(err) => Err(err),
     }
 }
+
+pub type ParserError<'a> = VerboseError<Span<'a>>;
 
 pub type Res<I, O> = IResult<I, O, VerboseError<I>>;
 

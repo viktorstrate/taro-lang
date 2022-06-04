@@ -7,7 +7,7 @@ use nom::{
 
 use crate::ast::node::{
     expression::Expr,
-    function::{FunctionArg, FunctionCall, FunctionDecl, FunctionExpr},
+    function::{FuncDecl, FunctionArg, FunctionCall, FunctionExpr},
     statement::Stmt,
     type_signature::BuiltinType,
 };
@@ -31,7 +31,7 @@ pub fn function_decl(i: Span) -> Res<Span, Stmt> {
 
     Ok((
         i,
-        Stmt::FunctionDecl(FunctionDecl {
+        Stmt::FunctionDecl(FuncDecl {
             name,
             args,
             return_type: return_type.unwrap_or(BuiltinType::Void.into()),
@@ -94,22 +94,37 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_function_decl_minimal() {
+        let func_stmt = function_decl(Span::new("func f(){}")).unwrap().1;
+
+        match func_stmt {
+            Stmt::FunctionDecl(func) => {
+                assert_eq!(func.name.value, "f");
+                assert_eq!(func.return_type, BuiltinType::Void.into());
+                assert_eq!(func.args.len(), 0);
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
     fn test_function_decl() {
         let func_stmt = function_decl(Span::new("func sum (a: Number, b: Number) -> Number {}"))
             .unwrap()
             .1;
 
-        let Stmt::FunctionDecl(func) = func_stmt else {
-            panic!();
-        };
-
-        assert_eq!(func.name.value, "sum");
-        assert_eq!(func.return_type, BuiltinType::Number.into());
-        assert_eq!(func.args.len(), 2);
-        assert_eq!(func.args[0].name.value, "a");
-        assert_eq!(func.args[1].name.value, "b");
-        assert_eq!(func.args[0].type_sig, BuiltinType::Number.into());
-        assert_eq!(func.args[1].type_sig, BuiltinType::Number.into());
+        match func_stmt {
+            Stmt::FunctionDecl(func) => {
+                assert_eq!(func.name.value, "sum");
+                assert_eq!(func.return_type, BuiltinType::Number.into());
+                assert_eq!(func.args.len(), 2);
+                assert_eq!(func.args[0].name.value, "a");
+                assert_eq!(func.args[1].name.value, "b");
+                assert_eq!(func.args[0].type_sig, BuiltinType::Number.into());
+                assert_eq!(func.args[1].type_sig, BuiltinType::Number.into());
+            }
+            _ => assert!(false),
+        }
     }
 
     #[test]

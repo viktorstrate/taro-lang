@@ -1,4 +1,7 @@
-use crate::symbols::symbol_table_zipper::SymbolTableZipper;
+use crate::symbols::{
+    symbol_table::SymbolValue::{FuncDecl, VarDecl},
+    symbol_table_zipper::SymbolTableZipper,
+};
 
 use super::{
     function::{FunctionCall, FunctionExpr},
@@ -43,11 +46,14 @@ impl<'a> Expr<'a> {
                 wrong_type => Err(ExprValueError::CallNonFunction(wrong_type)),
             },
             Expr::Identifier(ident) => {
-                let var_decl = symbols
+                let sym_val = symbols
                     .locate(ident)
                     .ok_or(ExprValueError::UnknownIdentifier(ident.clone()))?;
 
-                var_decl.value.value_type(symbols)
+                match sym_val {
+                    VarDecl(var_decl) => var_decl.value.value_type(symbols),
+                    FuncDecl(_) => todo!(),
+                }
             }
         }
     }

@@ -95,17 +95,17 @@ fn format_type_sig(out: &mut String, type_sig: &TypeSignature) {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::parse_ast;
+    use crate::ast::test_utils::utils::final_ast;
 
     use super::*;
 
     #[test]
     fn test_formatting() {
-        let ast = parse_ast("let  mut value: Number    =212.2; let x = 2").unwrap();
+        let ast = final_ast("let  mut value: Number =212.2; let x = 2").unwrap();
         assert_eq!(
             format_ast(&ast),
             "let mut value: Number = 212.2\n\
-            let x = 2\n"
+            let x: Number = 2\n"
         );
     }
 }

@@ -3,7 +3,7 @@ use std::fmt::Write;
 use crate::ast::{
     node::{
         expression::Expr,
-        function::{FunctionArg, FunctionDecl},
+        function::{FuncDecl, FunctionArg},
         module::Module,
         statement::{Stmt, VarDecl},
         structure::Struct,
@@ -55,7 +55,7 @@ fn format_var_decl(out: &mut String, var_decl: &VarDecl) {
     format_expr(out, &var_decl.value);
 }
 
-fn format_func_decl(out: &mut String, func: &FunctionDecl) {
+fn format_func_decl(out: &mut String, func: &FuncDecl) {
     *out += "function ";
     *out += func.name.value;
 
@@ -114,11 +114,17 @@ where
 #[cfg(test)]
 mod tests {
     use super::ast_to_js;
-    use crate::parser::parse_ast;
+    use crate::ast::test_utils::utils::final_ast;
 
     #[test]
-    fn test_code_gen() {
-        let ast = parse_ast("let val: Number = 23.4").unwrap();
+    fn test_let_assign_simple() {
+        let ast = final_ast("let val: Number = 23.4").unwrap();
+        assert_eq!(ast_to_js(&ast), "const val = 23.4;\n")
+    }
+
+    #[test]
+    fn test_func_call() {
+        let ast = final_ast("func f() {}; f()").unwrap();
         assert_eq!(ast_to_js(&ast), "const val = 23.4;\n")
     }
 }

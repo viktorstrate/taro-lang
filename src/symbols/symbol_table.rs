@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::ast::node::{
+    function::FuncDecl,
     identifier::{Ident, Identifiable},
     statement::VarDecl,
 };
@@ -14,12 +15,42 @@ pub enum SymbolsError<'a> {
 
 #[derive(Default, Debug)]
 pub struct SymbolTable<'a> {
-    table: HashMap<Ident<'a>, VarDecl<'a>>,
+    table: HashMap<Ident<'a>, SymbolValue<'a>>,
     scopes: HashMap<Ident<'a>, SymbolTable<'a>>,
 }
 
+#[derive(Debug)]
+pub enum SymbolValue<'a> {
+    VarDecl(VarDecl<'a>),
+    FuncDecl(FuncDecl<'a>),
+}
+
+impl<'a> From<FuncDecl<'a>> for SymbolValue<'a> {
+    fn from(func: FuncDecl<'a>) -> Self {
+        Self::FuncDecl(func)
+    }
+}
+
+impl<'a> From<VarDecl<'a>> for SymbolValue<'a> {
+    fn from(var: VarDecl<'a>) -> Self {
+        Self::VarDecl(var)
+    }
+}
+
+impl<'a> Identifiable<'a> for SymbolValue<'a> {
+    fn name(&self) -> &Ident<'a> {
+        match self {
+            SymbolValue::VarDecl(var) => var.name(),
+            SymbolValue::FuncDecl(func) => func.name(),
+        }
+    }
+}
+
 impl<'a> SymbolTable<'a> {
-    pub fn insert(&mut self, val: VarDecl<'a>) -> Result<&mut VarDecl<'a>, SymbolsError<'a>> {
+    pub fn insert(
+        &mut self,
+        val: SymbolValue<'a>,
+    ) -> Result<&mut SymbolValue<'a>, SymbolsError<'a>> {
         let key: Ident<'a> = val.name().clone();
         let error_ident = key.clone();
 
@@ -44,7 +75,7 @@ impl<'a> SymbolTable<'a> {
         self.scopes.remove(ident)
     }
 
-    pub fn locate(&self, ident: &Ident<'a>) -> Option<&VarDecl<'a>> {
+    pub fn locate(&self, ident: &Ident<'a>) -> Option<&SymbolValue<'a>> {
         self.table.get(ident)
     }
 }

@@ -2,11 +2,7 @@ use std::fmt::Debug;
 
 use super::{
     node::{
-        expression::Expr,
-        function::FunctionDecl,
-        identifier::Ident,
-        module::Module,
-        statement::{Stmt, VarDecl},
+        expression::Expr, function::FuncDecl, identifier::Ident, module::Module, statement::Stmt,
         structure::Struct,
     },
     AST,
@@ -17,10 +13,10 @@ pub trait AstWalker<'a> {
     type Scope: Default = ();
     type Error: Debug = ();
 
-    fn visit_var_decl(
+    fn visit_stmt(
         &mut self,
         scope: &mut Self::Scope,
-        decl: &mut VarDecl<'a>,
+        stmt: &mut Stmt<'a>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -91,26 +87,23 @@ fn walk_stmt<'a, W: AstWalker<'a>>(
     stmt: &mut Stmt<'a>,
 ) -> Result<(), W::Error> {
     match stmt {
-        Stmt::VariableDecl(decl) => {
-            walker.visit_var_decl(scope, decl)?;
-            walker.visit_expr(&mut decl.value)?;
-            Ok(())
-        }
-        Stmt::Expression(expr) => walker.visit_expr(expr),
-        Stmt::FunctionDecl(func) => walk_func_decl(walker, scope, func),
+        Stmt::VariableDecl(decl) => walker.visit_expr(&mut decl.value)?,
+        Stmt::Expression(expr) => walker.visit_expr(expr)?,
+        Stmt::FunctionDecl(func) => walk_func_decl(walker, scope, func)?,
         Stmt::Compound(stmts) => {
             for stmt in stmts {
                 walk_stmt(walker, scope, stmt)?;
             }
-            Ok(())
         }
-    }
+    };
+    walker.visit_stmt(scope, stmt)?;
+    Ok(())
 }
 
 fn walk_func_decl<'a, W: AstWalker<'a>>(
     walker: &mut W,
     scope: &mut W::Scope,
-    func: &mut FunctionDecl<'a>,
+    func: &mut FuncDecl<'a>,
 ) -> Result<(), W::Error> {
     let mut func_scope = walker.visit_scope_begin(scope, &func.name)?;
     walk_stmt(walker, &mut func_scope, &mut func.body)?;

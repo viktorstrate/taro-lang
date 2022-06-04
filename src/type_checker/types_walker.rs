@@ -1,7 +1,7 @@
 use crate::{
     ast::{
         ast_walker::AstWalker,
-        node::{statement::VarDecl, structure::Struct, type_signature::TypeSignature},
+        node::{statement::Stmt, structure::Struct, type_signature::TypeSignature},
     },
     symbols::{symbol_table::SymbolTable, symbol_table_zipper::SymbolTableZipper},
 };
@@ -48,28 +48,39 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
         Ok(())
     }
 
-    fn visit_var_decl(
+    fn visit_stmt(
         &mut self,
         _scope: &mut Self::Scope,
-        decl: &mut VarDecl<'a>,
+        stmt: &mut Stmt<'a>,
     ) -> Result<(), Self::Error> {
-        let Some(type_sig) = &decl.type_sig else {
-            return Ok(());
-        };
+        match stmt {
+            Stmt::VariableDecl(var_decl) => {
+                let val_type = var_decl
+                    .value
+                    .value_type(&self.symbols)
+                    .map_err(TypeCheckerError::ValueError)?;
 
-        let val_type = decl
-            .value
-            .value_type(&self.symbols)
-            .map_err(TypeCheckerError::ValueError)?;
+                if let Some(type_sig) = &var_decl.type_sig {
+                    // make sure specified type matches expression
+                    if val_type != *type_sig {
+                        return Err(TypeCheckerError::TypeSignatureMismatch::<'a> {
+                            type_sig: type_sig.clone(),
+                            expr_type: val_type,
+                        });
+                    }
+                } else {
+                    // set declaration type to the type of the expression
+                    var_decl.type_sig = Some(val_type);
+                }
 
-        if val_type != *type_sig {
-            return Err(TypeCheckerError::TypeSignatureMismatch::<'a> {
-                type_sig: type_sig.clone(),
-                expr_type: val_type,
-            });
+                Ok(())
+            }
+            Stmt::FunctionDecl(_func_decl) => {
+                // TODO: Type check function declerations
+                Ok(())
+            }
+            _ => Ok(()),
         }
-
-        Ok(())
     }
 
     fn visit_struct_decl(&mut self, st: &mut Struct<'a>) -> Result<(), Self::Error> {
@@ -139,14 +150,12 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
 
 #[cfg(test)]
 mod tests {
-
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::{ast_walker::walk_ast, node::type_signature::BuiltinType, AST},
+        ast::{node::type_signature::BuiltinType, test_utils::utils::type_check},
         parser::parse_ast,
-        symbols::symbol_walker::SymbolCollector,
-        type_checker::{types_walker::TypeChecker, TypeCheckerError},
+        type_checker::TypeCheckerError,
     };
 
     #[test]
@@ -215,13 +224,5 @@ mod tests {
             }
             _ => assert!(false),
         }
-    }
-
-    fn type_check<'a>(ast: &mut AST<'a>) -> Result<(), TypeCheckerError<'a>> {
-        let mut sym_collector = SymbolCollector {};
-        let symbols = walk_ast(&mut sym_collector, ast).unwrap();
-
-        let mut checker = TypeChecker::new(symbols);
-        return walk_ast(&mut checker, ast);
     }
 }
