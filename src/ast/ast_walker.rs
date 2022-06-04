@@ -20,12 +20,12 @@ pub trait AstWalker<'a> {
     fn visit_var_decl(
         &mut self,
         scope: &mut Self::Scope,
-        decl: &VarDecl<'a>,
+        decl: &mut VarDecl<'a>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
 
-    fn visit_struct_decl(&mut self, st: &Struct<'a>) -> Result<(), Self::Error> {
+    fn visit_struct_decl(&mut self, st: &mut Struct<'a>) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -46,27 +46,30 @@ pub trait AstWalker<'a> {
         Ok(())
     }
 
-    fn visit_expr(&mut self, expr: &Expr<'a>) -> Result<(), Self::Error> {
+    fn visit_expr(&mut self, expr: &mut Expr<'a>) -> Result<(), Self::Error> {
         Ok(())
     }
 }
 
-pub fn walk_ast<'a, W: AstWalker<'a>>(walker: &mut W, ast: &AST<'a>) -> Result<W::Scope, W::Error> {
+pub fn walk_ast<'a, W: AstWalker<'a>>(
+    walker: &mut W,
+    ast: &mut AST<'a>,
+) -> Result<W::Scope, W::Error> {
     let mut global_scope = W::Scope::default();
-    walk_module(walker, &mut global_scope, &ast.0)?;
+    walk_module(walker, &mut global_scope, &mut ast.0)?;
     Ok(global_scope)
 }
 
 fn walk_module<'a, W: AstWalker<'a>>(
     walker: &mut W,
     scope: &mut W::Scope,
-    module: &Module<'a>,
+    module: &mut Module<'a>,
 ) -> Result<(), W::Error> {
-    for st in &module.structs {
+    for st in &mut module.structs {
         walk_struct(walker, scope, st)?;
     }
 
-    for stmt in &module.stmts {
+    for stmt in &mut module.stmts {
         walk_stmt(walker, scope, stmt)?;
     }
 
@@ -76,7 +79,7 @@ fn walk_module<'a, W: AstWalker<'a>>(
 fn walk_struct<'a, W: AstWalker<'a>>(
     walker: &mut W,
     _scope: &mut W::Scope,
-    st: &Struct<'a>,
+    st: &mut Struct<'a>,
 ) -> Result<(), W::Error> {
     walker.visit_struct_decl(st)?;
     Ok(())
@@ -85,15 +88,15 @@ fn walk_struct<'a, W: AstWalker<'a>>(
 fn walk_stmt<'a, W: AstWalker<'a>>(
     walker: &mut W,
     scope: &mut W::Scope,
-    stmt: &Stmt<'a>,
+    stmt: &mut Stmt<'a>,
 ) -> Result<(), W::Error> {
     match stmt {
         Stmt::VariableDecl(decl) => {
             walker.visit_var_decl(scope, decl)?;
-            walker.visit_expr(&decl.value)?;
+            walker.visit_expr(&mut decl.value)?;
             Ok(())
         }
-        Stmt::Expression(expr) => walker.visit_expr(&expr),
+        Stmt::Expression(expr) => walker.visit_expr(expr),
         Stmt::FunctionDecl(func) => walk_func_decl(walker, scope, func),
         Stmt::Compound(stmts) => {
             for stmt in stmts {
@@ -107,10 +110,10 @@ fn walk_stmt<'a, W: AstWalker<'a>>(
 fn walk_func_decl<'a, W: AstWalker<'a>>(
     walker: &mut W,
     scope: &mut W::Scope,
-    func: &FunctionDecl<'a>,
+    func: &mut FunctionDecl<'a>,
 ) -> Result<(), W::Error> {
     let mut func_scope = walker.visit_scope_begin(scope, &func.name)?;
-    walk_stmt(walker, &mut func_scope, &func.body)?;
+    walk_stmt(walker, &mut func_scope, &mut func.body)?;
     walker.visit_scope_end(scope, func_scope, &func.name)?;
 
     Ok(())

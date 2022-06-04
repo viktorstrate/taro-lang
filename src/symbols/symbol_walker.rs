@@ -3,7 +3,7 @@ use crate::ast::{
     node::{identifier::Ident, statement::VarDecl},
 };
 
-use super::{SymbolTable, SymbolsError};
+use super::symbol_table::{SymbolTable, SymbolsError};
 
 #[derive(Default)]
 pub struct SymbolCollector {}
@@ -15,7 +15,7 @@ impl<'a> AstWalker<'a> for SymbolCollector {
     fn visit_var_decl(
         &mut self,
         scope: &mut Self::Scope,
-        decl: &VarDecl<'a>,
+        decl: &mut VarDecl<'a>,
     ) -> Result<(), Self::Error> {
         scope.insert(decl.clone()).map(|_| ())
     }
@@ -36,5 +36,38 @@ impl<'a> AstWalker<'a> for SymbolCollector {
         _scope_ident: &Ident<'a>,
     ) -> Result<Self::Scope, Self::Error> {
         Ok(Self::Scope::default())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
+
+    use crate::{
+        ast::{
+            ast_walker::walk_ast,
+            node::{expression::Expr, identifier::Ident},
+        },
+        parser::parse_ast,
+        symbols::symbol_walker::SymbolCollector,
+    };
+
+    #[test]
+    fn test_existing_symbol_error() {
+        let mut ast = parse_ast("let x = 2; let x = 3").unwrap();
+        let mut collector = SymbolCollector::default();
+        let result = walk_ast(&mut collector, &mut ast);
+        assert_matches!(result, Err(_));
+    }
+
+    #[test]
+    fn test_locate_symbol() {
+        let mut ast = parse_ast("let x: Boolean = true").unwrap();
+        let mut collector = SymbolCollector::default();
+        let symtable = walk_ast(&mut collector, &mut ast).unwrap();
+        let var_decl = symtable.locate(&Ident::new_unplaced("x")).unwrap();
+
+        assert_eq!(var_decl.name.value, "x");
+        assert_matches!(var_decl.value, Expr::BoolLiteral(true));
     }
 }

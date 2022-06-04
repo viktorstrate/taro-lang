@@ -15,7 +15,7 @@ use super::{
 };
 
 pub fn expression(i: Span) -> Res<Span, Expr> {
-    return alt((non_fn_call_expression, function_call_expr))(i);
+    return alt((function_call_expr, non_fn_call_expression))(i);
 }
 
 pub fn non_fn_call_expression(i: Span) -> Res<Span, Expr> {

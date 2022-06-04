@@ -1,8 +1,8 @@
-use crate::ast::node::type_signature::TypeSignature;
+use crate::ast::node::{expression::ExprValueError, type_signature::TypeSignature};
 
 pub mod types_walker;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum TypeCheckerError<'a> {
     TypeSignatureMismatch {
         type_sig: TypeSignature<'a>,
@@ -11,4 +11,5 @@ pub enum TypeCheckerError<'a> {
     CallNonFunction {
         ident_type: TypeSignature<'a>,
     },
+    ValueError(ExprValueError<'a>),
 }

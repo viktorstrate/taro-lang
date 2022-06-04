@@ -1,3 +1,5 @@
+use crate::symbols::symbol_table_zipper::SymbolTableZipper;
+
 use super::{
     function::{FunctionCall, FunctionExpr},
     identifier::Ident,
@@ -14,18 +16,39 @@ pub enum Expr<'a> {
     Identifier(Ident<'a>),
 }
 
+#[derive(Debug)]
+pub enum ExprValueError<'a> {
+    CallNonFunction(TypeSignature<'a>),
+    UnknownIdentifier(Ident<'a>),
+}
+
 impl<'a> Expr<'a> {
-    pub fn value_type(&self) -> TypeSignature<'a> {
+    pub fn value_type(
+        &self,
+        symbols: &SymbolTableZipper<'a>,
+    ) -> Result<TypeSignature<'a>, ExprValueError<'a>> {
         match self {
-            Expr::StringLiteral(_) => BuiltinType::String.into(),
-            Expr::NumberLiteral(_) => BuiltinType::Number.into(),
-            Expr::BoolLiteral(_) => BuiltinType::Bool.into(),
-            Expr::Function(func) => TypeSignature::Function {
+            Expr::StringLiteral(_) => Ok(BuiltinType::String.into()),
+            Expr::NumberLiteral(_) => Ok(BuiltinType::Number.into()),
+            Expr::BoolLiteral(_) => Ok(BuiltinType::Bool.into()),
+            Expr::Function(func) => Ok(TypeSignature::Function {
                 args: Box::new(func.args.iter().map(|arg| arg.type_sig.clone()).collect()),
                 return_type: Box::new(func.return_type.clone()),
+            }),
+            Expr::FunctionCall(call) => match call.func.value_type(symbols)? {
+                TypeSignature::Function {
+                    args: _,
+                    return_type,
+                } => Ok(*return_type),
+                wrong_type => Err(ExprValueError::CallNonFunction(wrong_type)),
             },
-            Expr::FunctionCall(_) => todo!(),
-            Expr::Identifier(_) => todo!(),
+            Expr::Identifier(ident) => {
+                let var_decl = symbols
+                    .locate(ident)
+                    .ok_or(ExprValueError::UnknownIdentifier(ident.clone()))?;
+
+                var_decl.value.value_type(symbols)
+            }
         }
     }
 }
