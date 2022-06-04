@@ -1,6 +1,6 @@
 use crate::ast::{
     ast_walker::AstWalker,
-    nodes::{identifier::Ident, statements::VarDecl},
+    node::{identifier::Ident, statement::VarDecl},
 };
 
 use super::{SymbolTable, SymbolsError};

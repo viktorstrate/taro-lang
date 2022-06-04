@@ -1,8 +1,8 @@
 use nom::multi::many0;
 
-use crate::ast::nodes::{module::Module, statements::Stmt, structures::Struct};
+use crate::ast::node::{module::Module, statement::Stmt, structure::Struct};
 
-use super::{statements::statement, structures::structure, Res, Span};
+use super::{statement::statement, structure::structure, Res, Span};
 
 pub fn module<'a>(i: Span<'a>) -> Res<Span<'a>, Module<'a>> {
     let mut stmts: Vec<Stmt> = Vec::new();
@@ -11,15 +11,23 @@ pub fn module<'a>(i: Span<'a>) -> Res<Span<'a>, Module<'a>> {
     let mut input = i;
 
     loop {
-        let (i, mut new_stmts) = many0(statement)(input)?;
+        let (i, new_stmt) = statement(input)?;
         let (i, mut new_structs) = many0(structure)(i)?;
         input = i;
 
-        if new_stmts.is_empty() && new_structs.is_empty() {
+        let empty_stmt = if let Stmt::Compound(stmts) = &new_stmt {
+            stmts.is_empty()
+        } else {
+            false
+        };
+
+        if empty_stmt && new_structs.is_empty() {
             break;
         }
 
-        stmts.append(&mut new_stmts);
+        if !empty_stmt {
+            stmts.push(new_stmt);
+        }
         structs.append(&mut new_structs);
     }
 

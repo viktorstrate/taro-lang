@@ -9,10 +9,11 @@ use nom_locate::LocatedSpan;
 
 use crate::ast::AST;
 
-pub mod expressions;
+pub mod expression;
+pub mod function;
 pub mod module;
-pub mod statements;
-pub mod structures;
+pub mod statement;
+pub mod structure;
 
 pub fn parse_ast(input: &str) -> Result<AST, nom::Err<VerboseError<Span>>> {
     match complete(module::module)(Span::new(input)) {

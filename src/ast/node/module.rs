@@ -1,4 +1,4 @@
-use super::{statements::Stmt, structures::Struct};
+use super::{statement::Stmt, structure::Struct};
 
 #[derive(Debug)]
 pub struct Module<'a> {

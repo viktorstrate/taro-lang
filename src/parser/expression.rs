@@ -6,7 +6,7 @@ use nom::{
     sequence::{delimited, tuple},
 };
 
-use crate::ast::nodes::expressions::Expr;
+use crate::ast::node::expression::Expr;
 
 use super::{Res, Span};
 

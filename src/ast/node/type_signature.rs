@@ -17,6 +17,7 @@ pub enum BuiltinType {
     String,
     Number,
     Bool,
+    Void,
 }
 
 impl Into<TypeSignature<'static>> for BuiltinType {
@@ -24,7 +25,8 @@ impl Into<TypeSignature<'static>> for BuiltinType {
         let value = match self {
             BuiltinType::String => "String",
             BuiltinType::Number => "Number",
-            BuiltinType::Bool => "Bool",
+            BuiltinType::Bool => "Boolean",
+            BuiltinType::Void => "Void",
         };
         TypeSignature::Base(Ident::new_unplaced(value))
     }

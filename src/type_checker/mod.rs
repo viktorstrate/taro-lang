@@ -1,4 +1,4 @@
-use crate::ast::nodes::type_signature::TypeSignature;
+use crate::ast::node::type_signature::TypeSignature;
 
 pub mod types_walker;
 

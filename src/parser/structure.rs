@@ -7,11 +7,11 @@ use nom::{
     sequence::{preceded, tuple},
 };
 
-use crate::ast::nodes::structures::{Struct, StructAttr};
+use crate::ast::node::structure::{Struct, StructAttr};
 
 use super::{
-    expressions::expression,
-    statements::{identifier, type_signature},
+    expression::expression,
+    statement::{identifier, type_signature},
     surround_brackets, token, ws, BracketType, Res, Span,
 };
 
@@ -58,7 +58,7 @@ pub fn struct_attrs<'a>(i: Span<'a>) -> Res<Span, Vec<StructAttr<'a>>> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::nodes::type_signature::{BuiltinType, Mutability},
+        ast::node::type_signature::{BuiltinType, Mutability},
         parser::Span,
     };
 

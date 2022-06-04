@@ -1,5 +1,8 @@
 use crate::{
-    ast::{ast_walker::AstWalker, nodes::statements::VarDecl},
+    ast::{
+        ast_walker::AstWalker,
+        node::{statement::VarDecl, structure::Struct},
+    },
     symbols::SymbolTable,
 };
 
@@ -33,10 +36,7 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
         Ok(())
     }
 
-    fn visit_struct_decl(
-        &mut self,
-        st: &crate::ast::nodes::structures::Struct<'a>,
-    ) -> Result<(), Self::Error> {
+    fn visit_struct_decl(&mut self, st: &Struct<'a>) -> Result<(), Self::Error> {
         for attr in &st.attrs {
             match (&attr.type_sig, &attr.default_value) {
                 (Some(type_sig), Some(val)) => {
@@ -60,7 +60,7 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
 mod tests {
 
     use crate::{
-        ast::{ast_walker::walk_ast, nodes::type_signature::BuiltinType},
+        ast::{ast_walker::walk_ast, node::type_signature::BuiltinType},
         parser::parse_ast,
         symbols::SymbolTable,
         type_checker::{types_walker::TypeChecker, TypeCheckerError},

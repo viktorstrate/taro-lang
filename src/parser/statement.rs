@@ -6,17 +6,17 @@ use nom::{
         streaming::char,
     },
     combinator::{opt, recognize},
-    multi::separated_list1,
+    multi::separated_list0,
     sequence::{pair, preceded, tuple},
 };
 
 use crate::{
-    ast::nodes::{
+    ast::node::{
         identifier::Ident,
-        statements::{Stmt, VarDecl},
+        statement::{Stmt, VarDecl},
         type_signature::TypeSignature,
     },
-    parser::expressions::expression,
+    parser::expression::expression,
 };
 
 use super::{token, ws, Res, Span};
@@ -26,7 +26,7 @@ pub fn statement<'a>(i: Span<'a>) -> Res<Span<'a>, Stmt<'a>> {
     // STMT <\n STMT>*
 
     let stmt_separator = alt((tag(";"), tag("\n")));
-    let (i, mut stmts) = separated_list1(stmt_separator, single_statement)(i)?;
+    let (i, mut stmts) = separated_list0(stmt_separator, single_statement)(i)?;
 
     if stmts.len() == 1 {
         let stmt = stmts.pop().expect("vec should have length 1");
@@ -80,7 +80,7 @@ fn type_sig_base(i: Span) -> Res<Span, TypeSignature> {
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::ast::nodes::{expressions::Expr, type_signature::Mutability};
+    use crate::ast::node::{expression::Expr, type_signature::Mutability};
 
     use super::*;
 

@@ -1,7 +1,7 @@
-use self::nodes::module::Module;
+use self::node::module::Module;
 
 pub mod ast_walker;
-pub mod nodes;
+pub mod node;
 
 #[derive(Debug)]
 pub struct AST<'a>(Module<'a>);

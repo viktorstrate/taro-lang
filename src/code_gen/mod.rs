@@ -1,11 +1,11 @@
 use std::fmt::Write;
 
 use crate::ast::{
-    nodes::{
-        expressions::Expr,
+    node::{
+        expression::Expr,
         module::Module,
-        statements::{Stmt, VarDecl},
-        structures::Struct,
+        statement::{Stmt, VarDecl},
+        structure::Struct,
         type_signature::Mutability,
     },
     AST,

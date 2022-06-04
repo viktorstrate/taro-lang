@@ -42,9 +42,11 @@ let mut val2 = "foo"
 val2 = "bar"
 
 trait Equatable {
-  static func == (lhs: Self, rhs: Self) -> boolean
+  static func == (lhs: Self, rhs: Self) -> Boolean {
+    !(lhs != rhs)
+  }
 
-  static func != (lhs: Self, rhs: Self) -> boolean {
+  static func != (lhs: Self, rhs: Self) -> Boolean {
     !(lhs == rhs)
   }
 }

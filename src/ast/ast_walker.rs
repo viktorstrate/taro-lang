@@ -1,11 +1,11 @@
 use std::fmt::Debug;
 
 use super::{
-    nodes::{
+    node::{
         identifier::Ident,
         module::Module,
-        statements::{Stmt, VarDecl},
-        structures::Struct,
+        statement::{Stmt, VarDecl},
+        structure::Struct,
     },
     AST,
 };
