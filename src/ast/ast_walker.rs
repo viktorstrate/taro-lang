@@ -2,12 +2,7 @@ use std::fmt::Debug;
 
 use super::{
     node::{
-        expression::Expr,
-        function::Function,
-        identifier::{Ident, Identifiable},
-        module::Module,
-        statement::Stmt,
-        structure::Struct,
+        expression::Expr, function::Function, module::Module, statement::Stmt, structure::Struct,
     },
     AST,
 };
@@ -32,7 +27,7 @@ pub trait AstWalker<'a> {
     fn visit_scope_begin(
         &mut self,
         parent: &mut Self::Scope,
-        scope_ident: &Ident<'a>,
+        func: &mut Function<'a>,
     ) -> Result<Self::Scope, Self::Error> {
         Ok(Self::Scope::default())
     }
@@ -41,7 +36,7 @@ pub trait AstWalker<'a> {
         &mut self,
         parent: &mut Self::Scope,
         child: Self::Scope,
-        scope_ident: &Ident<'a>,
+        func: &mut Function<'a>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -107,9 +102,9 @@ fn walk_func_decl<'a, W: AstWalker<'a>>(
     scope: &mut W::Scope,
     func: &mut Function<'a>,
 ) -> Result<(), W::Error> {
-    let mut func_scope = walker.visit_scope_begin(scope, func.name())?;
+    let mut func_scope = walker.visit_scope_begin(scope, func)?;
     walk_stmt(walker, &mut func_scope, &mut func.body)?;
-    walker.visit_scope_end(scope, func_scope, func.name())?;
+    walker.visit_scope_end(scope, func_scope, func)?;
 
     Ok(())
 }

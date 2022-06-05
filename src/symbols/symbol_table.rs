@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::ast::node::{
-    function::Function,
+    function::{Function, FunctionArg},
     identifier::{Ident, Identifiable},
     statement::VarDecl,
 };
@@ -23,6 +23,7 @@ pub struct SymbolTable<'a> {
 pub enum SymbolValue<'a> {
     VarDecl(VarDecl<'a>),
     FuncDecl(Function<'a>),
+    FuncArg(FunctionArg<'a>),
 }
 
 impl<'a> From<Function<'a>> for SymbolValue<'a> {
@@ -42,6 +43,7 @@ impl<'a> Identifiable<'a> for SymbolValue<'a> {
         match self {
             SymbolValue::VarDecl(var) => var.name(),
             SymbolValue::FuncDecl(func) => func.name(),
+            SymbolValue::FuncArg(arg) => arg.name(),
         }
     }
 }

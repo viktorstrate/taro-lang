@@ -62,7 +62,7 @@ fn format_module<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, module: &Module<'a>)
     ctx.write("\n")
 }
 
-fn format_struct<W: Write>(ctx: &mut CodeGenCtx<W>, st: &Struct) -> CodeGenResult {
+fn format_struct<W: Write>(ctx: &mut CodeGenCtx<W>, _st: &Struct) -> CodeGenResult {
     ctx.write("INSERT STRUCT HERE")
 }
 
@@ -107,11 +107,19 @@ fn format_func_decl<'a, W: Write>(
     ctx.write("function ")?;
     ctx.write_ident(&func.name)?;
 
+    ctx.symbols
+        .enter_scope(func.name.clone())
+        .expect("function scope should exist");
+
     format_func_args(ctx, &func.args)?;
 
-    ctx.write(" {")?;
+    ctx.write(" {\n")?;
+
     format_stmt(ctx, &func.body)?;
-    ctx.write("}")?;
+
+    ctx.symbols.exit_scope().unwrap();
+
+    ctx.write("\n}")?;
 
     Ok(())
 }
@@ -122,10 +130,18 @@ fn format_expr<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, expr: &Expr<'a>) -> Co
         Expr::NumberLiteral(num) => ctx.write_fmt(format_args!("{}", num)),
         Expr::BoolLiteral(val) => ctx.write(if *val == true { "true" } else { "false" }),
         Expr::Function(func) => {
+            ctx.symbols
+                .enter_scope(func.name.clone())
+                .expect("function scope should exist");
+
             format_func_args(ctx, &func.args)?;
-            ctx.write(" => {")?;
+            ctx.write(" => {\n")?;
+
             format_stmt(ctx, &func.body)?;
-            ctx.write("}")
+
+            ctx.symbols.exit_scope().unwrap();
+
+            ctx.write("\n}")
         }
         Expr::FunctionCall(call) => {
             format_expr(ctx, &call.func)?;

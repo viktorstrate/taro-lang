@@ -114,7 +114,7 @@ mod tests {
 
     use crate::{
         ast::node::{
-            identifier::{Ident, IdentValue, Identifiable},
+            identifier::{Ident, IdentValue},
             type_signature::BuiltinType,
         },
         parser::{new_span, parse_ast},

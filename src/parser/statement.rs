@@ -21,18 +21,21 @@ use super::{
 };
 
 pub fn statement<'a>(i: Span<'a>) -> Res<Span<'a>, Stmt<'a>> {
-    // STMT <; STMT>*
-    // STMT <\n STMT>*
+    // STMT <; STMT>* [;]
+    // STMT <\n STMT>* [;]
 
     let stmt_separator = alt((tag(";"), tag("\n")));
     let (i, mut stmts) = separated_list0(stmt_separator, single_statement)(i)?;
 
-    if stmts.len() == 1 {
+    let (i, stmt) = if stmts.len() == 1 {
         let stmt = stmts.pop().expect("vec should have length 1");
-        Ok((i, stmt))
+        (i, stmt)
     } else {
-        Ok((i, Stmt::Compound(stmts)))
-    }
+        (i, Stmt::Compound(stmts))
+    };
+
+    let (i, _) = opt(token(tag(";")))(i)?;
+    Ok((i, stmt))
 }
 
 pub fn single_statement(i: Span) -> Res<Span, Stmt> {

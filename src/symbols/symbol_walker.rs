@@ -1,12 +1,12 @@
 use crate::ast::{
     ast_walker::AstWalker,
     node::{
-        identifier::Ident,
+        function::Function,
         statement::Stmt::{self, FunctionDecl, VariableDecl},
     },
 };
 
-use super::symbol_table::{SymbolTable, SymbolsError};
+use super::symbol_table::{SymbolTable, SymbolValue, SymbolsError};
 
 #[derive(Default)]
 pub struct SymbolCollector {}
@@ -17,7 +17,7 @@ impl<'a> AstWalker<'a> for SymbolCollector {
 
     fn visit_stmt(
         &mut self,
-        scope: &mut Self::Scope,
+        scope: &mut SymbolTable<'a>,
         stmt: &mut Stmt<'a>,
     ) -> Result<(), Self::Error> {
         match stmt {
@@ -27,22 +27,28 @@ impl<'a> AstWalker<'a> for SymbolCollector {
         }
     }
 
-    fn visit_scope_end(
-        &mut self,
-        parent: &mut Self::Scope,
-        child: Self::Scope,
-        scope_ident: &Ident<'a>,
-    ) -> Result<(), Self::Error> {
-        // save child scope in parent scope
-        parent.insert_scope(scope_ident.clone(), child).map(|_| ())
-    }
-
     fn visit_scope_begin(
         &mut self,
-        _parent: &mut Self::Scope,
-        _scope_ident: &Ident<'a>,
-    ) -> Result<Self::Scope, Self::Error> {
-        Ok(Self::Scope::default())
+        _parent: &mut SymbolTable<'a>,
+        func: &mut Function<'a>,
+    ) -> Result<SymbolTable<'a>, Self::Error> {
+        let mut new_scope = SymbolTable::default();
+
+        for arg in &func.args {
+            new_scope.insert(SymbolValue::FuncArg(arg.clone()));
+        }
+
+        Ok(new_scope)
+    }
+
+    fn visit_scope_end(
+        &mut self,
+        parent: &mut SymbolTable<'a>,
+        child: SymbolTable<'a>,
+        func: &mut Function<'a>,
+    ) -> Result<(), Self::Error> {
+        // save child scope in parent scope
+        parent.insert_scope(func.name.clone(), child).map(|_| ())
     }
 }
 

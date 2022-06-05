@@ -47,8 +47,6 @@ enum TranspilerError<'a> {
 fn transpile<W: Write>(writer: W, input: &str) -> Result<(), TranspilerError> {
     let mut ast = parse_ast(&input).map_err(TranspilerError::Parse)?;
 
-    println!("PARSE AST: {:?}\n----\n", ast);
-
     let mut sym_collector = SymbolCollector::default();
     let sym_table = walk_ast(&mut sym_collector, &mut ast).map_err(TranspilerError::Symbols)?;
 

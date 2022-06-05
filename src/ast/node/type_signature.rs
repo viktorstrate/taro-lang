@@ -16,7 +16,10 @@ pub enum TypeSignature<'a> {
 pub trait Typed<'a> {
     type Error = ();
 
-    fn type_sig(&self, symbols: &SymbolTableZipper<'a>) -> Result<TypeSignature<'a>, Self::Error>;
+    fn type_sig(
+        &self,
+        symbols: &mut SymbolTableZipper<'a>,
+    ) -> Result<TypeSignature<'a>, Self::Error>;
 }
 
 #[derive(Debug)]

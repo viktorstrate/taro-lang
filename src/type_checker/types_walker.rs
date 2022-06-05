@@ -3,6 +3,7 @@ use crate::{
         ast_walker::AstWalker,
         node::{
             expression::Expr,
+            function::Function,
             statement::Stmt,
             structure::Struct,
             type_signature::{TypeSignature, Typed},
@@ -11,7 +12,7 @@ use crate::{
     symbols::{symbol_table::SymbolTable, symbol_table_zipper::SymbolTableZipper},
 };
 
-use super::{function_type::func_body_type_sig, TypeCheckerError};
+use super::TypeCheckerError;
 
 pub struct TypeChecker<'a> {
     pub symbols: SymbolTableZipper<'a>,
@@ -31,13 +32,11 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
     fn visit_scope_begin(
         &mut self,
         _parent: &mut Self::Scope,
-        scope_ident: &crate::ast::node::identifier::Ident<'a>,
+        func: &mut Function<'a>,
     ) -> Result<Self::Scope, Self::Error> {
         self.symbols
-            .enter_scope(scope_ident.clone())
+            .enter_scope(func.name.clone())
             .expect("scope should exist");
-
-        println!("ENTER SCOPE {:?}", scope_ident);
 
         Ok(())
     }
@@ -46,13 +45,11 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
         &mut self,
         _parent: &mut Self::Scope,
         _child: Self::Scope,
-        scope_ident: &crate::ast::node::identifier::Ident<'a>,
+        _func: &mut Function<'a>,
     ) -> Result<(), Self::Error> {
         self.symbols
             .exit_scope()
             .expect("scope should not be global scope");
-
-        println!("EXIT SCOPE {:?}", scope_ident);
 
         Ok(())
     }
@@ -66,7 +63,7 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
             Stmt::VariableDecl(var_decl) => {
                 let val_type = var_decl
                     .value
-                    .type_sig(&self.symbols)
+                    .type_sig(&mut self.symbols)
                     .map_err(TypeCheckerError::ValueError)?;
 
                 if let Some(type_sig) = &var_decl.type_sig {
@@ -97,7 +94,7 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
             match (&attr.type_sig, &attr.default_value) {
                 (Some(type_sig), Some(val)) => {
                     let val_type = val
-                        .type_sig(&self.symbols)
+                        .type_sig(&mut self.symbols)
                         .map_err(TypeCheckerError::ValueError)?;
                     if *type_sig != val_type {
                         return Err(TypeCheckerError::TypeSignatureMismatch::<'a> {
@@ -118,17 +115,19 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
             Expr::FunctionCall(call) => {
                 match call
                     .func
-                    .type_sig(&self.symbols)
+                    .type_sig(&mut self.symbols)
                     .map_err(TypeCheckerError::ValueError)?
                 {
                     TypeSignature::Function { args, return_type } => {
                         let param_types = call
                             .params
                             .iter()
-                            .map(|param| param.type_sig(&self.symbols).unwrap());
-                        let arg_count_match = call.params.len() == args.len();
+                            .map(|param| param.type_sig(&mut self.symbols).unwrap())
+                            .collect::<Vec<_>>();
 
-                        let args_match = param_types.clone().zip(args.iter()).all(|(a, b)| a == *b);
+                        let arg_count_match = call.params.len() == args.len();
+                        let args_match = param_types.iter().zip(args.iter()).all(|(a, b)| *a == *b);
+
                         if !arg_count_match || !args_match {
                             return Err(TypeCheckerError::TypeSignatureMismatch {
                                 type_sig: TypeSignature::Function {
@@ -136,7 +135,7 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                                     return_type: return_type.clone(),
                                 },
                                 expr_type: TypeSignature::Function {
-                                    args: Box::new(param_types.collect()),
+                                    args: Box::new(param_types),
                                     return_type,
                                 },
                             });
@@ -151,8 +150,18 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
             }
             Expr::Function(func) => {
                 if let Some(return_sig) = &func.return_type {
-                    let body_type = func_body_type_sig(&self.symbols, func)
+                    let func_type = func
+                        .type_sig(&mut self.symbols)
                         .map_err(TypeCheckerError::FunctionError)?;
+
+                    // get function return type
+                    let body_type = match func_type {
+                        TypeSignature::Function {
+                            args: _,
+                            return_type,
+                        } => *return_type,
+                        _ => unreachable!(),
+                    };
 
                     if body_type != *return_sig {
                         return Err(TypeCheckerError::TypeSignatureMismatch {
@@ -245,5 +254,11 @@ mod tests {
             }
             _ => assert!(false),
         }
+    }
+
+    #[test]
+    fn test_decl_inside_scope() {
+        let mut ast = parse_ast("let f = () -> Boolean { let a = true; return a }").unwrap();
+        assert_matches!(type_check(&mut ast), Ok(_))
     }
 }

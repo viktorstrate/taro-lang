@@ -69,12 +69,10 @@ impl<'a> Ident<'a> {
         match self.value {
             IdentValue::Named(name) => writer.write_all(name.as_bytes()),
             IdentValue::Anonymous(ref_id) => match symval {
-                SymbolValue::VarDecl(_) => {
-                    writer.write_all(format!("anon_var_{}", ref_id).as_bytes())
-                }
                 SymbolValue::FuncDecl(_) => {
                     writer.write_all(format!("anon_func_{}", ref_id).as_bytes())
                 }
+                _ => unreachable!("only functions can be anonymous"),
             },
         }
     }
