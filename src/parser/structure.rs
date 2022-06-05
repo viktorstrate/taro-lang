@@ -2,40 +2,46 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::streaming::char,
-    combinator::{map, opt},
+    combinator::{cut, map, opt},
+    error::context,
     multi::separated_list0,
     sequence::{preceded, tuple},
 };
 
 use crate::ast::node::{
+    expression::Expr,
     statement::Stmt,
-    structure::{Struct, StructAttr},
+    structure::{Struct, StructAttr, StructInit, StructInitValue},
 };
 
 use super::{
-    expression::expression, identifier::identifier, statement::type_signature, surround_brackets,
-    token, ws, BracketType, Res, Span,
+    expression::expression,
+    identifier::identifier,
+    statement::{let_specifier, mut_specifier},
+    surround_brackets, token,
+    type_signature::type_signature,
+    ws, BracketType, Res, Span,
 };
 
-pub fn structure<'a>(i: Span<'a>) -> Res<Span<'a>, Struct<'a>> {
+pub fn structure<'a>(mut i: Span<'a>) -> Res<Span<'a>, Struct<'a>> {
     // struct IDENT { STRUCT_ATTRS }
-
-    let (i, _) = token(tuple((tag("struct"), ws)))(i)?;
-
-    let (i, ident) = identifier(i)?;
-
-    let (mut i, attrs) = surround_brackets(BracketType::Curly, struct_attrs)(i)?;
 
     let ref_id = i.extra.ref_gen.make_ref();
 
-    Ok((
-        i,
-        Struct {
-            name: ident,
-            attrs,
-            ref_id,
-        },
-    ))
+    context(
+        "struct",
+        map(
+            tuple((
+                preceded(token(tuple((tag("struct"), ws))), identifier),
+                cut(surround_brackets(BracketType::Curly, struct_attrs)),
+            )),
+            move |(name, attrs)| Struct {
+                name,
+                attrs,
+                ref_id,
+            },
+        ),
+    )(i)
 }
 
 pub fn struct_attrs<'a>(i: Span<'a>) -> Res<Span, Vec<StructAttr<'a>>> {
@@ -43,41 +49,67 @@ pub fn struct_attrs<'a>(i: Span<'a>) -> Res<Span, Vec<StructAttr<'a>>> {
     // ATTR <\n ATTR>*
 
     let struct_attr = move |i: Span<'a>| -> Res<Span, StructAttr<'a>> {
-        // let [mut] IDENT [ = EXPR ]
+        // let [mut] IDENT [ : TYPE_SIG ] [ = EXPR ]
 
-        let (i, _) = token(tuple((tag("let"), ws)))(i)?;
-        let (i, is_mut) = opt(token(tuple((tag("mut"), ws))))(i)?;
-        let (i, name) = identifier(i)?;
-
-        let (i, type_sig) = opt(preceded(token(char(':')), type_signature))(i)?;
-        let (i, default_value) = opt(preceded(token(char('=')), expression))(i)?;
-
-        Ok((
-            i,
-            StructAttr {
+        map(
+            tuple((
+                preceded(let_specifier, mut_specifier),
+                context("attribute identifier", identifier),
+                context(
+                    "attribute type signature",
+                    opt(preceded(token(char(':')), type_signature)),
+                ),
+                opt(preceded(
+                    token(char('=')),
+                    context("attribute default value", expression),
+                )),
+            )),
+            |(mutability, name, type_sig, default_value)| StructAttr {
                 name,
-                mutability: is_mut.is_some().into(),
+                mutability,
                 type_sig,
                 default_value,
             },
-        ))
+        )(i)
     };
 
-    separated_list0(alt((tag(";"), tag("\n"))), struct_attr)(i)
+    separated_list0(
+        alt((tag(";"), tag("\n"))),
+        context("struct attribute", struct_attr),
+    )(i)
 }
 
 pub fn struct_stmt(i: Span) -> Res<Span, Stmt> {
     map(structure, Stmt::StructDecl)(i)
 }
 
+pub fn struct_init_expr(i: Span) -> Res<Span, Expr> {
+    // IDENT "{" <IDENT: EXPR> , ... "}"
+
+    let (i, name) = identifier(i)?;
+
+    let (i, values) = surround_brackets(
+        BracketType::Curly,
+        separated_list0(
+            token(tag(",")),
+            map(
+                tuple((identifier, preceded(token(tag(":")), expression))),
+                |(name, value)| StructInitValue { name, value },
+            ),
+        ),
+    )(i)?;
+
+    Ok((i, Expr::StructInit(StructInit { name, values })))
+}
+
 #[cfg(test)]
 mod tests {
+    use std::assert_matches::assert_matches;
+
     use crate::{
-        ast::node::{
-            identifier::Ident,
-            type_signature::{BuiltinType, Mutability},
-        },
+        ast::node::{identifier::Ident, type_signature::Mutability},
         parser::new_span,
+        symbols::builtin_types::BuiltinType,
     };
 
     use super::*;
@@ -92,7 +124,24 @@ mod tests {
         assert_eq!(st.attrs.len(), 1);
         assert_eq!(st.attrs[0].name, Ident::new_unplaced("attr"));
         assert_eq!(st.attrs[0].mutability, Mutability::Immutable);
-        assert_eq!(st.attrs[0].type_sig, Some(BuiltinType::String.into()));
+        assert_eq!(st.attrs[0].type_sig, Some(BuiltinType::String.type_sig()));
         assert!(st.attrs[0].default_value.is_none());
+    }
+
+    #[test]
+    fn test_struct_init() {
+        let struct_init = struct_init_expr(new_span("StructName { attr: true }"))
+            .unwrap()
+            .1;
+
+        match struct_init {
+            Expr::StructInit(StructInit { name, values }) => {
+                assert_eq!(name, Ident::new_unplaced("StructName"));
+                assert_eq!(values.len(), 1);
+                assert_eq!(values[0].name, Ident::new_unplaced("attr"));
+                assert_matches!(values[0].value, Expr::BoolLiteral(true));
+            }
+            _ => assert!(false),
+        }
     }
 }

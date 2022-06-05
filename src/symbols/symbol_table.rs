@@ -1,17 +1,19 @@
 use std::collections::HashMap;
 
 use crate::ast::node::{
+    expression::ExprValueError,
     function::{Function, FunctionArg},
     identifier::{Ident, Identifiable},
     statement::VarDecl,
     structure::{Struct, StructAttr},
+    type_signature::{TypeSignature, Typed},
 };
 
 #[derive(Debug)]
 pub enum SymbolsError<'a> {
     SymbolAlreadyExistsInScope(Ident<'a>),
     ScopeNotFound(Ident<'a>),
-    MovePastGlobelScope,
+    MovePastGlobalScope,
 }
 
 #[derive(Default, Debug)]
@@ -20,8 +22,9 @@ pub struct SymbolTable<'a> {
     scopes: HashMap<Ident<'a>, SymbolTable<'a>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SymbolValue<'a> {
+    BuiltinType(Ident<'a>),
     VarDecl(VarDecl<'a>),
     FuncDecl(Function<'a>),
     FuncArg(FunctionArg<'a>),
@@ -44,11 +47,34 @@ impl<'a> From<VarDecl<'a>> for SymbolValue<'a> {
 impl<'a> Identifiable<'a> for SymbolValue<'a> {
     fn name(&self) -> &Ident<'a> {
         match self {
+            SymbolValue::BuiltinType(builtin) => builtin,
             SymbolValue::VarDecl(var) => var.name(),
             SymbolValue::FuncDecl(func) => func.name(),
             SymbolValue::FuncArg(arg) => arg.name(),
             SymbolValue::StructDecl(st) => st.name(),
             SymbolValue::StructAttr(attr) => attr.name(),
+        }
+    }
+}
+
+impl<'a> Typed<'a> for SymbolValue<'a> {
+    type Error = ExprValueError<'a>;
+
+    fn type_sig(
+        &self,
+        symbols: &mut super::symbol_table_zipper::SymbolTableZipper<'a>,
+    ) -> Result<crate::ast::node::type_signature::TypeSignature<'a>, Self::Error> {
+        match self {
+            SymbolValue::BuiltinType(builtin) => Ok(TypeSignature::Base(builtin.clone())),
+            SymbolValue::VarDecl(var) => var.type_sig(symbols),
+            SymbolValue::FuncDecl(func) => {
+                func.type_sig(symbols).map_err(ExprValueError::FunctionType)
+            }
+            SymbolValue::FuncArg(arg) => {
+                arg.type_sig(symbols).map_err(ExprValueError::FunctionType)
+            }
+            SymbolValue::StructDecl(st) => st.type_sig(symbols),
+            SymbolValue::StructAttr(attr) => attr.type_sig(symbols),
         }
     }
 }

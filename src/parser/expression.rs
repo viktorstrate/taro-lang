@@ -12,6 +12,7 @@ use crate::ast::node::expression::Expr;
 use super::{
     function::{function_call_expr, function_expr},
     identifier::identifier,
+    structure::struct_init_expr,
     Res, Span,
 };
 
@@ -24,6 +25,7 @@ pub fn expression(i: Span) -> Res<Span, Expr> {
 
 pub fn non_fn_call_expression(i: Span) -> Res<Span, Expr> {
     return alt((
+        struct_init_expr,
         expr_string_literal,
         expr_number_literal,
         expr_boolean_literal,

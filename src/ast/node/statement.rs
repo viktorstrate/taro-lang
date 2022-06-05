@@ -1,9 +1,9 @@
 use super::{
-    expression::Expr,
+    expression::{Expr, ExprValueError},
     function::Function,
     identifier::{Ident, Identifiable},
     structure::Struct,
-    type_signature::{Mutability, TypeSignature},
+    type_signature::{Mutability, TypeSignature, Typed},
 };
 
 #[derive(Debug, Clone)]
@@ -27,5 +27,16 @@ pub struct VarDecl<'a> {
 impl<'a> Identifiable<'a> for VarDecl<'a> {
     fn name(&self) -> &Ident<'a> {
         &self.name
+    }
+}
+
+impl<'a> Typed<'a> for VarDecl<'a> {
+    type Error = ExprValueError<'a>;
+
+    fn type_sig(
+        &self,
+        _symbols: &mut crate::symbols::symbol_table_zipper::SymbolTableZipper<'a>,
+    ) -> Result<TypeSignature<'a>, Self::Error> {
+        todo!()
     }
 }

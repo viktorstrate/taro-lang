@@ -3,6 +3,7 @@ use crate::ast::node::{expression::ExprValueError, type_signature::TypeSignature
 use self::function_type::FunctionTypeError;
 
 pub mod function_type;
+pub mod specialize_type;
 pub mod types_walker;
 
 #[derive(Debug)]

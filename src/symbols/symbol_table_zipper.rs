@@ -34,7 +34,7 @@ impl<'a> SymbolTableZipper<'a> {
         let (ident, mut temp_scope) = self
             .breadcrumb
             .pop()
-            .ok_or(SymbolsError::MovePastGlobelScope)?;
+            .ok_or(SymbolsError::MovePastGlobalScope)?;
 
         std::mem::swap(&mut self.cursor, &mut temp_scope);
         self.cursor.insert_scope(ident, temp_scope)?;

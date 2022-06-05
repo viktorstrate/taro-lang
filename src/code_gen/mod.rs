@@ -13,7 +13,7 @@ use crate::{
         },
         AST,
     },
-    symbols::symbol_table_zipper::SymbolTableZipper,
+    symbols::{symbol_table::SymbolValue, symbol_table_zipper::SymbolTableZipper},
 };
 
 pub fn format_ast<'a, W: Write>(
@@ -181,6 +181,34 @@ fn format_expr<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, expr: &Expr<'a>) -> Co
             ctx.write(")")
         }
         Expr::Identifier(ident) => ctx.write_ident(ident),
+        Expr::StructInit(st_init) => {
+            ctx.write("new ")?;
+            ctx.write_ident(&st_init.name)?;
+            ctx.write("(")?;
+
+            let st = ctx.symbols.locate(&st_init.name).unwrap();
+            let st = match st {
+                SymbolValue::StructDecl(st) => st,
+                _ => unreachable!(),
+            };
+
+            let attr_names = st
+                .attrs
+                .iter()
+                .map(|attr| attr.name.clone())
+                .collect::<Vec<_>>();
+
+            format_with_separator(ctx, ", ", attr_names.iter(), |ctx, attr_name| {
+                let attr_val = st_init.values.iter().find(|val| val.name == *attr_name);
+                if let Some(val) = attr_val {
+                    format_expr(ctx, &val.value)
+                } else {
+                    ctx.write("null")
+                }
+            })?;
+
+            ctx.write(")")
+        }
     }
 }
 

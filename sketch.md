@@ -74,12 +74,9 @@ extend Point: Equatable where T: Equatable {
   }
 }
 
-let a: Point<Number> = Point(x: 2, y: 5)
+let a: Point<Number> = Point { x: 2, y: 5 }
 let b = a // copy
 
-// Make aa a reference to a Point
-let aa: &Point<Number> = &Point { x: 2, y: 3 }
-let bb = aa // not a copy
 ```
 
 ## Primitives
@@ -88,6 +85,9 @@ let bb = aa // not a copy
 struct Float {}
 struct Integer {}
 struct Bool {}
+
+type Structural = struct { let a: Boolean }
+struct { let a: Boolean }
 ```
 
 ## Tuples

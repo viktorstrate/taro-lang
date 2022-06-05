@@ -11,13 +11,14 @@ use nom::{
 use crate::{
     ast::node::{
         statement::{Stmt, VarDecl},
-        type_signature::TypeSignature,
+        type_signature::Mutability,
     },
     parser::expression::expression,
 };
 
 use super::{
-    function::function_decl, identifier::identifier, structure::struct_stmt, token, ws, Res, Span,
+    function::function_decl, identifier::identifier, structure::struct_stmt, token,
+    type_signature::type_signature, ws, Res, Span,
 };
 
 pub fn statement<'a>(i: Span<'a>) -> Res<Span<'a>, Stmt<'a>> {
@@ -54,21 +55,38 @@ pub fn single_statement(i: Span) -> Res<Span, Stmt> {
 pub fn variable_decl(i: Span) -> Res<Span, Stmt> {
     // let [mut] IDENTIFIER [: TYPE_SIGNATURE] = EXPRESSION
 
-    let (i, _) = token(tuple((tag("let"), ws)))(i)?;
-    let (i, is_mut) = opt(token(tuple((tag("mut"), ws))))(i)?;
-    let (i, name) = cut(identifier)(i)?;
+    context(
+        "variable declaration",
+        map(
+            tuple((
+                preceded(let_specifier, mut_specifier),
+                cut(identifier),
+                cut(opt(preceded(token(char(':')), type_signature))),
+                cut(preceded(token(char('=')), expression)),
+            )),
+            |(mutability, name, type_sig, value)| {
+                Stmt::VariableDecl(VarDecl {
+                    name,
+                    mutability,
+                    type_sig,
+                    value,
+                })
+            },
+        ),
+    )(i)
+}
 
-    let (i, type_sig) = cut(opt(preceded(token(char(':')), type_signature)))(i)?;
-    let (i, value) = cut(preceded(token(char('=')), expression))(i)?;
+pub fn let_specifier(i: Span) -> Res<Span, ()> {
+    map(token(tuple((tag("let"), ws))), |_| ())(i)
+}
 
-    let var_decl = VarDecl {
-        name,
-        mutability: is_mut.is_some().into(),
-        type_sig,
-        value,
-    };
-
-    Ok((i, Stmt::VariableDecl(var_decl)))
+pub fn mut_specifier(i: Span) -> Res<Span, Mutability> {
+    context(
+        "mut specifier",
+        map(opt(token(tuple((tag("mut"), ws)))), |val| {
+            val.is_some().into()
+        }),
+    )(i)
 }
 
 pub fn stmt_expression(i: Span) -> Res<Span, Stmt> {
@@ -85,14 +103,6 @@ pub fn stmt_return(i: Span) -> Res<Span, Stmt> {
     )(i)
 }
 
-pub fn type_signature(i: Span) -> Res<Span, TypeSignature> {
-    context("type signature", type_sig_base)(i)
-}
-
-fn type_sig_base(i: Span) -> Res<Span, TypeSignature> {
-    return identifier(i).map(|(i, ident)| (i, TypeSignature::Base(ident)));
-}
-
 #[cfg(test)]
 mod tests {
     use std::assert_matches::assert_matches;
@@ -101,7 +111,7 @@ mod tests {
         ast::node::{
             expression::Expr,
             identifier::{Ident, IdentValue},
-            type_signature::Mutability,
+            type_signature::{Mutability, TypeSignature},
         },
         parser::new_span,
     };

@@ -1,13 +1,15 @@
 use crate::ast::{
-    ast_walker::AstWalker,
+    ast_walker::{AstWalker, ScopeValue},
     node::{
-        function::Function,
         statement::Stmt::{self, FunctionDecl, VariableDecl},
         structure::Struct,
     },
 };
 
-use super::symbol_table::{SymbolTable, SymbolValue, SymbolsError};
+use super::{
+    builtin_types::BUILTIN_TYPES,
+    symbol_table::{SymbolTable, SymbolValue, SymbolsError},
+};
 
 #[derive(Default)]
 pub struct SymbolCollector {}
@@ -16,15 +18,32 @@ impl<'a> AstWalker<'a> for SymbolCollector {
     type Scope = SymbolTable<'a>;
     type Error = SymbolsError<'a>;
 
+    fn visit_begin(&mut self, scope: &mut Self::Scope) -> Result<(), Self::Error> {
+        for builtin_type in BUILTIN_TYPES {
+            scope.insert(SymbolValue::BuiltinType(builtin_type.clone()))?;
+        }
+
+        Ok(())
+    }
+
     fn visit_scope_begin(
         &mut self,
         _parent: &mut SymbolTable<'a>,
-        func: &mut Function<'a>,
+        value: ScopeValue<'a, '_>,
     ) -> Result<SymbolTable<'a>, Self::Error> {
         let mut new_scope = SymbolTable::default();
 
-        for arg in &func.args {
-            new_scope.insert(SymbolValue::FuncArg(arg.clone()))?;
+        match value {
+            ScopeValue::Func(func) => {
+                for arg in &func.args {
+                    new_scope.insert(SymbolValue::FuncArg(arg.clone()))?;
+                }
+            }
+            ScopeValue::Struct(st) => {
+                for attr in &st.attrs {
+                    new_scope.insert(SymbolValue::StructAttr(attr.clone()))?;
+                }
+            }
         }
 
         Ok(new_scope)
@@ -34,10 +53,13 @@ impl<'a> AstWalker<'a> for SymbolCollector {
         &mut self,
         parent: &mut SymbolTable<'a>,
         child: SymbolTable<'a>,
-        func: &mut Function<'a>,
+        value: ScopeValue<'a, '_>,
     ) -> Result<(), Self::Error> {
         // save child scope in parent scope
-        parent.insert_scope(func.name.clone(), child).map(|_| ())
+        match value {
+            ScopeValue::Func(func) => parent.insert_scope(func.name.clone(), child).map(|_| ()),
+            ScopeValue::Struct(st) => parent.insert_scope(st.name.clone(), child).map(|_| ()),
+        }
     }
 
     fn visit_stmt(
@@ -64,8 +86,6 @@ impl<'a> AstWalker<'a> for SymbolCollector {
         for attr in &st.attrs {
             struct_scope.insert(SymbolValue::StructAttr(attr.clone()))?;
         }
-
-        scope.insert_scope(st.name.clone(), struct_scope)?;
 
         Ok(())
     }

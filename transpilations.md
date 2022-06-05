@@ -9,12 +9,16 @@ struct Test {
   let mut noDefault: Bool
 }
 
+let val = Test { noDefault: false }
+
 ----
 
-function Strut__Test(defaultVal, noDefault) {
+function strut__Test(defaultVal, noDefault) {
   this.defaultVal = defaultVal ?? 123
   this.noDefault = noDefault
 }
+
+const val = new struct__Test(null, false)
 
 ```
 

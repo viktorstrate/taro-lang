@@ -36,21 +36,21 @@ impl<'a> Debug for Ident<'a> {
 }
 
 impl<'a> Ident<'a> {
-    pub fn new(pos: Span<'a>, value: &'a str) -> Self {
+    pub const fn new(pos: Span<'a>, value: &'a str) -> Self {
         Ident {
             pos: Some(pos),
             value: IdentValue::Named(value),
         }
     }
 
-    pub fn new_unplaced(value: &'a str) -> Self {
+    pub const fn new_unplaced(value: &'a str) -> Self {
         Ident {
             pos: None,
             value: IdentValue::Named(value),
         }
     }
 
-    pub fn new_anon(ref_id: RefID) -> Self {
+    pub const fn new_anon(ref_id: RefID) -> Self {
         Ident {
             pos: None,
             value: IdentValue::Anonymous(ref_id),

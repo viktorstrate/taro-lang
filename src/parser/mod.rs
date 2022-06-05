@@ -3,7 +3,7 @@ use nom::{
     character::complete::{multispace0, multispace1},
     combinator::cut,
     error::VerboseError,
-    sequence::delimited,
+    sequence::{delimited, preceded},
     AsChar, Finish, IResult, InputTakeAtPosition,
 };
 use nom_locate::LocatedSpan;
@@ -16,6 +16,7 @@ pub mod identifier;
 pub mod module;
 pub mod statement;
 pub mod structure;
+pub mod type_signature;
 
 pub fn parse_ast(input: &str) -> Result<AST, ParserError> {
     match module::module(new_span(input)).finish() {
@@ -92,6 +93,6 @@ where
     delimited(
         token(tag(brackets.open())),
         parser,
-        cut(token(tag(brackets.close()))),
+        cut(preceded(multispace0, tag(brackets.close()))),
     )
 }

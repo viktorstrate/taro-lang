@@ -17,8 +17,10 @@ use crate::ast::node::{
 use super::{
     expression::{expression, non_fn_call_expression},
     identifier::identifier,
-    statement::{statement, type_signature},
-    surround_brackets, token, ws, BracketType, Res, Span,
+    statement::statement,
+    surround_brackets, token,
+    type_signature::type_signature,
+    ws, BracketType, Res, Span,
 };
 
 pub fn function_decl(i: Span) -> Res<Span, Stmt> {
@@ -113,11 +115,9 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::node::{
-            identifier::{Ident, IdentValue},
-            type_signature::BuiltinType,
-        },
+        ast::node::identifier::{Ident, IdentValue},
         parser::{new_span, parse_ast},
+        symbols::builtin_types::BuiltinType,
     };
 
     use super::*;
@@ -145,12 +145,12 @@ mod tests {
         match func_stmt {
             Stmt::FunctionDecl(func) => {
                 assert_eq!(func.name, Ident::new_unplaced("sum"));
-                assert_eq!(func.return_type, Some(BuiltinType::Number.into()));
+                assert_eq!(func.return_type, Some(BuiltinType::Number.type_sig()));
                 assert_eq!(func.args.len(), 2);
                 assert_eq!(func.args[0].name, Ident::new_unplaced("a"));
                 assert_eq!(func.args[1].name, Ident::new_unplaced("b"));
-                assert_eq!(func.args[0].type_sig, BuiltinType::Number.into());
-                assert_eq!(func.args[1].type_sig, BuiltinType::Number.into());
+                assert_eq!(func.args[0].type_sig, BuiltinType::Number.type_sig());
+                assert_eq!(func.args[1].type_sig, BuiltinType::Number.type_sig());
             }
             _ => assert!(false),
         }
@@ -166,9 +166,9 @@ mod tests {
             Expr::Function(func) => {
                 assert_eq!(func.args.len(), 2);
                 assert_eq!(func.args[0].name, Ident::new_unplaced("a"));
-                assert_eq!(func.args[0].type_sig, BuiltinType::Number.into());
+                assert_eq!(func.args[0].type_sig, BuiltinType::Number.type_sig());
                 assert_eq!(func.args[1].name, Ident::new_unplaced("b"));
-                assert_eq!(func.args[1].type_sig, BuiltinType::Number.into());
+                assert_eq!(func.args[1].type_sig, BuiltinType::Number.type_sig());
                 assert_eq!(func.return_type, None);
             }
             _ => assert!(false),

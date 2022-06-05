@@ -1,6 +1,6 @@
 use crate::{
     ast::{
-        ast_walker::AstWalker,
+        ast_walker::{AstWalker, ScopeValue},
         node::{
             expression::Expr,
             function::Function,
@@ -12,7 +12,7 @@ use crate::{
     symbols::{symbol_table::SymbolTable, symbol_table_zipper::SymbolTableZipper},
 };
 
-use super::TypeCheckerError;
+use super::{specialize_type::specialize_type, TypeCheckerError};
 
 pub struct TypeChecker<'a> {
     pub symbols: SymbolTableZipper<'a>,
@@ -32,11 +32,20 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
     fn visit_scope_begin(
         &mut self,
         _parent: &mut (),
-        func: &mut Function<'a>,
-    ) -> Result<(), Self::Error> {
-        self.symbols
-            .enter_scope(func.name.clone())
-            .expect("scope should exist");
+        value: ScopeValue<'a, '_>,
+    ) -> Result<(), TypeCheckerError<'a>> {
+        match value {
+            ScopeValue::Func(func) => {
+                self.symbols
+                    .enter_scope(func.name.clone())
+                    .expect("scope should exist");
+            }
+            ScopeValue::Struct(st) => {
+                self.symbols
+                    .enter_scope(st.name.clone())
+                    .expect("scope should exist");
+            }
+        }
 
         Ok(())
     }
@@ -45,8 +54,8 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
         &mut self,
         _parent: &mut (),
         _child: (),
-        _func: &mut Function<'a>,
-    ) -> Result<(), Self::Error> {
+        _value: ScopeValue<'a, '_>,
+    ) -> Result<(), TypeCheckerError<'a>> {
         self.symbols
             .exit_scope()
             .expect("scope should not be global scope");
@@ -54,13 +63,23 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
         Ok(())
     }
 
-    fn visit_stmt(&mut self, _scope: &mut (), stmt: &mut Stmt<'a>) -> Result<(), Self::Error> {
+    fn visit_stmt(
+        &mut self,
+        _scope: &mut (),
+        stmt: &mut Stmt<'a>,
+    ) -> Result<(), TypeCheckerError<'a>> {
         match stmt {
             Stmt::VariableDecl(var_decl) => {
                 let val_type = var_decl
                     .value
                     .type_sig(&mut self.symbols)
                     .map_err(TypeCheckerError::ValueError)?;
+
+                // specialize specified type signature
+                match var_decl.type_sig.as_mut() {
+                    Some(mut type_sig) => specialize_type(&mut self.symbols, &mut type_sig)?,
+                    None => {}
+                };
 
                 if let Some(type_sig) = &var_decl.type_sig {
                     // make sure specified type matches expression
@@ -78,6 +97,12 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                 Ok(())
             }
             Stmt::FunctionDecl(func_decl) => {
+                // specialize specified return type
+                match func_decl.return_type.as_mut() {
+                    Some(mut type_sig) => specialize_type(&mut self.symbols, &mut type_sig)?,
+                    None => {}
+                };
+
                 let func_type = func_decl
                     .type_sig(&mut self.symbols)
                     .map_err(TypeCheckerError::FunctionError)?;
@@ -113,7 +138,7 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
         &mut self,
         _scope: &mut (),
         st: &mut Struct<'a>,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<(), TypeCheckerError<'a>> {
         for attr in &st.attrs {
             match (&attr.type_sig, &attr.default_value) {
                 (Some(type_sig), Some(val)) => {
@@ -134,7 +159,7 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
         Ok(())
     }
 
-    fn visit_expr(&mut self, expr: &mut Expr<'a>) -> Result<(), Self::Error> {
+    fn visit_expr(&mut self, expr: &mut Expr<'a>) -> Result<(), TypeCheckerError<'a>> {
         match expr {
             Expr::FunctionCall(call) => {
                 match call
@@ -159,7 +184,7 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                                     return_type: return_type.clone(),
                                 },
                                 expr_type: TypeSignature::Function {
-                                    args: Box::new(param_types),
+                                    args: param_types,
                                     return_type,
                                 },
                             });
@@ -173,6 +198,14 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                 }
             }
             Expr::Function(func) => {
+                // specialize specified return type
+                match func.return_type.as_mut() {
+                    Some(mut return_type) => {
+                        specialize_type(&mut self.symbols, &mut return_type)?;
+                    }
+                    None => {}
+                };
+
                 if let Some(return_sig) = &func.return_type {
                     let func_type = func
                         .type_sig(&mut self.symbols)
@@ -207,8 +240,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::{node::type_signature::BuiltinType, test_utils::utils::type_check},
-        parser::parse_ast,
+        ast::test_utils::utils::type_check, parser::parse_ast, symbols::builtin_types::BuiltinType,
         type_checker::TypeCheckerError,
     };
 
@@ -227,8 +259,8 @@ mod tests {
                 type_sig,
                 expr_type,
             }) => {
-                assert_eq!(type_sig, BuiltinType::String.into());
-                assert_eq!(expr_type, BuiltinType::Number.into())
+                assert_eq!(type_sig, BuiltinType::String.type_sig());
+                assert_eq!(expr_type, BuiltinType::Number.type_sig())
             }
             _ => assert!(false),
         }
@@ -243,8 +275,8 @@ mod tests {
                 type_sig,
                 expr_type,
             }) => {
-                assert_eq!(type_sig, BuiltinType::String.into());
-                assert_eq!(expr_type, BuiltinType::Bool.into())
+                assert_eq!(type_sig, BuiltinType::String.type_sig());
+                assert_eq!(expr_type, BuiltinType::Bool.type_sig())
             }
             _ => assert!(false),
         }
@@ -261,8 +293,8 @@ mod tests {
                 type_sig,
                 expr_type,
             }) => {
-                assert_eq!(type_sig, BuiltinType::Number.into());
-                assert_eq!(expr_type, BuiltinType::Bool.into());
+                assert_eq!(type_sig, BuiltinType::Number.type_sig());
+                assert_eq!(expr_type, BuiltinType::Bool.type_sig());
             }
             _ => assert!(false),
         }
@@ -274,7 +306,7 @@ mod tests {
 
         match type_check(&mut ast) {
             Err(TypeCheckerError::CallNonFunction { ident_type }) => {
-                assert_eq!(ident_type, BuiltinType::Bool.into())
+                assert_eq!(ident_type, BuiltinType::Bool.type_sig())
             }
             _ => assert!(false),
         }

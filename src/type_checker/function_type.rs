@@ -3,9 +3,9 @@ use crate::{
         expression::{Expr, ExprValueError},
         function::Function,
         statement::Stmt,
-        type_signature::{BuiltinType, TypeSignature, Typed},
+        type_signature::{TypeSignature, Typed},
     },
-    symbols::symbol_table_zipper::SymbolTableZipper,
+    symbols::{builtin_types::BuiltinType, symbol_table_zipper::SymbolTableZipper},
 };
 
 impl<'a> Typed<'a> for Function<'a> {
@@ -30,7 +30,7 @@ impl<'a> Typed<'a> for Function<'a> {
         symbols.exit_scope().unwrap();
 
         Ok(TypeSignature::Function {
-            args: Box::new(args),
+            args,
             return_type: Box::new(return_type),
         })
     }
@@ -62,9 +62,9 @@ fn stmt_type<'a>(
     stmt: &Stmt<'a>,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {
     match stmt {
-        Stmt::VariableDecl(_) => Ok(BuiltinType::Void.into()),
-        Stmt::FunctionDecl(_) => Ok(BuiltinType::Void.into()),
-        Stmt::StructDecl(_) => Ok(BuiltinType::Void.into()),
+        Stmt::VariableDecl(_) => Ok(BuiltinType::Void.type_sig()),
+        Stmt::FunctionDecl(_) => Ok(BuiltinType::Void.type_sig()),
+        Stmt::StructDecl(_) => Ok(BuiltinType::Void.type_sig()),
         Stmt::Expression(expr) => expr_type(symbols, expr),
         Stmt::Return(expr) => expr_type(symbols, expr),
         Stmt::Compound(stmts) => stmt_compound_type(symbols, stmts),
@@ -104,5 +104,5 @@ fn stmt_compound_type<'a>(
         }
     }
 
-    Ok(type_sig.unwrap_or(BuiltinType::Void.into()))
+    Ok(type_sig.unwrap_or(BuiltinType::Void.type_sig()))
 }
