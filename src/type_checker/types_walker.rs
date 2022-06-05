@@ -14,7 +14,7 @@ use crate::{
 use super::{function_type::func_body_type_sig, TypeCheckerError};
 
 pub struct TypeChecker<'a> {
-    symbols: SymbolTableZipper<'a>,
+    pub symbols: SymbolTableZipper<'a>,
 }
 
 impl<'a> TypeChecker<'a> {
@@ -150,7 +150,7 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                 }
             }
             Expr::Function(func) => {
-                if let Some(return_sig) = &func.return_sig {
+                if let Some(return_sig) = &func.return_type {
                     let body_type = func_body_type_sig(&self.symbols, func)
                         .map_err(TypeCheckerError::FunctionError)?;
 

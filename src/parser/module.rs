@@ -29,13 +29,13 @@ pub fn module<'a>(i: Span<'a>) -> Res<Span<'a>, Module<'a>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::Span;
+    use crate::parser::new_span;
 
     use super::module;
 
     #[test]
     fn test_module() {
-        let m = module(Span::new("struct S {} let x = false")).unwrap().1;
+        let m = module(new_span("struct S {} let x = false")).unwrap().1;
 
         assert_eq!(m.stmts.len(), 2);
     }

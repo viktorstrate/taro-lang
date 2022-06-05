@@ -7,7 +7,7 @@ use crate::{
 };
 
 use super::{
-    function::{FunctionCall, FunctionExpr},
+    function::{Function, FunctionCall},
     identifier::Ident,
     type_signature::{BuiltinType, TypeSignature, Typed},
 };
@@ -17,7 +17,7 @@ pub enum Expr<'a> {
     StringLiteral(&'a str),
     NumberLiteral(f64),
     BoolLiteral(bool),
-    Function(FunctionExpr<'a>),
+    Function(Function<'a>),
     FunctionCall(Box<FunctionCall<'a>>),
     Identifier(Ident<'a>),
 }

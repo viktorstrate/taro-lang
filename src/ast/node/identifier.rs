@@ -1,38 +1,81 @@
-use crate::parser::Span;
-use std::{fmt::Debug, hash::Hash};
+use crate::{
+    ast::ref_generator::RefID,
+    parser::Span,
+    symbols::{symbol_table::SymbolValue, symbol_table_zipper::SymbolTableZipper},
+};
+use std::{fmt::Debug, hash::Hash, io::Write};
 
 pub trait Identifiable<'a> {
     fn name(&self) -> &Ident<'a>;
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum IdentValue<'a> {
+    Named(&'a str),
+    Anonymous(RefID),
+}
+
 #[derive(Clone)]
 pub struct Ident<'a> {
-    pub pos: Span<'a>,
-    pub value: &'a str,
+    pub pos: Option<Span<'a>>,
+    pub value: IdentValue<'a>,
 }
 
 impl<'a> Debug for Ident<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Ident")
-            .field("line", &self.pos.location_line())
-            .field("column", &self.pos.get_column())
-            .field("value", &self.value)
-            .finish()
+        match &self.pos {
+            Some(pos) => f
+                .debug_struct("Ident")
+                .field("value", &self.value)
+                .field("line", &pos.location_line())
+                .field("column", &pos.get_column())
+                .finish(),
+            None => f.debug_struct("Ident").field("value", &self.value).finish(),
+        }
     }
 }
 
 impl<'a> Ident<'a> {
     pub fn new(pos: Span<'a>, value: &'a str) -> Self {
         Ident {
-            pos: pos,
-            value: value,
+            pos: Some(pos),
+            value: IdentValue::Named(value),
         }
     }
 
     pub fn new_unplaced(value: &'a str) -> Self {
         Ident {
-            pos: Span::new(""),
-            value,
+            pos: None,
+            value: IdentValue::Named(value),
+        }
+    }
+
+    pub fn new_anon(ref_id: RefID) -> Self {
+        Ident {
+            pos: None,
+            value: IdentValue::Anonymous(ref_id),
+        }
+    }
+}
+
+impl<'a> Ident<'a> {
+    pub fn write<W: Write>(
+        &self,
+        writer: &mut W,
+        symbols: &SymbolTableZipper<'a>,
+    ) -> std::io::Result<()> {
+        let symval = symbols.locate(self).expect("identifier should exist");
+
+        match self.value {
+            IdentValue::Named(name) => writer.write_all(name.as_bytes()),
+            IdentValue::Anonymous(ref_id) => match symval {
+                SymbolValue::VarDecl(_) => {
+                    writer.write_all(format!("anon_var_{}", ref_id).as_bytes())
+                }
+                SymbolValue::FuncDecl(_) => {
+                    writer.write_all(format!("anon_func_{}", ref_id).as_bytes())
+                }
+            },
         }
     }
 }

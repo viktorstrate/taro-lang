@@ -70,21 +70,23 @@ pub fn expr_identifier(i: Span) -> Res<Span, Expr> {
 mod tests {
     use std::assert_matches::assert_matches;
 
+    use crate::parser::new_span;
+
     use super::*;
 
     #[test]
     fn test_expr() {
         assert_matches!(
-            expression(Span::new("\"hello\"")),
+            expression(new_span("\"hello\"")),
             Ok((_, Expr::StringLiteral("hello")))
         );
 
-        match expression(Span::new("23")).unwrap().1 {
+        match expression(new_span("23")).unwrap().1 {
             Expr::NumberLiteral(val) => assert_eq!(val, 23.0),
             _ => assert!(false),
         }
 
-        match expression(Span::new("23.2")).unwrap().1 {
+        match expression(new_span("23.2")).unwrap().1 {
             Expr::NumberLiteral(val) => assert_eq!(val, 23.2),
             _ => assert!(false),
         }
@@ -92,6 +94,6 @@ mod tests {
 
     #[test]
     fn test_expr_string_literal() {
-        assert!(expr_string_literal(Span::new("\"hello not closed")).is_err());
+        assert!(expr_string_literal(new_span("\"hello not closed")).is_err());
     }
 }

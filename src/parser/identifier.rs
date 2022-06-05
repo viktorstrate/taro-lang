@@ -19,5 +19,5 @@ pub fn identifier(i: Span) -> Res<Span, Ident> {
 
     let mut not_keyword_ident = verify(ident_base, |s: &Span| !RESERVED_KEYWORDS.contains(s));
 
-    not_keyword_ident(i).map(|(i, val)| (i, Ident::new(i, &val)))
+    not_keyword_ident(i).map(|(i, val)| (i.clone(), Ident::new(i, &val)))
 }

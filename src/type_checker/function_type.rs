@@ -14,11 +14,11 @@ pub enum FunctionTypeError<'a> {
     ConflictingReturnTypes,
 }
 
-pub fn func_body_type_sig<'a, Func: Function<'a>>(
+pub fn func_body_type_sig<'a>(
     symbols: &SymbolTableZipper<'a>,
-    func: &Func,
+    func: &Function<'a>,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {
-    stmt_type(symbols, func.body())
+    stmt_type(symbols, &func.body)
 }
 
 fn func_expr_type<'a>(

@@ -8,7 +8,7 @@ use nom::{
 };
 use nom_locate::LocatedSpan;
 
-use crate::ast::AST;
+use crate::ast::{ref_generator::RefGen, AST};
 
 pub mod expression;
 pub mod function;
@@ -18,7 +18,7 @@ pub mod statement;
 pub mod structure;
 
 pub fn parse_ast(input: &str) -> Result<AST, ParserError> {
-    match module::module(Span::new(input)).finish() {
+    match module::module(new_span(input)).finish() {
         Ok((_, module)) => Ok(AST::from(module)),
         Err(err) => Err(err),
     }
@@ -28,10 +28,19 @@ pub type ParserError<'a> = VerboseError<Span<'a>>;
 
 pub type Res<I, O> = IResult<I, O, VerboseError<I>>;
 
-pub type Span<'a> = LocatedSpan<&'a str>;
+#[derive(Debug, Default, Clone)]
+pub struct ParserContext {
+    pub ref_gen: RefGen,
+}
+
+pub type Span<'a> = LocatedSpan<&'a str, ParserContext>;
 
 pub fn ws(i: Span) -> Res<Span, Span> {
     return multispace1(i);
+}
+
+pub fn new_span(input: &str) -> Span {
+    Span::new_extra(input, ParserContext::default())
 }
 
 pub fn token<F, I, O>(mut parser: F) -> impl FnMut(I) -> Res<I, O>

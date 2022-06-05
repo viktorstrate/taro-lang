@@ -77,7 +77,7 @@ mod tests {
         let symtable = walk_ast(&mut collector, &mut ast).unwrap();
         let sym_val = symtable.locate(&Ident::new_unplaced("x")).unwrap();
 
-        assert_eq!(sym_val.name().value, "x");
+        assert_eq!(*sym_val.name(), Ident::new_unplaced("x"));
         match sym_val {
             SymbolValue::VarDecl(var_decl) => {
                 assert_matches!(var_decl.value, Expr::BoolLiteral(true));

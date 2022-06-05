@@ -64,21 +64,24 @@ pub fn struct_stmt(i: Span) -> Res<Span, Stmt> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::node::type_signature::{BuiltinType, Mutability},
-        parser::Span,
+        ast::node::{
+            identifier::Ident,
+            type_signature::{BuiltinType, Mutability},
+        },
+        parser::new_span,
     };
 
     use super::*;
 
     #[test]
     fn test_struct() {
-        let st = structure(Span::new("struct Example { let attr: String }"))
+        let st = structure(new_span("struct Example { let attr: String }"))
             .unwrap()
             .1;
 
-        assert_eq!(st.name.value, "Example");
+        assert_eq!(st.name, Ident::new_unplaced("Example"));
         assert_eq!(st.attrs.len(), 1);
-        assert_eq!(st.attrs[0].name.value, "attr");
+        assert_eq!(st.attrs[0].name, Ident::new_unplaced("attr"));
         assert_eq!(st.attrs[0].mutability, Mutability::Immutable);
         assert_eq!(st.attrs[0].type_sig, Some(BuiltinType::String.into()));
         assert!(st.attrs[0].default_value.is_none());

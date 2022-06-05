@@ -4,20 +4,18 @@
 #![feature(assert_matches)]
 #![feature(let_else)]
 
-use std::{collections::binary_heap::Iter, io::BufRead};
-
-use code_gen::ast_to_js;
 use parser::ParserError;
+use std::io::{BufRead, Write};
 use symbols::symbol_table::SymbolsError;
 use type_checker::{types_walker::TypeChecker, TypeCheckerError};
 
 use crate::{
-    ast::ast_walker::walk_ast, parser::parse_ast, symbols::symbol_walker::SymbolCollector,
+    ast::ast_walker::walk_ast, code_gen::format_ast, parser::parse_ast,
+    symbols::symbol_walker::SymbolCollector,
 };
 
 pub mod ast;
 pub mod code_gen;
-pub mod formatter;
 pub mod parser;
 pub mod symbols;
 pub mod type_checker;
@@ -31,9 +29,8 @@ fn main() -> std::io::Result<()> {
     input.iter_mut().for_each(|line| *line += "\n");
     let input = input.into_iter().collect::<String>();
 
-    match transpile(&input) {
-        Ok(output) => print!("{}", &output),
-        Err(err) => println!("Error: {:?}", err),
+    if let Err(err) = transpile(std::io::stdout(), &input) {
+        println!("Error: {:?}", err)
     }
 
     Ok(())
@@ -44,9 +41,10 @@ enum TranspilerError<'a> {
     Parse(ParserError<'a>),
     Symbols(SymbolsError<'a>),
     TypeCheck(TypeCheckerError<'a>),
+    Write(std::io::Error),
 }
 
-fn transpile(input: &str) -> Result<String, TranspilerError> {
+fn transpile<W: Write>(writer: W, input: &str) -> Result<(), TranspilerError> {
     let mut ast = parse_ast(&input).map_err(TranspilerError::Parse)?;
 
     println!("PARSE AST: {:?}\n----\n", ast);
@@ -57,5 +55,7 @@ fn transpile(input: &str) -> Result<String, TranspilerError> {
     let mut type_checker = TypeChecker::new(sym_table);
     walk_ast(&mut type_checker, &mut ast).map_err(TranspilerError::TypeCheck)?;
 
-    Ok(ast_to_js(&ast))
+    format_ast(writer, &ast, type_checker.symbols).map_err(TranspilerError::Write)?;
+
+    Ok(())
 }

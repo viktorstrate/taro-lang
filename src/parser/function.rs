@@ -8,7 +8,8 @@ use nom::{
 
 use crate::ast::node::{
     expression::Expr,
-    function::{FuncDecl, FunctionArg, FunctionCall, FunctionExpr},
+    function::{Function, FunctionArg, FunctionCall},
+    identifier::Ident,
     statement::Stmt,
     type_signature::TypeSignature,
 };
@@ -35,8 +36,8 @@ pub fn function_decl(i: Span) -> Res<Span, Stmt> {
 
     Ok((
         i,
-        Stmt::FunctionDecl(FuncDecl {
-            name,
+        Stmt::FunctionDecl(Function {
+            name: name.into(),
             args,
             return_type,
             body: Box::new(body),
@@ -48,14 +49,17 @@ pub fn function_expr(i: Span) -> Res<Span, Expr> {
     // "(" FUNC_ARGS ")" [-> RETURN_SIG] "{" BODY "}"
 
     let (i, args) = surround_brackets(BracketType::Round, function_args)(i)?;
-    let (i, return_sig) = return_signature(i)?;
-    let (i, body) = surround_brackets(BracketType::Curly, statement)(i)?;
+    let (i, return_type) = return_signature(i)?;
+    let (mut i, body) = surround_brackets(BracketType::Curly, statement)(i)?;
+
+    let name_ref = i.extra.ref_gen.make_ref();
 
     Ok((
         i,
-        Expr::Function(FunctionExpr {
+        Expr::Function(Function {
+            name: Ident::new_anon(name_ref),
             args,
-            return_sig,
+            return_type,
             body: Box::new(body),
         }),
     ))
@@ -109,19 +113,22 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::node::{identifier::Ident, type_signature::BuiltinType},
-        parser::parse_ast,
+        ast::node::{
+            identifier::{Ident, IdentValue, Identifiable},
+            type_signature::BuiltinType,
+        },
+        parser::{new_span, parse_ast},
     };
 
     use super::*;
 
     #[test]
     fn test_function_decl_minimal() {
-        let func_stmt = function_decl(Span::new("func f(){}")).unwrap().1;
+        let func_stmt = function_decl(new_span("func f(){}")).unwrap().1;
 
         match func_stmt {
             Stmt::FunctionDecl(func) => {
-                assert_eq!(func.name.value, "f");
+                assert_eq!(func.name, Ident::new_unplaced("f"));
                 assert_eq!(func.return_type, None);
                 assert_eq!(func.args.len(), 0);
             }
@@ -131,17 +138,17 @@ mod tests {
 
     #[test]
     fn test_function_decl() {
-        let func_stmt = function_decl(Span::new("func sum (a: Number, b: Number) -> Number {}"))
+        let func_stmt = function_decl(new_span("func sum (a: Number, b: Number) -> Number {}"))
             .unwrap()
             .1;
 
         match func_stmt {
             Stmt::FunctionDecl(func) => {
-                assert_eq!(func.name.value, "sum");
+                assert_eq!(func.name, Ident::new_unplaced("sum"));
                 assert_eq!(func.return_type, Some(BuiltinType::Number.into()));
                 assert_eq!(func.args.len(), 2);
-                assert_eq!(func.args[0].name.value, "a");
-                assert_eq!(func.args[1].name.value, "b");
+                assert_eq!(func.args[0].name, Ident::new_unplaced("a"));
+                assert_eq!(func.args[1].name, Ident::new_unplaced("b"));
                 assert_eq!(func.args[0].type_sig, BuiltinType::Number.into());
                 assert_eq!(func.args[1].type_sig, BuiltinType::Number.into());
             }
@@ -151,18 +158,18 @@ mod tests {
 
     #[test]
     fn test_function_expr() {
-        let func_expr = function_expr(Span::new("(a: Number, b: Number) {}"))
+        let func_expr = function_expr(new_span("(a: Number, b: Number) {}"))
             .unwrap()
             .1;
 
         match func_expr {
             Expr::Function(func) => {
                 assert_eq!(func.args.len(), 2);
-                assert_eq!(func.args[0].name.value, "a");
+                assert_eq!(func.args[0].name, Ident::new_unplaced("a"));
                 assert_eq!(func.args[0].type_sig, BuiltinType::Number.into());
-                assert_eq!(func.args[1].name.value, "b");
+                assert_eq!(func.args[1].name, Ident::new_unplaced("b"));
                 assert_eq!(func.args[1].type_sig, BuiltinType::Number.into());
-                assert_eq!(func.return_sig, None);
+                assert_eq!(func.return_type, None);
             }
             _ => assert!(false),
         }
@@ -176,7 +183,7 @@ mod tests {
 
         match func_var_assignment {
             Stmt::VariableDecl(var_decl) => {
-                assert_eq!(var_decl.name.value, "f");
+                assert_eq!(var_decl.name, Ident::new_unplaced("f"));
                 match &var_decl.value {
                     Expr::Function(func) => {
                         assert_eq!(func.args.len(), 2);
@@ -190,13 +197,16 @@ mod tests {
 
     #[test]
     fn test_function_call() {
-        let func_call = function_call_expr(Span::new("f(10, \"hello\")")).unwrap().1;
+        let func_call = function_call_expr(new_span("f(10, \"hello\")")).unwrap().1;
 
         match func_call {
             Expr::FunctionCall(func_call) => {
                 assert_matches!(
                     func_call.func,
-                    Expr::Identifier(Ident { value: "f", pos: _ })
+                    Expr::Identifier(Ident {
+                        value: IdentValue::Named("f"),
+                        pos: _
+                    })
                 );
 
                 assert_eq!(func_call.params.len(), 2);

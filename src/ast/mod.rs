@@ -2,6 +2,7 @@ use self::node::module::Module;
 
 pub mod ast_walker;
 pub mod node;
+pub mod ref_generator;
 pub mod test_utils;
 
 #[derive(Debug)]

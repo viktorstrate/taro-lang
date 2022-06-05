@@ -2,7 +2,11 @@ use std::fmt::Debug;
 
 use super::{
     node::{
-        expression::Expr, function::FuncDecl, identifier::Ident, module::Module, statement::Stmt,
+        expression::Expr,
+        function::Function,
+        identifier::{Ident, Identifiable},
+        module::Module,
+        statement::Stmt,
         structure::Struct,
     },
     AST,
@@ -83,9 +87,8 @@ fn walk_stmt<'a, W: AstWalker<'a>>(
     stmt: &mut Stmt<'a>,
 ) -> Result<(), W::Error> {
     match stmt {
-        Stmt::VariableDecl(decl) => walker.visit_expr(&mut decl.value)?,
-        Stmt::Expression(expr) => walker.visit_expr(expr)?,
-        // Stmt::Expression(expr) => walk_expr(walker, scope, expr)?,
+        Stmt::VariableDecl(decl) => walk_expr(walker, scope, &mut decl.value)?,
+        Stmt::Expression(expr) => walk_expr(walker, scope, expr)?,
         Stmt::FunctionDecl(func) => walk_func_decl(walker, scope, func)?,
         Stmt::Compound(stmts) => {
             for stmt in stmts {
@@ -93,7 +96,7 @@ fn walk_stmt<'a, W: AstWalker<'a>>(
             }
         }
         Stmt::StructDecl(st) => walk_struct(walker, scope, st)?,
-        Stmt::Return(expr) => walker.visit_expr(expr)?,
+        Stmt::Return(expr) => walk_expr(walker, scope, expr)?,
     };
     walker.visit_stmt(scope, stmt)?;
     Ok(())
@@ -102,29 +105,24 @@ fn walk_stmt<'a, W: AstWalker<'a>>(
 fn walk_func_decl<'a, W: AstWalker<'a>>(
     walker: &mut W,
     scope: &mut W::Scope,
-    func: &mut FuncDecl<'a>,
+    func: &mut Function<'a>,
 ) -> Result<(), W::Error> {
-    let mut func_scope = walker.visit_scope_begin(scope, &func.name)?;
+    let mut func_scope = walker.visit_scope_begin(scope, func.name())?;
     walk_stmt(walker, &mut func_scope, &mut func.body)?;
-    walker.visit_scope_end(scope, func_scope, &func.name)?;
+    walker.visit_scope_end(scope, func_scope, func.name())?;
 
     Ok(())
 }
 
-// fn walk_expr<'a, W: AstWalker<'a>>(
-//     walker: &mut W,
-//     scope: &mut W::Scope,
-//     expr: &mut Expr<'a>,
-// ) -> Result<(), W::Error> {
-//     walker.visit_expr(expr)?;
+fn walk_expr<'a, W: AstWalker<'a>>(
+    walker: &mut W,
+    scope: &mut W::Scope,
+    expr: &mut Expr<'a>,
+) -> Result<(), W::Error> {
+    walker.visit_expr(expr)?;
 
-//     match expr {
-//         Expr::Function(func) => {
-//             walker.visit_scope_begin(scope, func.)
-//             walk_stmt(walker, scope, &mut func.body)?;
-//         }
-//         _ => {}
-//     }
-
-//     Ok(())
-// }
+    match expr {
+        Expr::Function(func) => walk_func_decl(walker, scope, func),
+        _ => Ok(()),
+    }
+}

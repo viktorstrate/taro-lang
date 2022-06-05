@@ -94,25 +94,32 @@ fn type_sig_base(i: Span) -> Res<Span, TypeSignature> {
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::ast::node::{expression::Expr, identifier::Ident, type_signature::Mutability};
+    use crate::{
+        ast::node::{
+            expression::Expr,
+            identifier::{Ident, IdentValue},
+            type_signature::Mutability,
+        },
+        parser::new_span,
+    };
 
     use super::*;
 
     #[test]
     fn test_stmt() {
         assert_matches!(
-            statement(Span::new("let mut name: String = \"John\"")),
+            statement(new_span("let mut name: String = \"John\"")),
             Ok((
                 _,
                 Stmt::VariableDecl(VarDecl {
                     name: Ident {
                         pos: _,
-                        value: "name"
+                        value: IdentValue::Named("name")
                     },
                     mutability: Mutability::Mutable,
                     type_sig: Some(TypeSignature::Base(Ident {
                         pos: _,
-                        value: "String"
+                        value: IdentValue::Named("String")
                     })),
                     value: Expr::StringLiteral("John")
                 })
@@ -123,13 +130,13 @@ mod tests {
     #[test]
     fn test_stmt_type_inferrance() {
         assert_matches!(
-            statement(Span::new("let name = true")),
+            statement(new_span("let name = true")),
             Ok((
                 _,
                 Stmt::VariableDecl(VarDecl {
                     name: Ident {
                         pos: _,
-                        value: "name"
+                        value: IdentValue::Named("name")
                     },
                     mutability: Mutability::Immutable,
                     type_sig: None,
