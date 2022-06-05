@@ -1,14 +1,24 @@
 use crate::parser::Span;
-use std::hash::Hash;
+use std::{fmt::Debug, hash::Hash};
 
 pub trait Identifiable<'a> {
     fn name(&self) -> &Ident<'a>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Ident<'a> {
     pub pos: Span<'a>,
     pub value: &'a str,
+}
+
+impl<'a> Debug for Ident<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Ident")
+            .field("line", &self.pos.location_line())
+            .field("column", &self.pos.get_column())
+            .field("value", &self.value)
+            .finish()
+    }
 }
 
 impl<'a> Ident<'a> {

@@ -2,7 +2,8 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::streaming::char,
-    combinator::opt,
+    combinator::{cut, map, opt},
+    error::context,
     multi::separated_list0,
     sequence::{preceded, tuple},
 };
@@ -35,13 +36,16 @@ pub fn statement<'a>(i: Span<'a>) -> Res<Span<'a>, Stmt<'a>> {
 }
 
 pub fn single_statement(i: Span) -> Res<Span, Stmt> {
-    alt((
-        variable_decl,
-        function_decl,
-        struct_stmt,
-        stmt_return,
-        stmt_expression,
-    ))(i)
+    context(
+        "statement",
+        alt((
+            variable_decl,
+            function_decl,
+            struct_stmt,
+            stmt_return,
+            stmt_expression,
+        )),
+    )(i)
 }
 
 pub fn variable_decl(i: Span) -> Res<Span, Stmt> {
@@ -49,10 +53,10 @@ pub fn variable_decl(i: Span) -> Res<Span, Stmt> {
 
     let (i, _) = token(tuple((tag("let"), ws)))(i)?;
     let (i, is_mut) = opt(token(tuple((tag("mut"), ws))))(i)?;
-    let (i, name) = identifier(i)?;
+    let (i, name) = cut(identifier)(i)?;
 
-    let (i, type_sig) = opt(preceded(token(char(':')), type_signature))(i)?;
-    let (i, value) = preceded(token(char('=')), expression)(i)?;
+    let (i, type_sig) = cut(opt(preceded(token(char(':')), type_signature)))(i)?;
+    let (i, value) = cut(preceded(token(char('=')), expression))(i)?;
 
     let var_decl = VarDecl {
         name,
@@ -69,12 +73,17 @@ pub fn stmt_expression(i: Span) -> Res<Span, Stmt> {
 }
 
 pub fn stmt_return(i: Span) -> Res<Span, Stmt> {
-    let (i, expr) = preceded(token(tag("return")), expression)(i)?;
-    Ok((i, Stmt::Return(expr)))
+    context(
+        "return",
+        map(
+            preceded(token(tag("return")), cut(expression)),
+            Stmt::Return,
+        ),
+    )(i)
 }
 
 pub fn type_signature(i: Span) -> Res<Span, TypeSignature> {
-    type_sig_base(i)
+    context("type signature", type_sig_base)(i)
 }
 
 fn type_sig_base(i: Span) -> Res<Span, TypeSignature> {

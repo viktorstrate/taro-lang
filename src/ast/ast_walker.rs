@@ -85,6 +85,7 @@ fn walk_stmt<'a, W: AstWalker<'a>>(
     match stmt {
         Stmt::VariableDecl(decl) => walker.visit_expr(&mut decl.value)?,
         Stmt::Expression(expr) => walker.visit_expr(expr)?,
+        // Stmt::Expression(expr) => walk_expr(walker, scope, expr)?,
         Stmt::FunctionDecl(func) => walk_func_decl(walker, scope, func)?,
         Stmt::Compound(stmts) => {
             for stmt in stmts {
@@ -109,3 +110,21 @@ fn walk_func_decl<'a, W: AstWalker<'a>>(
 
     Ok(())
 }
+
+// fn walk_expr<'a, W: AstWalker<'a>>(
+//     walker: &mut W,
+//     scope: &mut W::Scope,
+//     expr: &mut Expr<'a>,
+// ) -> Result<(), W::Error> {
+//     walker.visit_expr(expr)?;
+
+//     match expr {
+//         Expr::Function(func) => {
+//             walker.visit_scope_begin(scope, func.)
+//             walk_stmt(walker, scope, &mut func.body)?;
+//         }
+//         _ => {}
+//     }
+
+//     Ok(())
+// }

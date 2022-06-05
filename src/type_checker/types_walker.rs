@@ -37,6 +37,8 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
             .enter_scope(scope_ident.clone())
             .expect("scope should exist");
 
+        println!("ENTER SCOPE {:?}", scope_ident);
+
         Ok(())
     }
 
@@ -44,11 +46,13 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
         &mut self,
         _parent: &mut Self::Scope,
         _child: Self::Scope,
-        _scope_ident: &crate::ast::node::identifier::Ident<'a>,
+        scope_ident: &crate::ast::node::identifier::Ident<'a>,
     ) -> Result<(), Self::Error> {
         self.symbols
             .exit_scope()
             .expect("scope should not be global scope");
+
+        println!("EXIT SCOPE {:?}", scope_ident);
 
         Ok(())
     }

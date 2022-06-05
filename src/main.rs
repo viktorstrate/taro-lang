@@ -4,7 +4,7 @@
 #![feature(assert_matches)]
 #![feature(let_else)]
 
-use std::io::BufRead;
+use std::{collections::binary_heap::Iter, io::BufRead};
 
 use code_gen::ast_to_js;
 use parser::ParserError;
@@ -23,10 +23,13 @@ pub mod symbols;
 pub mod type_checker;
 
 fn main() -> std::io::Result<()> {
-    let input = std::io::stdin()
+    let mut input = std::io::stdin()
         .lock()
         .lines()
-        .collect::<Result<String, _>>()?;
+        .collect::<Result<Vec<String>, _>>()?;
+
+    input.iter_mut().for_each(|line| *line += "\n");
+    let input = input.into_iter().collect::<String>();
 
     match transpile(&input) {
         Ok(output) => print!("{}", &output),
@@ -45,6 +48,8 @@ enum TranspilerError<'a> {
 
 fn transpile(input: &str) -> Result<String, TranspilerError> {
     let mut ast = parse_ast(&input).map_err(TranspilerError::Parse)?;
+
+    println!("PARSE AST: {:?}\n----\n", ast);
 
     let mut sym_collector = SymbolCollector::default();
     let sym_table = walk_ast(&mut sym_collector, &mut ast).map_err(TranspilerError::Symbols)?;

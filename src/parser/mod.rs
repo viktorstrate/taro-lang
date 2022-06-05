@@ -1,8 +1,9 @@
 use nom::{
     bytes::complete::tag,
     character::complete::{multispace0, multispace1},
-    combinator::complete,
+    combinator::cut,
     error::VerboseError,
+    sequence::delimited,
     AsChar, Finish, IResult, InputTakeAtPosition,
 };
 use nom_locate::LocatedSpan;
@@ -17,7 +18,7 @@ pub mod statement;
 pub mod structure;
 
 pub fn parse_ast(input: &str) -> Result<AST, ParserError> {
-    match complete(module::module)(Span::new(input)).finish() {
+    match module::module(Span::new(input)).finish() {
         Ok((_, module)) => Ok(AST::from(module)),
         Err(err) => Err(err),
     }
@@ -74,16 +75,14 @@ impl BracketType {
 
 pub fn surround_brackets<'a, F, O>(
     brackets: BracketType,
-    mut parser: F,
+    parser: F,
 ) -> impl FnMut(Span<'a>) -> Res<Span<'a>, O>
 where
     F: FnMut(Span<'a>) -> Res<Span<'a>, O>,
 {
-    return move |i: Span| {
-        let (i, _) = token(tag(brackets.open()))(i)?;
-        let (i, res) = parser(i)?;
-        let (i, _) = token(tag(brackets.close()))(i)?;
-
-        return Ok((i, res));
-    };
+    delimited(
+        token(tag(brackets.open())),
+        parser,
+        cut(token(tag(brackets.close()))),
+    )
 }

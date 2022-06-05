@@ -2,7 +2,8 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_until},
     character::complete::{char as char_parser, digit1},
-    combinator::opt,
+    combinator::{map, opt},
+    error::context,
     sequence::{delimited, tuple},
 };
 
@@ -15,7 +16,10 @@ use super::{
 };
 
 pub fn expression(i: Span) -> Res<Span, Expr> {
-    return alt((function_call_expr, non_fn_call_expression))(i);
+    return context(
+        "expression",
+        alt((function_call_expr, non_fn_call_expression)),
+    )(i);
 }
 
 pub fn non_fn_call_expression(i: Span) -> Res<Span, Expr> {
@@ -49,12 +53,17 @@ pub fn expr_number_literal(i: Span) -> Res<Span, Expr> {
 }
 
 pub fn expr_boolean_literal(i: Span) -> Res<Span, Expr> {
-    let (i, result) = alt((tag("true"), tag("false")))(i)?;
-    Ok((i, Expr::BoolLiteral(*result == "true")))
+    context(
+        "boolean",
+        map(
+            alt((map(tag("true"), |_| true), map(tag("false"), |_| false))),
+            Expr::BoolLiteral,
+        ),
+    )(i)
 }
 
 pub fn expr_identifier(i: Span) -> Res<Span, Expr> {
-    identifier(i).map(|(i, ident)| (i, Expr::Identifier(ident)))
+    context("identifier expression", map(identifier, Expr::Identifier))(i)
 }
 
 #[cfg(test)]

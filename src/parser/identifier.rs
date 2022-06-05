@@ -8,7 +8,8 @@ use crate::ast::node::identifier::Ident;
 
 use super::{token, Res, Span};
 
-const RESERVED_KEYWORDS: &'static [&str] = &["struct", "func", "return"];
+const RESERVED_KEYWORDS: &'static [&str] =
+    &["struct", "func", "return", "let", "mut", "true", "false"];
 
 pub fn identifier(i: Span) -> Res<Span, Ident> {
     let ident_base = token(recognize(pair(

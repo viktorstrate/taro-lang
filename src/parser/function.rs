@@ -1,6 +1,7 @@
 use nom::{
     bytes::complete::tag,
-    combinator::opt,
+    combinator::{cut, map, opt},
+    error::context,
     multi::separated_list0,
     sequence::{preceded, tuple},
 };
@@ -9,6 +10,7 @@ use crate::ast::node::{
     expression::Expr,
     function::{FuncDecl, FunctionArg, FunctionCall, FunctionExpr},
     statement::Stmt,
+    type_signature::TypeSignature,
 };
 
 use super::{
@@ -22,18 +24,21 @@ pub fn function_decl(i: Span) -> Res<Span, Stmt> {
     // func IDENT "(" FUNC_ARGS ")" [-> RETURN_SIG] "{" BODY "}"
 
     let (i, _) = token(tuple((tag("func"), ws)))(i)?;
-    let (i, name) = identifier(i)?;
+    let (i, name) = context("function name", cut(identifier))(i)?;
 
-    let (i, args) = surround_brackets(BracketType::Round, function_args)(i)?;
-    let (i, return_type) = opt(preceded(token(tag("->")), type_signature))(i)?;
-    let (i, body) = surround_brackets(BracketType::Curly, statement)(i)?;
+    let (i, args) = cut(surround_brackets(BracketType::Round, function_args))(i)?;
+    let (i, return_type) = return_signature(i)?;
+    let (i, body) = context(
+        "function body",
+        cut(surround_brackets(BracketType::Curly, statement)),
+    )(i)?;
 
     Ok((
         i,
         Stmt::FunctionDecl(FuncDecl {
             name,
             args,
-            return_type: return_type,
+            return_type,
             body: Box::new(body),
         }),
     ))
@@ -43,17 +48,24 @@ pub fn function_expr(i: Span) -> Res<Span, Expr> {
     // "(" FUNC_ARGS ")" [-> RETURN_SIG] "{" BODY "}"
 
     let (i, args) = surround_brackets(BracketType::Round, function_args)(i)?;
-    let (i, return_type) = opt(preceded(token(tag("->")), type_signature))(i)?;
+    let (i, return_sig) = return_signature(i)?;
     let (i, body) = surround_brackets(BracketType::Curly, statement)(i)?;
 
     Ok((
         i,
         Expr::Function(FunctionExpr {
             args,
-            return_sig: return_type,
+            return_sig,
             body: Box::new(body),
         }),
     ))
+}
+
+fn return_signature(i: Span) -> Res<Span, Option<TypeSignature>> {
+    context(
+        "return signature",
+        cut(opt(preceded(token(tag("->")), type_signature))),
+    )(i)
 }
 
 fn function_args(i: Span) -> Res<Span, Vec<FunctionArg>> {
@@ -63,11 +75,19 @@ fn function_args(i: Span) -> Res<Span, Vec<FunctionArg>> {
 fn function_arg(i: Span) -> Res<Span, FunctionArg> {
     // IDENT : TYPE_SIG
 
-    let (i, name) = identifier(i)?;
-    let (i, _) = token(tag(":"))(i)?;
-    let (i, type_sig) = type_signature(i)?;
-
-    Ok((i, FunctionArg { name, type_sig }))
+    context(
+        "function argument",
+        map(
+            tuple((
+                identifier,
+                context(
+                    "argument type",
+                    cut(preceded(token(tag(":")), type_signature)),
+                ),
+            )),
+            |(name, type_sig)| FunctionArg { name, type_sig },
+        ),
+    )(i)
 }
 
 pub fn function_call_expr(i: Span) -> Res<Span, Expr> {
