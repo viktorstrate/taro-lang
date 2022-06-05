@@ -67,7 +67,12 @@ impl<'a> Ident<'a> {
         let symval = symbols.locate(self).expect("identifier should exist");
 
         match self.value {
-            IdentValue::Named(name) => writer.write_all(name.as_bytes()),
+            IdentValue::Named(name) => match symval {
+                SymbolValue::StructDecl(_) => {
+                    writer.write_all(format!("struct_{}", &name).as_bytes())
+                }
+                _ => writer.write_all(name.as_bytes()),
+            },
             IdentValue::Anonymous(ref_id) => match symval {
                 SymbolValue::FuncDecl(_) => {
                     writer.write_all(format!("anon_func_{}", ref_id).as_bytes())

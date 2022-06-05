@@ -24,9 +24,18 @@ pub fn structure<'a>(i: Span<'a>) -> Res<Span<'a>, Struct<'a>> {
 
     let (i, ident) = identifier(i)?;
 
-    let (i, attrs) = surround_brackets(BracketType::Curly, struct_attrs)(i)?;
+    let (mut i, attrs) = surround_brackets(BracketType::Curly, struct_attrs)(i)?;
 
-    Ok((i, Struct { name: ident, attrs }))
+    let ref_id = i.extra.ref_gen.make_ref();
+
+    Ok((
+        i,
+        Struct {
+            name: ident,
+            attrs,
+            ref_id,
+        },
+    ))
 }
 
 pub fn struct_attrs<'a>(i: Span<'a>) -> Res<Span, Vec<StructAttr<'a>>> {

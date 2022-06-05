@@ -3,6 +3,7 @@ use crate::ast::{
     node::{
         function::Function,
         statement::Stmt::{self, FunctionDecl, VariableDecl},
+        structure::Struct,
     },
 };
 
@@ -15,18 +16,6 @@ impl<'a> AstWalker<'a> for SymbolCollector {
     type Scope = SymbolTable<'a>;
     type Error = SymbolsError<'a>;
 
-    fn visit_stmt(
-        &mut self,
-        scope: &mut SymbolTable<'a>,
-        stmt: &mut Stmt<'a>,
-    ) -> Result<(), Self::Error> {
-        match stmt {
-            VariableDecl(var_decl) => scope.insert(var_decl.clone().into()).map(|_| ()),
-            FunctionDecl(func_decl) => scope.insert(func_decl.clone().into()).map(|_| ()),
-            _ => Ok(()),
-        }
-    }
-
     fn visit_scope_begin(
         &mut self,
         _parent: &mut SymbolTable<'a>,
@@ -35,7 +24,7 @@ impl<'a> AstWalker<'a> for SymbolCollector {
         let mut new_scope = SymbolTable::default();
 
         for arg in &func.args {
-            new_scope.insert(SymbolValue::FuncArg(arg.clone()));
+            new_scope.insert(SymbolValue::FuncArg(arg.clone()))?;
         }
 
         Ok(new_scope)
@@ -49,6 +38,36 @@ impl<'a> AstWalker<'a> for SymbolCollector {
     ) -> Result<(), Self::Error> {
         // save child scope in parent scope
         parent.insert_scope(func.name.clone(), child).map(|_| ())
+    }
+
+    fn visit_stmt(
+        &mut self,
+        scope: &mut SymbolTable<'a>,
+        stmt: &mut Stmt<'a>,
+    ) -> Result<(), Self::Error> {
+        match stmt {
+            VariableDecl(var_decl) => scope.insert(var_decl.clone().into()).map(|_| ()),
+            FunctionDecl(func_decl) => scope.insert(func_decl.clone().into()).map(|_| ()),
+            _ => Ok(()),
+        }
+    }
+
+    fn visit_struct_decl(
+        &mut self,
+        scope: &mut SymbolTable<'a>,
+        st: &mut Struct<'a>,
+    ) -> Result<(), Self::Error> {
+        scope.insert(SymbolValue::StructDecl(st.clone()))?;
+
+        let mut struct_scope = SymbolTable::default();
+
+        for attr in &st.attrs {
+            struct_scope.insert(SymbolValue::StructAttr(attr.clone()))?;
+        }
+
+        scope.insert_scope(st.name.clone(), struct_scope)?;
+
+        Ok(())
     }
 }
 

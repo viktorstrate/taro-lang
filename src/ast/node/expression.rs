@@ -59,6 +59,8 @@ impl<'a> Typed<'a> for Expr<'a> {
                         .type_sig(symbols)
                         .expect("function type sig always succeeds")),
                     SymbolValue::FuncArg(arg) => Ok(arg.type_sig.clone()),
+                    SymbolValue::StructDecl(st) => st.clone().type_sig(symbols),
+                    SymbolValue::StructAttr(attr) => attr.clone().type_sig(symbols),
                 }
             }
         }

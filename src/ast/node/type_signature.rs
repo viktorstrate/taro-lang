@@ -1,4 +1,4 @@
-use crate::symbols::symbol_table_zipper::SymbolTableZipper;
+use crate::{ast::ref_generator::RefID, symbols::symbol_table_zipper::SymbolTableZipper};
 
 use super::identifier::Ident;
 
@@ -8,6 +8,10 @@ pub enum TypeSignature<'a> {
     Function {
         args: Box<Vec<TypeSignature<'a>>>,
         return_type: Box<TypeSignature<'a>>,
+    },
+    Struct {
+        name: Ident<'a>,
+        ref_id: RefID,
     },
     Reference(Box<TypeSignature<'a>>),
     // GenericBase(Ident<'a>, Box<Vec<TypeSignatureValue<'a>>>),

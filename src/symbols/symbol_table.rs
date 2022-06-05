@@ -4,6 +4,7 @@ use crate::ast::node::{
     function::{Function, FunctionArg},
     identifier::{Ident, Identifiable},
     statement::VarDecl,
+    structure::{Struct, StructAttr},
 };
 
 #[derive(Debug)]
@@ -24,6 +25,8 @@ pub enum SymbolValue<'a> {
     VarDecl(VarDecl<'a>),
     FuncDecl(Function<'a>),
     FuncArg(FunctionArg<'a>),
+    StructDecl(Struct<'a>),
+    StructAttr(StructAttr<'a>),
 }
 
 impl<'a> From<Function<'a>> for SymbolValue<'a> {
@@ -44,6 +47,8 @@ impl<'a> Identifiable<'a> for SymbolValue<'a> {
             SymbolValue::VarDecl(var) => var.name(),
             SymbolValue::FuncDecl(func) => func.name(),
             SymbolValue::FuncArg(arg) => arg.name(),
+            SymbolValue::StructDecl(st) => st.name(),
+            SymbolValue::StructAttr(attr) => attr.name(),
         }
     }
 }

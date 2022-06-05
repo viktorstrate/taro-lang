@@ -20,7 +20,11 @@ pub trait AstWalker<'a> {
         Ok(())
     }
 
-    fn visit_struct_decl(&mut self, st: &mut Struct<'a>) -> Result<(), Self::Error> {
+    fn visit_struct_decl(
+        &mut self,
+        scope: &mut Self::Scope,
+        st: &mut Struct<'a>,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -69,10 +73,10 @@ fn walk_module<'a, W: AstWalker<'a>>(
 
 fn walk_struct<'a, W: AstWalker<'a>>(
     walker: &mut W,
-    _scope: &mut W::Scope,
+    scope: &mut W::Scope,
     st: &mut Struct<'a>,
 ) -> Result<(), W::Error> {
-    walker.visit_struct_decl(st)?;
+    walker.visit_struct_decl(scope, st)?;
     Ok(())
 }
 

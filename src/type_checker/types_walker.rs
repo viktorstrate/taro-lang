@@ -31,9 +31,9 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
 
     fn visit_scope_begin(
         &mut self,
-        _parent: &mut Self::Scope,
+        _parent: &mut (),
         func: &mut Function<'a>,
-    ) -> Result<Self::Scope, Self::Error> {
+    ) -> Result<(), Self::Error> {
         self.symbols
             .enter_scope(func.name.clone())
             .expect("scope should exist");
@@ -43,8 +43,8 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
 
     fn visit_scope_end(
         &mut self,
-        _parent: &mut Self::Scope,
-        _child: Self::Scope,
+        _parent: &mut (),
+        _child: (),
         _func: &mut Function<'a>,
     ) -> Result<(), Self::Error> {
         self.symbols
@@ -54,11 +54,7 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
         Ok(())
     }
 
-    fn visit_stmt(
-        &mut self,
-        _scope: &mut Self::Scope,
-        stmt: &mut Stmt<'a>,
-    ) -> Result<(), Self::Error> {
+    fn visit_stmt(&mut self, _scope: &mut (), stmt: &mut Stmt<'a>) -> Result<(), Self::Error> {
         match stmt {
             Stmt::VariableDecl(var_decl) => {
                 let val_type = var_decl
@@ -75,21 +71,49 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                         });
                     }
                 } else {
-                    // set declaration type to the type of the expression
+                    // set declaration type to the calculated type of the expression
                     var_decl.type_sig = Some(val_type);
                 }
 
                 Ok(())
             }
-            Stmt::FunctionDecl(_func_decl) => {
-                // TODO: Type check function declerations
+            Stmt::FunctionDecl(func_decl) => {
+                let func_type = func_decl
+                    .type_sig(&mut self.symbols)
+                    .map_err(TypeCheckerError::FunctionError)?;
+
+                let body_type = match func_type {
+                    TypeSignature::Function {
+                        args: _,
+                        return_type,
+                    } => *return_type,
+                    _ => unreachable!(),
+                };
+
+                if let Some(return_type) = &func_decl.return_type {
+                    // make sure the specified return type matches the actual return type
+                    if body_type != *return_type {
+                        return Err(TypeCheckerError::TypeSignatureMismatch::<'a> {
+                            type_sig: return_type.clone(),
+                            expr_type: body_type,
+                        });
+                    }
+                } else {
+                    // set return type to the calculated type of the function body
+                    func_decl.return_type = Some(body_type);
+                }
+
                 Ok(())
             }
             _ => Ok(()),
         }
     }
 
-    fn visit_struct_decl(&mut self, st: &mut Struct<'a>) -> Result<(), Self::Error> {
+    fn visit_struct_decl(
+        &mut self,
+        _scope: &mut (),
+        st: &mut Struct<'a>,
+    ) -> Result<(), Self::Error> {
         for attr in &st.attrs {
             match (&attr.type_sig, &attr.default_value) {
                 (Some(type_sig), Some(val)) => {

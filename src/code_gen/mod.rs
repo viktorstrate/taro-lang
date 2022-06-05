@@ -62,8 +62,39 @@ fn format_module<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, module: &Module<'a>)
     ctx.write("\n")
 }
 
-fn format_struct<W: Write>(ctx: &mut CodeGenCtx<W>, _st: &Struct) -> CodeGenResult {
-    ctx.write("INSERT STRUCT HERE")
+fn format_struct<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, st: &Struct<'a>) -> CodeGenResult {
+    ctx.write("function ")?;
+    ctx.write_ident(&st.name)?;
+
+    ctx.symbols.enter_scope(st.name.clone()).unwrap();
+
+    ctx.write(" (")?;
+
+    format_with_separator(ctx, ", ", st.attrs.iter(), |ctx, attr| {
+        ctx.write_ident(&attr.name)
+    })?;
+
+    ctx.write(") {\n")?;
+
+    format_with_separator(ctx, ";\n", st.attrs.iter(), |ctx, attr| {
+        ctx.write("this.")?;
+        ctx.write_ident(&attr.name)?;
+        ctx.write(" = ")?;
+        ctx.write_ident(&attr.name)?;
+
+        if let Some(default) = &attr.default_value {
+            ctx.write(" ?? ")?;
+            format_expr(ctx, default)?;
+        }
+
+        Ok(())
+    })?;
+
+    ctx.write("}")?;
+
+    ctx.symbols.exit_scope().unwrap();
+
+    Ok(())
 }
 
 fn format_stmt<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, stmt: &Stmt<'a>) -> CodeGenResult {
@@ -113,13 +144,13 @@ fn format_func_decl<'a, W: Write>(
 
     format_func_args(ctx, &func.args)?;
 
-    ctx.write(" {\n")?;
+    ctx.write(" {")?;
 
     format_stmt(ctx, &func.body)?;
 
     ctx.symbols.exit_scope().unwrap();
 
-    ctx.write("\n}")?;
+    ctx.write("}")?;
 
     Ok(())
 }
@@ -135,13 +166,13 @@ fn format_expr<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, expr: &Expr<'a>) -> Co
                 .expect("function scope should exist");
 
             format_func_args(ctx, &func.args)?;
-            ctx.write(" => {\n")?;
+            ctx.write(" => {")?;
 
             format_stmt(ctx, &func.body)?;
 
             ctx.symbols.exit_scope().unwrap();
 
-            ctx.write("\n}")
+            ctx.write("}")
         }
         Expr::FunctionCall(call) => {
             format_expr(ctx, &call.func)?;
@@ -228,5 +259,11 @@ mod tests {
     fn test_assign_func_call_mismatched_types() {
         let ast = final_codegen("func f() { return 123 }; let x: Boolean = f()");
         assert_matches!(ast, Err(FinalAstError::TypeCheck(_)));
+    }
+
+    #[test]
+    fn test_struct() {
+        let ast = final_codegen("struct Test { let defaultVal = 123; let mut noDefault: Bool }");
+        assert_eq!(ast.unwrap(), "function struct_Test (defaultVal, noDefault) {\nthis.defaultVal = defaultVal ?? 123;\nthis.noDefault = noDefault}\n");
     }
 }
