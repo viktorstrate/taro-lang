@@ -1,6 +1,11 @@
-use crate::{ast::ref_generator::RefID, symbols::symbol_table_zipper::SymbolTableZipper};
+use std::fmt::Debug;
 
-use super::identifier::Ident;
+use crate::{
+    ast::ref_generator::RefID, symbols::symbol_table_zipper::SymbolTableZipper,
+    type_checker::function_type::FunctionTypeError,
+};
+
+use super::{expression::Expr, identifier::Ident};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum TypeSignature<'a> {
@@ -17,13 +22,26 @@ pub enum TypeSignature<'a> {
     // GenericBase(Ident<'a>, Box<Vec<TypeSignatureValue<'a>>>),
 }
 
-pub trait Typed<'a> {
-    type Error = ();
+#[derive(Debug)]
+pub enum TypeEvalError<'a> {
+    Expression(Expr<'a>),
+    FunctionType(FunctionTypeError<'a>),
+    CallNonFunction(TypeSignature<'a>),
+    UnknownIdentifier(Ident<'a>),
+}
 
-    fn type_sig(
+#[allow(unused_variables)]
+pub trait Typed<'a>: Debug {
+    fn eval_type(
         &self,
         symbols: &mut SymbolTableZipper<'a>,
-    ) -> Result<TypeSignature<'a>, Self::Error>;
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>>;
+
+    fn specified_type(&self) -> Option<&TypeSignature<'a>> {
+        None
+    }
+
+    fn specify_type(&mut self, new_type: TypeSignature<'a>) {}
 }
 
 #[derive(PartialEq, Debug, Clone)]

@@ -1,9 +1,9 @@
 use super::{
-    expression::{Expr, ExprValueError},
+    expression::Expr,
     function::Function,
     identifier::{Ident, Identifiable},
     structure::Struct,
-    type_signature::{Mutability, TypeSignature, Typed},
+    type_signature::{Mutability, TypeEvalError, TypeSignature, Typed},
 };
 
 #[derive(Debug, Clone)]
@@ -31,12 +31,18 @@ impl<'a> Identifiable<'a> for VarDecl<'a> {
 }
 
 impl<'a> Typed<'a> for VarDecl<'a> {
-    type Error = ExprValueError<'a>;
-
-    fn type_sig(
+    fn eval_type(
         &self,
-        _symbols: &mut crate::symbols::symbol_table_zipper::SymbolTableZipper<'a>,
-    ) -> Result<TypeSignature<'a>, Self::Error> {
-        todo!()
+        symbols: &mut crate::symbols::symbol_table_zipper::SymbolTableZipper<'a>,
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
+        self.value.eval_type(symbols)
+    }
+
+    fn specified_type(&self) -> Option<&TypeSignature<'a>> {
+        self.type_sig.as_ref()
+    }
+
+    fn specify_type(&mut self, new_type: TypeSignature<'a>) {
+        self.type_sig = Some(new_type);
     }
 }

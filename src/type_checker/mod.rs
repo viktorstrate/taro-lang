@@ -1,9 +1,9 @@
-use crate::ast::node::{expression::ExprValueError, type_signature::TypeSignature};
+use crate::ast::node::type_signature::{TypeEvalError, TypeSignature, Typed};
 
 use self::function_type::FunctionTypeError;
 
 pub mod function_type;
-pub mod specialize_type;
+pub mod types_helpers;
 pub mod types_walker;
 
 #[derive(Debug)]
@@ -15,6 +15,7 @@ pub enum TypeCheckerError<'a> {
     CallNonFunction {
         ident_type: TypeSignature<'a>,
     },
-    ValueError(ExprValueError<'a>),
+    TypeEvalError(TypeEvalError<'a>),
     FunctionError(FunctionTypeError<'a>),
+    UntypedValue(Box<dyn 'a + Typed<'a>>),
 }

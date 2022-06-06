@@ -1,20 +1,18 @@
 use crate::{
     ast::node::{
-        expression::{Expr, ExprValueError},
+        expression::Expr,
         function::Function,
         statement::Stmt,
-        type_signature::{TypeSignature, Typed},
+        type_signature::{TypeEvalError, TypeSignature, Typed},
     },
     symbols::{builtin_types::BuiltinType, symbol_table_zipper::SymbolTableZipper},
 };
 
 impl<'a> Typed<'a> for Function<'a> {
-    type Error = FunctionTypeError<'a>;
-
-    fn type_sig(
+    fn eval_type(
         &self,
         symbols: &mut SymbolTableZipper<'a>,
-    ) -> Result<TypeSignature<'a>, Self::Error> {
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let args = self
             .args
             .iter()
@@ -25,7 +23,7 @@ impl<'a> Typed<'a> for Function<'a> {
             .enter_scope(self.name.clone())
             .expect("function should be located in current scope");
 
-        let return_type = func_body_type_sig(symbols, self)?;
+        let return_type = func_body_type_sig(symbols, self).map_err(TypeEvalError::FunctionType)?;
 
         symbols.exit_scope().unwrap();
 
@@ -38,7 +36,7 @@ impl<'a> Typed<'a> for Function<'a> {
 
 #[derive(Debug)]
 pub enum FunctionTypeError<'a> {
-    ExprValue(Box<ExprValueError<'a>>),
+    ExprValue(Box<TypeEvalError<'a>>),
     ConflictingReturnTypes,
 }
 
@@ -53,7 +51,7 @@ fn expr_type<'a>(
     symbols: &mut SymbolTableZipper<'a>,
     expr: &Expr<'a>,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {
-    expr.type_sig(symbols)
+    expr.eval_type(symbols)
         .map_err(|err| FunctionTypeError::ExprValue(Box::new(err)))
 }
 

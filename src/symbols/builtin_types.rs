@@ -13,6 +13,7 @@ pub enum BuiltinType {
     Number,
     Bool,
     Void,
+    Untyped,
 }
 
 impl BuiltinType {
@@ -22,6 +23,7 @@ impl BuiltinType {
             BuiltinType::Number => "Number",
             BuiltinType::Bool => "Boolean",
             BuiltinType::Void => "Void",
+            BuiltinType::Untyped => "Untyped",
         };
 
         Ident::new_unplaced(value)

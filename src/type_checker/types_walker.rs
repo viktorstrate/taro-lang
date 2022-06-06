@@ -3,7 +3,6 @@ use crate::{
         ast_walker::{AstWalker, ScopeValue},
         node::{
             expression::Expr,
-            function::Function,
             statement::Stmt,
             structure::Struct,
             type_signature::{TypeSignature, Typed},
@@ -12,7 +11,7 @@ use crate::{
     symbols::{symbol_table::SymbolTable, symbol_table_zipper::SymbolTableZipper},
 };
 
-use super::{specialize_type::specialize_type, TypeCheckerError};
+use super::{types_helpers::type_check, TypeCheckerError};
 
 pub struct TypeChecker<'a> {
     pub symbols: SymbolTableZipper<'a>,
@@ -69,67 +68,8 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
         stmt: &mut Stmt<'a>,
     ) -> Result<(), TypeCheckerError<'a>> {
         match stmt {
-            Stmt::VariableDecl(var_decl) => {
-                let val_type = var_decl
-                    .value
-                    .type_sig(&mut self.symbols)
-                    .map_err(TypeCheckerError::ValueError)?;
-
-                // specialize specified type signature
-                match var_decl.type_sig.as_mut() {
-                    Some(mut type_sig) => specialize_type(&mut self.symbols, &mut type_sig)?,
-                    None => {}
-                };
-
-                if let Some(type_sig) = &var_decl.type_sig {
-                    // make sure specified type matches expression
-                    if val_type != *type_sig {
-                        return Err(TypeCheckerError::TypeSignatureMismatch::<'a> {
-                            type_sig: type_sig.clone(),
-                            expr_type: val_type,
-                        });
-                    }
-                } else {
-                    // set declaration type to the calculated type of the expression
-                    var_decl.type_sig = Some(val_type);
-                }
-
-                Ok(())
-            }
-            Stmt::FunctionDecl(func_decl) => {
-                // specialize specified return type
-                match func_decl.return_type.as_mut() {
-                    Some(mut type_sig) => specialize_type(&mut self.symbols, &mut type_sig)?,
-                    None => {}
-                };
-
-                let func_type = func_decl
-                    .type_sig(&mut self.symbols)
-                    .map_err(TypeCheckerError::FunctionError)?;
-
-                let body_type = match func_type {
-                    TypeSignature::Function {
-                        args: _,
-                        return_type,
-                    } => *return_type,
-                    _ => unreachable!(),
-                };
-
-                if let Some(return_type) = &func_decl.return_type {
-                    // make sure the specified return type matches the actual return type
-                    if body_type != *return_type {
-                        return Err(TypeCheckerError::TypeSignatureMismatch::<'a> {
-                            type_sig: return_type.clone(),
-                            expr_type: body_type,
-                        });
-                    }
-                } else {
-                    // set return type to the calculated type of the function body
-                    func_decl.return_type = Some(body_type);
-                }
-
-                Ok(())
-            }
+            Stmt::VariableDecl(var_decl) => type_check(&mut self.symbols, var_decl),
+            Stmt::FunctionDecl(func_decl) => type_check(&mut self.symbols, func_decl),
             _ => Ok(()),
         }
     }
@@ -139,21 +79,8 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
         _scope: &mut (),
         st: &mut Struct<'a>,
     ) -> Result<(), TypeCheckerError<'a>> {
-        for attr in &st.attrs {
-            match (&attr.type_sig, &attr.default_value) {
-                (Some(type_sig), Some(val)) => {
-                    let val_type = val
-                        .type_sig(&mut self.symbols)
-                        .map_err(TypeCheckerError::ValueError)?;
-                    if *type_sig != val_type {
-                        return Err(TypeCheckerError::TypeSignatureMismatch::<'a> {
-                            type_sig: type_sig.clone(),
-                            expr_type: val_type,
-                        });
-                    }
-                }
-                _ => {}
-            }
+        for attr in &mut st.attrs {
+            type_check(&mut self.symbols, attr)?;
         }
 
         Ok(())
@@ -164,14 +91,14 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
             Expr::FunctionCall(call) => {
                 match call
                     .func
-                    .type_sig(&mut self.symbols)
-                    .map_err(TypeCheckerError::ValueError)?
+                    .eval_type(&mut self.symbols)
+                    .map_err(TypeCheckerError::TypeEvalError)?
                 {
                     TypeSignature::Function { args, return_type } => {
                         let param_types = call
                             .params
                             .iter()
-                            .map(|param| param.type_sig(&mut self.symbols).unwrap())
+                            .map(|param| param.eval_type(&mut self.symbols).unwrap())
                             .collect::<Vec<_>>();
 
                         let arg_count_match = call.params.len() == args.len();
@@ -197,39 +124,7 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                     }),
                 }
             }
-            Expr::Function(func) => {
-                // specialize specified return type
-                match func.return_type.as_mut() {
-                    Some(mut return_type) => {
-                        specialize_type(&mut self.symbols, &mut return_type)?;
-                    }
-                    None => {}
-                };
-
-                if let Some(return_sig) = &func.return_type {
-                    let func_type = func
-                        .type_sig(&mut self.symbols)
-                        .map_err(TypeCheckerError::FunctionError)?;
-
-                    // get function return type
-                    let body_type = match func_type {
-                        TypeSignature::Function {
-                            args: _,
-                            return_type,
-                        } => *return_type,
-                        _ => unreachable!(),
-                    };
-
-                    if body_type != *return_sig {
-                        return Err(TypeCheckerError::TypeSignatureMismatch {
-                            type_sig: return_sig.clone(),
-                            expr_type: body_type,
-                        });
-                    }
-                }
-
-                Ok(())
-            }
+            Expr::Function(func) => type_check(&mut self.symbols, func),
             _ => Ok(()),
         }
     }
@@ -240,7 +135,9 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::test_utils::utils::type_check, parser::parse_ast, symbols::builtin_types::BuiltinType,
+        ast::{node::type_signature::TypeSignature, test_utils::utils::type_check},
+        parser::parse_ast,
+        symbols::builtin_types::BuiltinType,
         type_checker::TypeCheckerError,
     };
 
@@ -313,8 +210,85 @@ mod tests {
     }
 
     #[test]
+    fn test_func_call_wrong_arg_type() {
+        let mut ast = parse_ast("func f(a: Number) {}; f(true)").unwrap();
+        match type_check(&mut ast) {
+            Err(TypeCheckerError::TypeSignatureMismatch {
+                type_sig,
+                expr_type,
+            }) => {
+                assert_eq!(
+                    type_sig,
+                    TypeSignature::Function {
+                        args: vec![BuiltinType::Number.type_sig()],
+                        return_type: Box::new(BuiltinType::Void.type_sig())
+                    }
+                );
+
+                assert_eq!(
+                    expr_type,
+                    TypeSignature::Function {
+                        args: vec![BuiltinType::Bool.type_sig()],
+                        return_type: Box::new(BuiltinType::Void.type_sig())
+                    }
+                );
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_func_call_wrong_arg_amount() {
+        let mut ast = parse_ast("func f(a: Number) {}; f(2, 3)").unwrap();
+        match type_check(&mut ast) {
+            Err(TypeCheckerError::TypeSignatureMismatch {
+                type_sig,
+                expr_type,
+            }) => {
+                assert_eq!(
+                    type_sig,
+                    TypeSignature::Function {
+                        args: vec![BuiltinType::Number.type_sig()],
+                        return_type: Box::new(BuiltinType::Void.type_sig())
+                    }
+                );
+
+                assert_eq!(
+                    expr_type,
+                    TypeSignature::Function {
+                        args: vec![
+                            BuiltinType::Number.type_sig(),
+                            BuiltinType::Number.type_sig()
+                        ],
+                        return_type: Box::new(BuiltinType::Void.type_sig())
+                    }
+                );
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
     fn test_decl_inside_scope() {
         let mut ast = parse_ast("let f = () -> Boolean { let a = true; return a }").unwrap();
         assert_matches!(type_check(&mut ast), Ok(_))
+    }
+
+    #[test]
+    fn test_escape_block_var_decl() {
+        let mut ast = parse_ast("let a: Number = @{ 1 + 2 }").unwrap();
+        assert_matches!(type_check(&mut ast), Ok(_));
+
+        let mut ast = parse_ast("let a = @{ 1 + 2 }").unwrap();
+        assert_matches!(type_check(&mut ast), Err(TypeCheckerError::UntypedValue(_)));
+    }
+
+    #[test]
+    fn test_escape_block_function_return() {
+        let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 } }").unwrap();
+        assert_matches!(type_check(&mut ast), Ok(_));
+
+        // let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 }; return 2 }").unwrap();
+        // assert_matches!(type_check(&mut ast), Ok(_));
     }
 }

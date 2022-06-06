@@ -10,6 +10,7 @@ use nom_locate::LocatedSpan;
 
 use crate::ast::{ref_generator::RefGen, AST};
 
+pub mod escape_block;
 pub mod expression;
 pub mod function;
 pub mod identifier;

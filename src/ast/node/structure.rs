@@ -1,9 +1,9 @@
 use crate::{ast::ref_generator::RefID, symbols::symbol_table::SymbolValue};
 
 use super::{
-    expression::{Expr, ExprValueError},
+    expression::Expr,
     identifier::{Ident, Identifiable},
-    type_signature::{Mutability, TypeSignature, Typed},
+    type_signature::{Mutability, TypeEvalError, TypeSignature, Typed},
 };
 
 #[derive(Debug, Clone)]
@@ -46,12 +46,10 @@ impl<'a> Identifiable<'a> for StructAttr<'a> {
 }
 
 impl<'a> Typed<'a> for Struct<'a> {
-    type Error = ExprValueError<'a>;
-
-    fn type_sig(
+    fn eval_type(
         &self,
         _symbols: &mut crate::symbols::symbol_table_zipper::SymbolTableZipper<'a>,
-    ) -> Result<TypeSignature<'a>, Self::Error> {
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         Ok(TypeSignature::Struct {
             name: self.name.clone(),
             ref_id: self.ref_id,
@@ -60,29 +58,33 @@ impl<'a> Typed<'a> for Struct<'a> {
 }
 
 impl<'a> Typed<'a> for StructAttr<'a> {
-    type Error = ExprValueError<'a>;
-
-    fn type_sig(
+    fn eval_type(
         &self,
         symbols: &mut crate::symbols::symbol_table_zipper::SymbolTableZipper<'a>,
-    ) -> Result<TypeSignature<'a>, Self::Error> {
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         match &self.default_value {
-            Some(value) => value.type_sig(symbols),
+            Some(value) => value.eval_type(symbols),
             None => Ok(self
                 .type_sig
                 .clone()
                 .expect("struct should have at least a type signature or a default value")),
         }
     }
+
+    fn specified_type(&self) -> Option<&TypeSignature<'a>> {
+        self.type_sig.as_ref()
+    }
+
+    fn specify_type(&mut self, new_type: TypeSignature<'a>) {
+        self.type_sig = Some(new_type);
+    }
 }
 
 impl<'a> Typed<'a> for StructInit<'a> {
-    type Error = ExprValueError<'a>;
-
-    fn type_sig(
+    fn eval_type(
         &self,
         symbols: &mut crate::symbols::symbol_table_zipper::SymbolTableZipper<'a>,
-    ) -> Result<TypeSignature<'a>, Self::Error> {
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let st = symbols
             .locate(&self.name)
             .expect("struct init base declaration should exist");

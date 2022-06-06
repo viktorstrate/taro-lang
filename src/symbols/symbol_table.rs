@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 
 use crate::ast::node::{
-    expression::ExprValueError,
     function::{Function, FunctionArg},
     identifier::{Ident, Identifiable},
     statement::VarDecl,
     structure::{Struct, StructAttr},
-    type_signature::{TypeSignature, Typed},
+    type_signature::{TypeEvalError, TypeSignature, Typed},
 };
 
 #[derive(Debug)]
@@ -58,23 +57,39 @@ impl<'a> Identifiable<'a> for SymbolValue<'a> {
 }
 
 impl<'a> Typed<'a> for SymbolValue<'a> {
-    type Error = ExprValueError<'a>;
-
-    fn type_sig(
+    fn eval_type(
         &self,
         symbols: &mut super::symbol_table_zipper::SymbolTableZipper<'a>,
-    ) -> Result<crate::ast::node::type_signature::TypeSignature<'a>, Self::Error> {
+    ) -> Result<crate::ast::node::type_signature::TypeSignature<'a>, TypeEvalError<'a>> {
         match self {
             SymbolValue::BuiltinType(builtin) => Ok(TypeSignature::Base(builtin.clone())),
-            SymbolValue::VarDecl(var) => var.type_sig(symbols),
-            SymbolValue::FuncDecl(func) => {
-                func.type_sig(symbols).map_err(ExprValueError::FunctionType)
-            }
-            SymbolValue::FuncArg(arg) => {
-                arg.type_sig(symbols).map_err(ExprValueError::FunctionType)
-            }
-            SymbolValue::StructDecl(st) => st.type_sig(symbols),
-            SymbolValue::StructAttr(attr) => attr.type_sig(symbols),
+            SymbolValue::VarDecl(var) => var.eval_type(symbols),
+            SymbolValue::FuncDecl(func) => func.eval_type(symbols),
+            SymbolValue::FuncArg(arg) => arg.eval_type(symbols),
+            SymbolValue::StructDecl(st) => st.eval_type(symbols),
+            SymbolValue::StructAttr(attr) => attr.eval_type(symbols),
+        }
+    }
+
+    fn specified_type(&self) -> Option<&TypeSignature<'a>> {
+        match self {
+            SymbolValue::BuiltinType(_) => None,
+            SymbolValue::VarDecl(var) => var.specified_type(),
+            SymbolValue::FuncDecl(func) => func.specified_type(),
+            SymbolValue::FuncArg(arg) => arg.specified_type(),
+            SymbolValue::StructDecl(st) => st.specified_type(),
+            SymbolValue::StructAttr(attr) => attr.specified_type(),
+        }
+    }
+
+    fn specify_type(&mut self, new_type: TypeSignature<'a>) {
+        match self {
+            SymbolValue::BuiltinType(_) => {}
+            SymbolValue::VarDecl(var) => var.specify_type(new_type),
+            SymbolValue::FuncDecl(func) => func.specify_type(new_type),
+            SymbolValue::FuncArg(arg) => arg.specify_type(new_type),
+            SymbolValue::StructDecl(st) => st.specify_type(new_type),
+            SymbolValue::StructAttr(attr) => attr.specify_type(new_type),
         }
     }
 }

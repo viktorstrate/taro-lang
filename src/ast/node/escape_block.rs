@@ -1,0 +1,30 @@
+use crate::symbols::builtin_types::BuiltinType;
+
+use super::type_signature::{TypeSignature, Typed};
+
+#[derive(Debug, Clone)]
+pub struct EscapeBlock<'a> {
+    pub content: &'a str,
+    pub type_sig: Option<TypeSignature<'a>>,
+}
+
+impl<'a> Typed<'a> for EscapeBlock<'a> {
+    fn eval_type(
+        &self,
+        _symbols: &mut crate::symbols::symbol_table_zipper::SymbolTableZipper<'a>,
+    ) -> Result<TypeSignature<'a>, super::type_signature::TypeEvalError<'a>> {
+        if let Some(sig) = &self.type_sig {
+            Ok(sig.clone())
+        } else {
+            Ok(BuiltinType::Untyped.type_sig())
+        }
+    }
+
+    fn specified_type(&self) -> Option<&TypeSignature<'a>> {
+        self.type_sig.as_ref()
+    }
+
+    fn specify_type(&mut self, new_type: TypeSignature<'a>) {
+        self.type_sig = Some(new_type);
+    }
+}

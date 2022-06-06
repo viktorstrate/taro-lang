@@ -11,20 +11,12 @@
 ## JS Interop
 
 ```
-let val: Any = @jsFunc()
-let a: Any = @{ key: 'value', foo: 23 }
+let val: Value = @{ jsFunc() }
+let a: Any = @{ { key: 'value', foo: 23 } }
 
-let array: [Number] = unsafe val.unchecked_cast()
+let array: Array<Number> = @{ [1, 2, 3] }
 
-let result = @( externalCall() )
-let isSafe = @( typeof result == 'object' && typeof result.key == 'string' )
-if isSafe {
-  // do cast
-}
-
-trait Any {
-  unsafe func<T> unchecked_cast() -> T
-}
+trait Any {}
 
 ```
 

@@ -209,6 +209,7 @@ fn format_expr<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, expr: &Expr<'a>) -> Co
 
             ctx.write(")")
         }
+        Expr::EscapeBlock(block) => ctx.write(block.content),
     }
 }
 
@@ -291,7 +292,7 @@ mod tests {
 
     #[test]
     fn test_struct() {
-        let ast = final_codegen("struct Test { let defaultVal = 123; let mut noDefault: Bool }");
+        let ast = final_codegen("struct Test { let defaultVal = 123; let mut noDefault: Boolean }");
         assert_eq!(ast.unwrap(), "function struct_Test (defaultVal, noDefault) {\nthis.defaultVal = defaultVal ?? 123;\nthis.noDefault = noDefault}\n");
     }
 }

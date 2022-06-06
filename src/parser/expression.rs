@@ -10,6 +10,7 @@ use nom::{
 use crate::ast::node::expression::Expr;
 
 use super::{
+    escape_block::escape_block,
     function::{function_call_expr, function_expr},
     identifier::identifier,
     structure::struct_init_expr,
@@ -31,6 +32,7 @@ pub fn non_fn_call_expression(i: Span) -> Res<Span, Expr> {
         expr_boolean_literal,
         expr_identifier,
         function_expr,
+        map(escape_block, Expr::EscapeBlock),
     ))(i);
 }
 
