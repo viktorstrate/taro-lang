@@ -104,23 +104,34 @@ mod tests {
             },
         },
         parser::parse_ast,
-        symbols::{symbol_table::SymbolValue, symbol_walker::SymbolCollector},
+        symbols::{
+            symbol_table::{SymbolValue, SymbolsError},
+            symbol_walker::SymbolCollector,
+        },
     };
 
     #[test]
-    fn test_existing_symbol_error() {
-        let mut ast = parse_ast("let x = 2; let x = 3").unwrap();
+    fn test_symbol_shadowing() {
+        let mut ast = parse_ast("let x = 2; let x = true").unwrap();
         let mut collector = SymbolCollector::default();
         let result = walk_ast(&mut collector, &mut ast);
-        assert_matches!(result, Err(_));
+        assert_matches!(result, Ok(_));
     }
 
     #[test]
-    fn test_locate_symbol() {
+    fn test_existing_symbol_error() {
+        let mut ast = parse_ast("func f() {}; func f() {}").unwrap();
+        let mut collector = SymbolCollector::default();
+        let result = walk_ast(&mut collector, &mut ast);
+        assert_matches!(result, Err(SymbolsError::SymbolAlreadyExistsInScope(_)))
+    }
+
+    #[test]
+    fn test_locate_ordered_symbol() {
         let mut ast = parse_ast("let x: Boolean = true").unwrap();
         let mut collector = SymbolCollector::default();
-        let symtable = walk_ast(&mut collector, &mut ast).unwrap();
-        let sym_val = symtable.locate(&Ident::new_unplaced("x")).unwrap();
+        let mut symtable = walk_ast(&mut collector, &mut ast).unwrap();
+        let sym_val = symtable.pop_ordered_symbol().unwrap();
 
         assert_eq!(*sym_val.name(), Ident::new_unplaced("x"));
         match sym_val {

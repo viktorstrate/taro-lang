@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use crate::ast::node::{
     function::{Function, FunctionArg},
@@ -17,10 +17,16 @@ pub enum SymbolsError<'a> {
 
 #[derive(Default, Debug)]
 pub struct SymbolTable<'a> {
-    table: HashMap<Ident<'a>, SymbolValue<'a>>,
-    scopes: HashMap<Ident<'a>, SymbolTable<'a>>,
+    /// Symbols that are available from the entire scope
+    pub(super) scope_global_table: HashMap<Ident<'a>, SymbolValue<'a>>,
+    /// An list for order dependent symbols such as variable declarations,
+    /// where symbols are first available after they have been declared.
+    pub(super) ordered_symbols: VecDeque<SymbolValue<'a>>,
+    /// Nested scopes such as function bodies and struct definitions.
+    pub(super) scopes: HashMap<Ident<'a>, SymbolTable<'a>>,
 }
 
+/// A value returned from a symbol lookup
 #[derive(Debug, Clone)]
 pub enum SymbolValue<'a> {
     BuiltinType(Ident<'a>),
@@ -52,6 +58,15 @@ impl<'a> Identifiable<'a> for SymbolValue<'a> {
             SymbolValue::FuncArg(arg) => arg.name(),
             SymbolValue::StructDecl(st) => st.name(),
             SymbolValue::StructAttr(attr) => attr.name(),
+        }
+    }
+}
+
+impl SymbolValue<'_> {
+    fn is_order_dependent(&self) -> bool {
+        match self {
+            SymbolValue::VarDecl(_) => true,
+            _ => false,
         }
     }
 }
@@ -99,12 +114,16 @@ impl<'a> SymbolTable<'a> {
         &mut self,
         val: SymbolValue<'a>,
     ) -> Result<&mut SymbolValue<'a>, SymbolsError<'a>> {
-        let key: Ident<'a> = val.name().clone();
-        let error_ident = key.clone();
-
-        self.table
-            .try_insert(key, val)
-            .map_err(move |_| SymbolsError::SymbolAlreadyExistsInScope(error_ident))
+        if val.is_order_dependent() {
+            self.ordered_symbols.push_back(val);
+            Ok(self.ordered_symbols.back_mut().expect("was just added"))
+        } else {
+            let key: Ident<'a> = val.name().clone();
+            let error_ident = key.clone();
+            self.scope_global_table
+                .try_insert(key, val)
+                .map_err(move |_| SymbolsError::SymbolAlreadyExistsInScope(error_ident))
+        }
     }
 
     pub fn insert_scope(
@@ -123,7 +142,11 @@ impl<'a> SymbolTable<'a> {
         self.scopes.remove(ident)
     }
 
-    pub fn locate(&self, ident: &Ident<'a>) -> Option<&SymbolValue<'a>> {
-        self.table.get(ident)
+    pub fn pop_ordered_symbol(&mut self) -> Option<SymbolValue<'a>> {
+        self.ordered_symbols.pop_front()
+    }
+
+    pub fn lookup_global_table(&self, ident: &Ident<'a>) -> Option<&SymbolValue<'a>> {
+        self.scope_global_table.get(ident)
     }
 }

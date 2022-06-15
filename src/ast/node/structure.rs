@@ -86,7 +86,7 @@ impl<'a> Typed<'a> for StructInit<'a> {
         symbols: &mut crate::symbols::symbol_table_zipper::SymbolTableZipper<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let st = symbols
-            .locate(&self.name)
+            .lookup(&self.name)
             .expect("struct init base declaration should exist");
 
         let st = match st {

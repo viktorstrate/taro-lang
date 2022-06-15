@@ -53,6 +53,7 @@ fn transpile<W: Write>(writer: W, input: &str) -> Result<(), TranspilerError> {
     let mut type_checker = TypeChecker::new(sym_table);
     walk_ast(&mut type_checker, &mut ast).map_err(TranspilerError::TypeCheck)?;
 
+    type_checker.symbols.reset();
     format_ast(writer, &ast, type_checker.symbols).map_err(TranspilerError::Write)?;
 
     Ok(())

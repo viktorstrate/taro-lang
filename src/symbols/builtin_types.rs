@@ -3,7 +3,7 @@ use crate::ast::node::{identifier::Ident, type_signature::TypeSignature};
 pub const BUILTIN_TYPES: &'static [Ident<'static>] = &[
     BuiltinType::String.ident(),
     BuiltinType::Number.ident(),
-    BuiltinType::Bool.ident(),
+    BuiltinType::Boolean.ident(),
     BuiltinType::Void.ident(),
 ];
 
@@ -11,7 +11,7 @@ pub const BUILTIN_TYPES: &'static [Ident<'static>] = &[
 pub enum BuiltinType {
     String,
     Number,
-    Bool,
+    Boolean,
     Void,
     Untyped,
 }
@@ -21,7 +21,7 @@ impl BuiltinType {
         let value = match self {
             BuiltinType::String => "String",
             BuiltinType::Number => "Number",
-            BuiltinType::Bool => "Boolean",
+            BuiltinType::Boolean => "Boolean",
             BuiltinType::Void => "Void",
             BuiltinType::Untyped => "Untyped",
         };

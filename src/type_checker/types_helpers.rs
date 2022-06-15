@@ -51,7 +51,7 @@ where
     match elem.specified_type() {
         Some(TypeSignature::Base(ident)) => {
             let val = symbols
-                .locate(&ident)
+                .lookup(&ident)
                 .ok_or(TypeCheckerError::TypeEvalError(
                     TypeEvalError::UnknownIdentifier(ident.clone()),
                 ))?

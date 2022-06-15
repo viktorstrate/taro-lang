@@ -68,7 +68,10 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
         stmt: &mut Stmt<'a>,
     ) -> Result<(), TypeCheckerError<'a>> {
         match stmt {
-            Stmt::VariableDecl(var_decl) => type_check(&mut self.symbols, var_decl),
+            Stmt::VariableDecl(var_decl) => {
+                self.symbols.visit_next_symbol();
+                type_check(&mut self.symbols, var_decl)
+            }
             Stmt::FunctionDecl(func_decl) => type_check(&mut self.symbols, func_decl),
             _ => Ok(()),
         }
@@ -173,7 +176,7 @@ mod tests {
                 expr_type,
             }) => {
                 assert_eq!(type_sig, BuiltinType::String.type_sig());
-                assert_eq!(expr_type, BuiltinType::Bool.type_sig())
+                assert_eq!(expr_type, BuiltinType::Boolean.type_sig())
             }
             _ => assert!(false),
         }
@@ -191,7 +194,7 @@ mod tests {
                 expr_type,
             }) => {
                 assert_eq!(type_sig, BuiltinType::Number.type_sig());
-                assert_eq!(expr_type, BuiltinType::Bool.type_sig());
+                assert_eq!(expr_type, BuiltinType::Boolean.type_sig());
             }
             _ => assert!(false),
         }
@@ -203,7 +206,7 @@ mod tests {
 
         match type_check(&mut ast) {
             Err(TypeCheckerError::CallNonFunction { ident_type }) => {
-                assert_eq!(ident_type, BuiltinType::Bool.type_sig())
+                assert_eq!(ident_type, BuiltinType::Boolean.type_sig())
             }
             _ => assert!(false),
         }
@@ -228,7 +231,7 @@ mod tests {
                 assert_eq!(
                     expr_type,
                     TypeSignature::Function {
-                        args: vec![BuiltinType::Bool.type_sig()],
+                        args: vec![BuiltinType::Boolean.type_sig()],
                         return_type: Box::new(BuiltinType::Void.type_sig())
                     }
                 );
@@ -288,6 +291,7 @@ mod tests {
         let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 } }").unwrap();
         assert_matches!(type_check(&mut ast), Ok(_));
 
+        // TODO:
         // let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 }; return 2 }").unwrap();
         // assert_matches!(type_check(&mut ast), Ok(_));
     }

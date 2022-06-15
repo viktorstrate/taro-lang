@@ -64,7 +64,7 @@ impl<'a> Ident<'a> {
         writer: &mut W,
         symbols: &SymbolTableZipper<'a>,
     ) -> std::io::Result<()> {
-        let symval = symbols.locate(self).expect("identifier should exist");
+        let symval = symbols.lookup(self).expect("identifier should exist");
 
         match self.value {
             IdentValue::Named(name) => match symval {

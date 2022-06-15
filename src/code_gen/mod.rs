@@ -119,6 +119,8 @@ fn format_var_decl<'a, W: Write>(
     ctx: &mut CodeGenCtx<'a, W>,
     var_decl: &VarDecl<'a>,
 ) -> CodeGenResult {
+    ctx.symbols.visit_next_symbol();
+
     if var_decl.mutability == Mutability::Mutable {
         ctx.write("let ")?;
     } else {
@@ -186,7 +188,7 @@ fn format_expr<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, expr: &Expr<'a>) -> Co
             ctx.write_ident(&st_init.name)?;
             ctx.write("(")?;
 
-            let st = ctx.symbols.locate(&st_init.name).unwrap();
+            let st = ctx.symbols.lookup(&st_init.name).unwrap();
             let st = match st {
                 SymbolValue::StructDecl(st) => st,
                 _ => unreachable!(),

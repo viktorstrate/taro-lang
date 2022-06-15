@@ -52,7 +52,7 @@ mod tests {
     fn test_base_type() {
         assert_eq!(
             type_signature(new_span("Boolean")).unwrap().1,
-            BuiltinType::Bool.type_sig()
+            BuiltinType::Boolean.type_sig()
         );
     }
 
@@ -78,10 +78,10 @@ mod tests {
                     BuiltinType::Number.type_sig(),
                     TypeSignature::Function {
                         args: vec![BuiltinType::Number.type_sig()],
-                        return_type: Box::new(BuiltinType::Bool.type_sig())
+                        return_type: Box::new(BuiltinType::Boolean.type_sig())
                     }
                 ],
-                return_type: Box::new(BuiltinType::Bool.type_sig())
+                return_type: Box::new(BuiltinType::Boolean.type_sig())
             }
         );
     }

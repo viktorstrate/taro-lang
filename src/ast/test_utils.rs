@@ -38,6 +38,7 @@ pub mod utils {
         let mut checker = TypeChecker::new(symbols);
         walk_ast(&mut checker, &mut ast).map_err(FinalAstError::TypeCheck)?;
 
+        checker.symbols.reset();
         let mut buf = Vec::new();
         format_ast(&mut buf, &ast, checker.symbols).unwrap();
 

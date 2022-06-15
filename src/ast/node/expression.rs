@@ -30,12 +30,12 @@ impl<'a> Typed<'a> for Expr<'a> {
         match self {
             Expr::StringLiteral(_) => Ok(BuiltinType::String.type_sig()),
             Expr::NumberLiteral(_) => Ok(BuiltinType::Number.type_sig()),
-            Expr::BoolLiteral(_) => Ok(BuiltinType::Bool.type_sig()),
+            Expr::BoolLiteral(_) => Ok(BuiltinType::Boolean.type_sig()),
             Expr::Function(func) => func.eval_type(symbols),
             Expr::FunctionCall(call) => call.eval_type(symbols),
             Expr::Identifier(ident) => {
                 let sym_val = symbols
-                    .locate(ident)
+                    .lookup(ident)
                     .ok_or(TypeEvalError::UnknownIdentifier(ident.clone()))?;
 
                 match sym_val {

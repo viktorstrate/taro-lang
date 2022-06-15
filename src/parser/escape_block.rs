@@ -73,6 +73,6 @@ mod tests {
             .1;
 
         assert_eq!(block.content, "true || false");
-        assert_eq!(block.type_sig, Some(BuiltinType::Bool.type_sig()));
+        assert_eq!(block.type_sig, Some(BuiltinType::Boolean.type_sig()));
     }
 }

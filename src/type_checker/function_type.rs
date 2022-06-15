@@ -60,7 +60,10 @@ fn stmt_type<'a>(
     stmt: &Stmt<'a>,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {
     match stmt {
-        Stmt::VariableDecl(_) => Ok(BuiltinType::Void.type_sig()),
+        Stmt::VariableDecl(_) => {
+            symbols.visit_next_symbol();
+            Ok(BuiltinType::Void.type_sig())
+        }
         Stmt::FunctionDecl(_) => Ok(BuiltinType::Void.type_sig()),
         Stmt::StructDecl(_) => Ok(BuiltinType::Void.type_sig()),
         Stmt::Expression(expr) => expr_type(symbols, expr),
@@ -76,30 +79,45 @@ fn stmt_compound_type<'a>(
     let mut type_sig: Option<TypeSignature<'a>> = None;
 
     for stmt in stmts {
+        let stmt_type_sig = stmt_type(symbols, stmt)?;
         match stmt {
-            Stmt::Compound(stmts) => {
-                let compound_type = stmt_compound_type(symbols, stmts)?;
+            Stmt::Compound(_) | Stmt::Return(_) => {
                 if let Some(type_sig) = &type_sig {
-                    if *type_sig != compound_type {
+                    if *type_sig != stmt_type_sig {
                         return Err(FunctionTypeError::ConflictingReturnTypes);
                     }
                 } else {
-                    type_sig = Some(compound_type);
+                    type_sig = Some(stmt_type_sig);
                 }
             }
-            Stmt::Return(expr) => {
-                let return_type = expr_type(symbols, expr)?;
-                if let Some(type_sig) = &type_sig {
-                    if *type_sig != return_type {
-                        return Err(FunctionTypeError::ConflictingReturnTypes);
-                    }
-                } else {
-                    type_sig = Some(return_type);
-                }
-            }
-            // TODO: check if branches when implemented
             _ => {}
         }
+
+        // match stmt {
+        //     Stmt::Compound(stmts) => {
+        //         let compound_type = stmt_compound_type(symbols, stmts)?;
+        //         if let Some(type_sig) = &type_sig {
+        //             if *type_sig != compound_type {
+        //                 return Err(FunctionTypeError::ConflictingReturnTypes);
+        //             }
+        //         } else {
+        //             type_sig = Some(compound_type);
+        //         }
+        //     }
+        //     Stmt::Return(expr) => {
+        //         let return_type = expr_type(symbols, expr)?;
+        //         if let Some(type_sig) = &type_sig {
+        //             if *type_sig != return_type {
+        //                 return Err(FunctionTypeError::ConflictingReturnTypes);
+        //             }
+        //         } else {
+        //             type_sig = Some(return_type);
+        //         }
+        //     }
+        //     _ => {
+        //         stmt_type(symbols, stmt)?;
+        //     }
+        // }
     }
 
     Ok(type_sig.unwrap_or(BuiltinType::Void.type_sig()))
