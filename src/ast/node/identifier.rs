@@ -1,7 +1,7 @@
 use crate::{
     ast::ref_generator::RefID,
     parser::Span,
-    symbols::{symbol_table::SymbolValue, symbol_table_zipper::SymbolTableZipper},
+    symbols::{symbol_table::symbol_table_zipper::SymbolTableZipper, symbol_table::SymbolValue},
 };
 use std::{fmt::Debug, hash::Hash, io::Write};
 

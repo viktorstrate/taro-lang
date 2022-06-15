@@ -8,7 +8,7 @@ use crate::{
             type_signature::{TypeSignature, Typed},
         },
     },
-    symbols::{symbol_table::SymbolTable, symbol_table_zipper::SymbolTableZipper},
+    symbols::{symbol_table::symbol_table_zipper::SymbolTableZipper, symbol_table::SymbolTable},
 };
 
 use super::{types_helpers::type_check, TypeCheckerError};

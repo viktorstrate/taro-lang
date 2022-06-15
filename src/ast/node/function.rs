@@ -1,4 +1,4 @@
-use crate::symbols::symbol_table_zipper::SymbolTableZipper;
+use crate::symbols::symbol_table::symbol_table_zipper::SymbolTableZipper;
 
 use super::{
     expression::Expr,

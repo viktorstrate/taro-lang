@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
-    ast::ref_generator::RefID, symbols::symbol_table_zipper::SymbolTableZipper,
+    ast::ref_generator::RefID, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
     type_checker::function_type::FunctionTypeError,
 };
 

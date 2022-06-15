@@ -96,18 +96,9 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::{
-            ast_walker::walk_ast,
-            node::{
-                expression::Expr,
-                identifier::{Ident, Identifiable},
-            },
-        },
+        ast::ast_walker::walk_ast,
         parser::parse_ast,
-        symbols::{
-            symbol_table::{SymbolValue, SymbolsError},
-            symbol_walker::SymbolCollector,
-        },
+        symbols::{symbol_table::SymbolsError, symbol_walker::SymbolCollector},
     };
 
     #[test]
@@ -124,21 +115,5 @@ mod tests {
         let mut collector = SymbolCollector::default();
         let result = walk_ast(&mut collector, &mut ast);
         assert_matches!(result, Err(SymbolsError::SymbolAlreadyExistsInScope(_)))
-    }
-
-    #[test]
-    fn test_locate_ordered_symbol() {
-        let mut ast = parse_ast("let x: Boolean = true").unwrap();
-        let mut collector = SymbolCollector::default();
-        let mut symtable = walk_ast(&mut collector, &mut ast).unwrap();
-        let sym_val = symtable.pop_ordered_symbol().unwrap();
-
-        assert_eq!(*sym_val.name(), Ident::new_unplaced("x"));
-        match sym_val {
-            SymbolValue::VarDecl(var_decl) => {
-                assert_matches!(var_decl.value, Expr::BoolLiteral(true));
-            }
-            _ => assert!(false),
-        }
     }
 }

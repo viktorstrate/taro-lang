@@ -1,6 +1,6 @@
 use crate::{
     ast::node::type_signature::{TypeEvalError, TypeSignature, Typed},
-    symbols::{builtin_types::BuiltinType, symbol_table_zipper::SymbolTableZipper},
+    symbols::{builtin_types::BuiltinType, symbol_table::symbol_table_zipper::SymbolTableZipper},
 };
 
 use super::TypeCheckerError;

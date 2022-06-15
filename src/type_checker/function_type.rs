@@ -5,7 +5,7 @@ use crate::{
         statement::Stmt,
         type_signature::{TypeEvalError, TypeSignature, Typed},
     },
-    symbols::{builtin_types::BuiltinType, symbol_table_zipper::SymbolTableZipper},
+    symbols::{builtin_types::BuiltinType, symbol_table::symbol_table_zipper::SymbolTableZipper},
 };
 
 impl<'a> Typed<'a> for Function<'a> {

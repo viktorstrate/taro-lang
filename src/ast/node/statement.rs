@@ -33,7 +33,7 @@ impl<'a> Identifiable<'a> for VarDecl<'a> {
 impl<'a> Typed<'a> for VarDecl<'a> {
     fn eval_type(
         &self,
-        symbols: &mut crate::symbols::symbol_table_zipper::SymbolTableZipper<'a>,
+        symbols: &mut crate::symbols::symbol_table::symbol_table_zipper::SymbolTableZipper<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         self.value.eval_type(symbols)
     }

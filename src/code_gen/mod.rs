@@ -13,7 +13,7 @@ use crate::{
         },
         AST,
     },
-    symbols::{symbol_table::SymbolValue, symbol_table_zipper::SymbolTableZipper},
+    symbols::{symbol_table::symbol_table_zipper::SymbolTableZipper, symbol_table::SymbolValue},
 };
 
 pub fn format_ast<'a, W: Write>(

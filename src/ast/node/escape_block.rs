@@ -11,7 +11,7 @@ pub struct EscapeBlock<'a> {
 impl<'a> Typed<'a> for EscapeBlock<'a> {
     fn eval_type(
         &self,
-        _symbols: &mut crate::symbols::symbol_table_zipper::SymbolTableZipper<'a>,
+        _symbols: &mut crate::symbols::symbol_table::symbol_table_zipper::SymbolTableZipper<'a>,
     ) -> Result<TypeSignature<'a>, super::type_signature::TypeEvalError<'a>> {
         if let Some(sig) = &self.type_sig {
             Ok(sig.clone())

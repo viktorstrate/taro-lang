@@ -8,6 +8,8 @@ use crate::ast::node::{
     type_signature::{TypeEvalError, TypeSignature, Typed},
 };
 
+pub mod symbol_table_zipper;
+
 #[derive(Debug)]
 pub enum SymbolsError<'a> {
     SymbolAlreadyExistsInScope(Ident<'a>),
@@ -74,7 +76,7 @@ impl SymbolValue<'_> {
 impl<'a> Typed<'a> for SymbolValue<'a> {
     fn eval_type(
         &self,
-        symbols: &mut super::symbol_table_zipper::SymbolTableZipper<'a>,
+        symbols: &mut symbol_table_zipper::SymbolTableZipper<'a>,
     ) -> Result<crate::ast::node::type_signature::TypeSignature<'a>, TypeEvalError<'a>> {
         match self {
             SymbolValue::BuiltinType(builtin) => Ok(TypeSignature::Base(builtin.clone())),
@@ -142,11 +144,36 @@ impl<'a> SymbolTable<'a> {
         self.scopes.remove(ident)
     }
 
-    pub fn pop_ordered_symbol(&mut self) -> Option<SymbolValue<'a>> {
-        self.ordered_symbols.pop_front()
-    }
-
     pub fn lookup_global_table(&self, ident: &Ident<'a>) -> Option<&SymbolValue<'a>> {
         self.scope_global_table.get(ident)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
+
+    use crate::{
+        ast::{ast_walker::walk_ast, node::expression::Expr},
+        parser::parse_ast,
+        symbols::symbol_walker::SymbolCollector,
+    };
+
+    use super::*;
+
+    #[test]
+    fn test_locate_ordered_symbol() {
+        let mut ast = parse_ast("let x: Boolean = true").unwrap();
+        let mut collector = SymbolCollector::default();
+        let symtable = walk_ast(&mut collector, &mut ast).unwrap();
+        let sym_val = symtable.ordered_symbols.front().unwrap();
+
+        assert_eq!(*sym_val.name(), Ident::new_unplaced("x"));
+        match sym_val {
+            SymbolValue::VarDecl(var_decl) => {
+                assert_matches!(var_decl.value, Expr::BoolLiteral(true));
+            }
+            _ => assert!(false),
+        }
     }
 }

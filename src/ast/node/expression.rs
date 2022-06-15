@@ -1,5 +1,6 @@
 use crate::symbols::{
-    builtin_types::BuiltinType, symbol_table::SymbolValue, symbol_table_zipper::SymbolTableZipper,
+    builtin_types::BuiltinType, symbol_table::symbol_table_zipper::SymbolTableZipper,
+    symbol_table::SymbolValue,
 };
 
 use super::{

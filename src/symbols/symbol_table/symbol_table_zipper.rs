@@ -1,18 +1,18 @@
 use crate::ast::node::identifier::{Ident, Identifiable};
 
-use super::symbol_table::{SymbolTable, SymbolValue, SymbolsError};
+use super::{SymbolTable, SymbolValue, SymbolsError};
 
 #[derive(Debug)]
 struct SymbolTableZipperBreadcrumb<'a> {
     scope_name: Ident<'a>,
     sym_table: SymbolTable<'a>,
-    visited_symbols: Vec<SymbolValue<'a>>,
+    visited_symbols: usize,
 }
 
 #[derive(Debug)]
 pub struct SymbolTableZipper<'a> {
     cursor: SymbolTable<'a>,
-    visited_symbols: Vec<SymbolValue<'a>>,
+    visited_symbols: usize,
     breadcrumb: Vec<SymbolTableZipperBreadcrumb<'a>>,
 }
 
@@ -20,7 +20,7 @@ impl<'a> Into<SymbolTableZipper<'a>> for SymbolTable<'a> {
     fn into(self) -> SymbolTableZipper<'a> {
         SymbolTableZipper {
             cursor: self,
-            visited_symbols: Vec::new(),
+            visited_symbols: 0,
             breadcrumb: Vec::new(),
         }
     }
@@ -37,7 +37,7 @@ impl<'a> SymbolTableZipper<'a> {
         self.breadcrumb.push(SymbolTableZipperBreadcrumb {
             scope_name: ident,
             sym_table: temp_cursor,
-            visited_symbols: self.visited_symbols.drain(..).collect(),
+            visited_symbols: self.visited_symbols,
         });
 
         Ok(())
@@ -48,11 +48,6 @@ impl<'a> SymbolTableZipper<'a> {
             .breadcrumb
             .pop()
             .ok_or(SymbolsError::MovePastGlobalScope)?;
-
-        // move the visited symbols back
-        for visited_sym in self.visited_symbols.drain(..).rev() {
-            self.cursor.ordered_symbols.push_front(visited_sym);
-        }
 
         std::mem::swap(&mut self.cursor, &mut breadcrumb.sym_table);
         self.cursor
@@ -73,12 +68,11 @@ impl<'a> SymbolTableZipper<'a> {
                 return Some(value);
             }
 
-            if let Some(value) = scope
-                .visited_symbols
-                .iter()
-                .rev()
-                .find(|sym| *sym.name() == *ident)
-            {
+            if let Some(value) = SymbolTableZipper::locate_visited_symbol(
+                &scope.sym_table,
+                scope.visited_symbols,
+                ident,
+            ) {
                 return Some(value);
             }
         }
@@ -86,24 +80,30 @@ impl<'a> SymbolTableZipper<'a> {
         return None;
     }
 
+    fn locate_visited_symbol<'b>(
+        sym_table: &'b SymbolTable<'a>,
+        visited_symbols: usize,
+        ident: &Ident<'a>,
+    ) -> Option<&'b SymbolValue<'a>> {
+        sym_table
+            .ordered_symbols
+            .iter()
+            .take(visited_symbols)
+            .rev()
+            .find(|sym| *sym.name() == *ident)
+    }
+
     pub fn lookup_current_scope(&self, ident: &Ident<'a>) -> Option<&SymbolValue<'a>> {
         if let Some(sym) = self.cursor.lookup_global_table(ident) {
             return Some(sym);
         }
 
-        self.visited_symbols
-            .iter()
-            .rev()
-            .find(|sym| *sym.name() == *ident)
+        SymbolTableZipper::locate_visited_symbol(&self.cursor, self.visited_symbols, ident)
     }
 
     pub fn visit_next_symbol(&mut self) {
-        let sym = self
-            .cursor
-            .pop_ordered_symbol()
-            .expect("visit_next_symbol() should match up");
-
-        self.visited_symbols.push(sym);
+        debug_assert!(self.visited_symbols <= self.cursor.ordered_symbols.len());
+        self.visited_symbols += 1;
     }
 
     pub fn reset(&mut self) {
@@ -111,10 +111,6 @@ impl<'a> SymbolTableZipper<'a> {
             self.exit_scope().expect("while guard ensures");
         }
 
-        while !self.visited_symbols.is_empty() {
-            for sym in self.visited_symbols.drain(..) {
-                self.cursor.insert(sym).expect("reinserting symbol");
-            }
-        }
+        self.visited_symbols = 0;
     }
 }
