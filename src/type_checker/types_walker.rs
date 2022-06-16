@@ -183,6 +183,29 @@ mod tests {
     }
 
     #[test]
+    fn test_struct_access_mismatched_types() {
+        let mut ast = parse_ast(
+            "\
+        struct Test { let attr: Number }\n\
+        let test = Test { attr: 123 }
+        let wrong: Boolean = test.attr
+        ",
+        )
+        .unwrap();
+
+        match type_check(&mut ast) {
+            Err(TypeCheckerError::TypeSignatureMismatch {
+                type_sig,
+                expr_type,
+            }) => {
+                assert_eq!(type_sig, BuiltinType::Boolean.type_sig());
+                assert_eq!(expr_type, BuiltinType::Number.type_sig());
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
     fn test_var_assign_var() {
         let mut ast = parse_ast("let a = true; let b: Boolean = a").unwrap();
         assert_matches!(type_check(&mut ast), Ok(_));

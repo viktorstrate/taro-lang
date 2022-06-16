@@ -27,6 +27,7 @@ pub enum TypeEvalError<'a> {
     Expression(Expr<'a>),
     FunctionType(FunctionTypeError<'a>),
     CallNonFunction(TypeSignature<'a>),
+    AccessNonStruct(TypeSignature<'a>),
     UnknownIdentifier(Ident<'a>),
 }
 

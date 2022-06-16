@@ -7,7 +7,7 @@ use super::{
     escape_block::EscapeBlock,
     function::{Function, FunctionCall},
     identifier::Ident,
-    structure::StructInit,
+    structure::{StructAccess, StructInit},
     type_signature::{TypeEvalError, TypeSignature, Typed},
 };
 
@@ -20,6 +20,7 @@ pub enum Expr<'a> {
     FunctionCall(Box<FunctionCall<'a>>),
     Identifier(Ident<'a>),
     StructInit(StructInit<'a>),
+    StructAccess(StructAccess<'a>),
     EscapeBlock(EscapeBlock<'a>),
 }
 
@@ -52,6 +53,7 @@ impl<'a> Typed<'a> for Expr<'a> {
                 }
             }
             Expr::StructInit(struct_init) => struct_init.eval_type(symbols),
+            Expr::StructAccess(struct_access) => struct_access.eval_type(symbols),
             Expr::EscapeBlock(block) => block.eval_type(symbols),
         }
     }
@@ -65,6 +67,7 @@ impl<'a> Typed<'a> for Expr<'a> {
             Expr::FunctionCall(call) => call.specified_type(),
             Expr::Identifier(_) => None,
             Expr::StructInit(st_init) => st_init.specified_type(),
+            Expr::StructAccess(_) => None,
             Expr::EscapeBlock(block) => block.specified_type(),
         }
     }
@@ -78,6 +81,7 @@ impl<'a> Typed<'a> for Expr<'a> {
             Expr::FunctionCall(call) => call.specify_type(new_type),
             Expr::Identifier(_) => {}
             Expr::StructInit(st_init) => st_init.specify_type(new_type),
+            Expr::StructAccess(_) => {}
             Expr::EscapeBlock(block) => block.specify_type(new_type),
         }
     }

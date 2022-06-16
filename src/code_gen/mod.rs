@@ -5,7 +5,7 @@ use crate::{
         node::{
             expression::Expr,
             function::{Function, FunctionArg},
-            identifier::Ident,
+            identifier::{Ident, IdentValue},
             module::Module,
             statement::{Stmt, VarDecl},
             structure::Struct,
@@ -159,7 +159,11 @@ fn format_func_decl<'a, W: Write>(
 
 fn format_expr<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, expr: &Expr<'a>) -> CodeGenResult {
     match expr {
-        Expr::StringLiteral(str) => ctx.write(str),
+        Expr::StringLiteral(str) => {
+            ctx.write("\"")?;
+            ctx.write(str)?;
+            ctx.write("\"")
+        }
         Expr::NumberLiteral(num) => ctx.write_fmt(format_args!("{}", num)),
         Expr::BoolLiteral(val) => ctx.write(if *val == true { "true" } else { "false" }),
         Expr::Function(func) => {
@@ -210,6 +214,18 @@ fn format_expr<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, expr: &Expr<'a>) -> Co
             })?;
 
             ctx.write(")")
+        }
+        Expr::StructAccess(st_access) => {
+            format_expr(ctx, &*st_access.struct_expr)?;
+            ctx.write(".")?;
+
+            // attribute identifier cannot be looked up since it is under the scope of the struct
+            // ctx.write_ident(&st_access.attr_name)
+
+            match &st_access.attr_name.value {
+                IdentValue::Named(attr_str) => ctx.write(attr_str),
+                _ => unreachable!(),
+            }
         }
         Expr::EscapeBlock(block) => ctx.write(block.content),
     }
@@ -294,7 +310,19 @@ mod tests {
 
     #[test]
     fn test_struct() {
-        let ast = final_codegen("struct Test { let defaultVal = 123; let mut noDefault: Boolean }");
-        assert_eq!(ast.unwrap(), "function struct_Test (defaultVal, noDefault) {\nthis.defaultVal = defaultVal ?? 123;\nthis.noDefault = noDefault}\n");
+        let ast = final_codegen(
+            "struct Test { let defaultVal = 123; let mut noDefault: Boolean }\
+            let testVar = Test { noDefault: false }
+            let val: Number = testVar.defaultVal
+        ",
+        );
+        assert_eq!(
+            ast.unwrap(),
+            "function struct_Test (defaultVal, noDefault) {\n\
+            this.defaultVal = defaultVal ?? 123;\n\
+            this.noDefault = noDefault}\n\
+            const testVar = new struct_Test(null, false);\n\
+            const val = testVar.defaultVal;\n"
+        );
     }
 }

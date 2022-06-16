@@ -67,7 +67,7 @@ impl<'a> Ident<'a> {
         let symval = symbols.lookup(self).expect("identifier should exist");
 
         match self.value {
-            IdentValue::Named(name) => match symval {
+            IdentValue::Named(name) /* | IdentValue::Nested { scope: _, name } */ => match symval {
                 SymbolValue::StructDecl(_) => {
                     writer.write_all(format!("struct_{}", &name).as_bytes())
                 }

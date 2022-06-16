@@ -24,7 +24,7 @@ use super::{
 };
 
 pub fn structure<'a>(mut i: Span<'a>) -> Res<Span<'a>, Struct<'a>> {
-    // struct IDENT { STRUCT_ATTRS }
+    // "struct" IDENT { STRUCT_ATTRS }
 
     let ref_id = i.extra.ref_gen.make_ref();
 
@@ -107,7 +107,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::node::{identifier::Ident, type_signature::Mutability},
+        ast::node::{identifier::Ident, structure::StructAccess, type_signature::Mutability},
         parser::new_span,
         symbols::builtin_types::BuiltinType,
     };
@@ -130,9 +130,7 @@ mod tests {
 
     #[test]
     fn test_struct_init() {
-        let struct_init = struct_init_expr(new_span("StructName { attr: true }"))
-            .unwrap()
-            .1;
+        let struct_init = expression(new_span("StructName { attr: true }")).unwrap().1;
 
         match struct_init {
             Expr::StructInit(StructInit { name, values }) => {
@@ -140,6 +138,21 @@ mod tests {
                 assert_eq!(values.len(), 1);
                 assert_eq!(values[0].name, Ident::new_unplaced("attr"));
                 assert_matches!(values[0].value, Expr::BoolLiteral(true));
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_struct_access_simple() {
+        let struct_access = expression(new_span("struct_name.attribute")).unwrap().1;
+
+        match struct_access {
+            Expr::StructAccess(StructAccess {
+                struct_expr: _,
+                attr_name,
+            }) => {
+                assert_eq!(attr_name, Ident::new_unplaced("attribute"));
             }
             _ => assert!(false),
         }

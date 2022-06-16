@@ -147,6 +147,24 @@ impl<'a> SymbolTable<'a> {
     pub fn lookup_global_table(&self, ident: &Ident<'a>) -> Option<&SymbolValue<'a>> {
         self.scope_global_table.get(ident)
     }
+
+    // fn lookup_nested_ident_scope(&self, ident: &'a Box<Ident<'a>>) -> Option<&SymbolTable<'a>> {
+    //     match ident.value {
+    //         IdentValue::Nested { scope, name: _ } => self
+    //             .lookup_nested_ident_scope(ident)
+    //             .and_then(|inner_scope| inner_scope.scopes.get(ident)),
+    //         _ => self.scopes.get(ident),
+    //     }
+    // }
+
+    // pub fn lookup_global_table(&self, ident: &'a Ident<'a>) -> Option<&SymbolValue<'a>> {
+    //     match &ident.value {
+    //         IdentValue::Nested { scope, name } => self
+    //             .lookup_nested_ident_scope(scope)
+    //             .and_then(|scope| scope.scope_global_table.get(ident)),
+    //         _ => self.scope_global_table.get(ident),
+    //     }
+    // }
 }
 
 #[cfg(test)]

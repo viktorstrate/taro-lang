@@ -8,19 +8,15 @@ use nom::{
 
 use crate::ast::node::{
     expression::Expr,
-    function::{Function, FunctionArg, FunctionCall},
+    function::{Function, FunctionArg},
     identifier::Ident,
     statement::Stmt,
     type_signature::TypeSignature,
 };
 
 use super::{
-    expression::{expression, non_fn_call_expression},
-    identifier::identifier,
-    statement::statement,
-    surround_brackets, token,
-    type_signature::type_signature,
-    ws, BracketType, Res, Span,
+    identifier::identifier, statement::statement, surround_brackets, token,
+    type_signature::type_signature, ws, BracketType, Res, Span,
 };
 
 pub fn function_decl(i: Span) -> Res<Span, Stmt> {
@@ -96,27 +92,13 @@ fn function_arg(i: Span) -> Res<Span, FunctionArg> {
     )(i)
 }
 
-pub fn function_call_expr(i: Span) -> Res<Span, Expr> {
-    // EXPR "(" FUNC_PARAMS ")"
-
-    let func_params = separated_list0(token(tag(",")), expression);
-
-    let (i, func) = non_fn_call_expression(i)?;
-    let (i, params) = surround_brackets(BracketType::Round, func_params)(i)?;
-
-    Ok((
-        i,
-        Expr::FunctionCall(Box::new(FunctionCall { func, params })),
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
         ast::node::identifier::{Ident, IdentValue},
-        parser::{new_span, parse_ast},
+        parser::{expression::expression, new_span, parse_ast},
         symbols::builtin_types::BuiltinType,
     };
 
@@ -197,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_function_call() {
-        let func_call = function_call_expr(new_span("f(10, \"hello\")")).unwrap().1;
+        let func_call = expression(new_span("f(10, \"hello\")")).unwrap().1;
 
         match func_call {
             Expr::FunctionCall(func_call) => {
@@ -211,6 +193,22 @@ mod tests {
 
                 assert_eq!(func_call.params.len(), 2);
             }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_double_function_call() {
+        let expr = expression(new_span("f(10)(20)")).unwrap().1;
+
+        match expr {
+            Expr::FunctionCall(func_call_outer) => match func_call_outer.func {
+                Expr::FunctionCall(func_call_inner) => {
+                    assert_eq!(func_call_outer.params.len(), 1);
+                    assert_eq!(func_call_inner.params.len(), 1);
+                }
+                _ => assert!(false),
+            },
             _ => assert!(false),
         }
     }

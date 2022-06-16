@@ -33,6 +33,18 @@ pub struct StructInitValue<'a> {
     pub value: Expr<'a>,
 }
 
+#[derive(Debug, Clone)]
+pub struct StructAccess<'a> {
+    pub struct_expr: Box<Expr<'a>>,
+    pub attr_name: Ident<'a>,
+}
+
+impl<'a> Struct<'a> {
+    fn lookup_attr(&self, ident: &Ident<'a>) -> Option<&StructAttr<'a>> {
+        self.attrs.iter().find(|attr| *attr.name() == *ident)
+    }
+}
+
 impl<'a> Identifiable<'a> for Struct<'a> {
     fn name(&self) -> &Ident<'a> {
         &self.name
@@ -98,5 +110,32 @@ impl<'a> Typed<'a> for StructInit<'a> {
             name: st.name.clone(),
             ref_id: st.ref_id,
         })
+    }
+}
+
+impl<'a> Typed<'a> for StructAccess<'a> {
+    fn eval_type(
+        &self,
+        symbols: &mut crate::symbols::symbol_table::symbol_table_zipper::SymbolTableZipper<'a>,
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
+        let struct_name = match self.struct_expr.eval_type(symbols)? {
+            TypeSignature::Struct { name, ref_id: _ } => name,
+            val => return Err(TypeEvalError::AccessNonStruct(val)),
+        };
+
+        let st_sym = symbols
+            .lookup(&struct_name)
+            .ok_or(TypeEvalError::UnknownIdentifier(struct_name))?;
+
+        let st = match st_sym {
+            SymbolValue::StructDecl(st) => st,
+            _ => unreachable!("symbol type should match up with expr eval"),
+        };
+
+        let attr = st
+            .lookup_attr(&self.attr_name)
+            .ok_or(TypeEvalError::UnknownIdentifier(self.attr_name.clone()))?;
+
+        attr.clone().eval_type(symbols)
     }
 }
