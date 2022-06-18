@@ -314,8 +314,11 @@ mod tests {
         let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 } }").unwrap();
         assert_matches!(type_check(&mut ast), Ok(_));
 
-        // TODO:
-        // let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 }; return 2 }").unwrap();
-        // assert_matches!(type_check(&mut ast), Ok(_));
+        let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 }; return 2 }").unwrap();
+        let check = type_check(&mut ast);
+
+        println!("Check: {:?}", check);
+
+        assert_matches!(check, Ok(_));
     }
 }

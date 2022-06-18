@@ -5,6 +5,7 @@ pub const BUILTIN_TYPES: &'static [Ident<'static>] = &[
     BuiltinType::Number.ident(),
     BuiltinType::Boolean.ident(),
     BuiltinType::Void.ident(),
+    BuiltinType::Untyped.ident(),
 ];
 
 #[derive(Debug)]

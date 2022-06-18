@@ -2,6 +2,7 @@ use crate::ast::node::type_signature::{TypeEvalError, TypeSignature, Typed};
 
 use self::function_type::FunctionTypeError;
 
+pub mod coercion;
 pub mod function_type;
 pub mod types_helpers;
 pub mod types_walker;
