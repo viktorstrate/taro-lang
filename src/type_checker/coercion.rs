@@ -11,9 +11,9 @@ impl<'a> TypeSignature<'a> {
 
     pub fn coerce<'b>(a: &'b Self, b: &'b Self) -> Option<&'b Self> {
         if a.can_coerce_to(b) {
-            Some(a)
-        } else if b.can_coerce_to(a) {
             Some(b)
+        } else if b.can_coerce_to(a) {
+            Some(a)
         } else {
             None
         }

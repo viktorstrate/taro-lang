@@ -18,6 +18,7 @@ where
         .eval_type(symbols)
         .map_err(TypeCheckerError::TypeEvalError)?;
 
+    // don't allow user to specify type signatures as the Untyped type
     if let Some(type_sig) = elem.specified_type() {
         if *type_sig == BuiltinType::Untyped.type_sig() {
             return Err(TypeCheckerError::UntypedValue(Box::new(elem.clone())));
@@ -25,7 +26,8 @@ where
     }
 
     if let Some(type_sig) = elem.specified_type() {
-        types_match(type_sig.clone(), eval_type)?;
+        let coerced_type = types_match(type_sig.clone(), eval_type)?;
+        elem.specify_type(coerced_type);
     } else {
         // set declaration type to the calculated type of the element
         elem.specify_type(eval_type);
@@ -73,18 +75,13 @@ where
 pub fn types_match<'a>(
     type_sig: TypeSignature<'a>,
     expr_type: TypeSignature<'a>,
-) -> Result<(), TypeCheckerError<'a>> {
-    if expr_type == BuiltinType::Untyped.type_sig() {
-        // Allow untyped to be assigned as any type
-        return Ok(());
-    }
-
-    if expr_type != type_sig {
-        return Err(TypeCheckerError::TypeSignatureMismatch::<'a> {
+) -> Result<TypeSignature<'a>, TypeCheckerError<'a>> {
+    if let Some(coerced_type) = TypeSignature::coerce(&type_sig, &expr_type) {
+        Ok(coerced_type.clone())
+    } else {
+        Err(TypeCheckerError::TypeSignatureMismatch::<'a> {
             type_sig,
             expr_type,
-        });
+        })
     }
-
-    Ok(())
 }

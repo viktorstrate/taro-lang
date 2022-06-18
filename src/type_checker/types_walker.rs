@@ -138,9 +138,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::{node::type_signature::TypeSignature, test_utils::utils::type_check},
-        parser::parse_ast,
-        symbols::builtin_types::BuiltinType,
+        ast::test_utils::utils::type_check, parser::parse_ast, symbols::builtin_types::BuiltinType,
         type_checker::TypeCheckerError,
     };
 
@@ -236,71 +234,6 @@ mod tests {
     }
 
     #[test]
-    fn test_func_call_wrong_arg_type() {
-        let mut ast = parse_ast("func f(a: Number) {}; f(true)").unwrap();
-        match type_check(&mut ast) {
-            Err(TypeCheckerError::TypeSignatureMismatch {
-                type_sig,
-                expr_type,
-            }) => {
-                assert_eq!(
-                    type_sig,
-                    TypeSignature::Function {
-                        args: vec![BuiltinType::Number.type_sig()],
-                        return_type: Box::new(BuiltinType::Void.type_sig())
-                    }
-                );
-
-                assert_eq!(
-                    expr_type,
-                    TypeSignature::Function {
-                        args: vec![BuiltinType::Boolean.type_sig()],
-                        return_type: Box::new(BuiltinType::Void.type_sig())
-                    }
-                );
-            }
-            _ => assert!(false),
-        }
-    }
-
-    #[test]
-    fn test_func_call_wrong_arg_amount() {
-        let mut ast = parse_ast("func f(a: Number) {}; f(2, 3)").unwrap();
-        match type_check(&mut ast) {
-            Err(TypeCheckerError::TypeSignatureMismatch {
-                type_sig,
-                expr_type,
-            }) => {
-                assert_eq!(
-                    type_sig,
-                    TypeSignature::Function {
-                        args: vec![BuiltinType::Number.type_sig()],
-                        return_type: Box::new(BuiltinType::Void.type_sig())
-                    }
-                );
-
-                assert_eq!(
-                    expr_type,
-                    TypeSignature::Function {
-                        args: vec![
-                            BuiltinType::Number.type_sig(),
-                            BuiltinType::Number.type_sig()
-                        ],
-                        return_type: Box::new(BuiltinType::Void.type_sig())
-                    }
-                );
-            }
-            _ => assert!(false),
-        }
-    }
-
-    #[test]
-    fn test_decl_inside_scope() {
-        let mut ast = parse_ast("let f = () -> Boolean { let a = true; return a }").unwrap();
-        assert_matches!(type_check(&mut ast), Ok(_))
-    }
-
-    #[test]
     fn test_escape_block_var_decl() {
         let mut ast = parse_ast("let a: Number = @{ 1 + 2 }").unwrap();
         assert_matches!(type_check(&mut ast), Ok(_));
@@ -316,8 +249,6 @@ mod tests {
 
         let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 }; return 2 }").unwrap();
         let check = type_check(&mut ast);
-
-        println!("Check: {:?}", check);
 
         assert_matches!(check, Ok(_));
     }

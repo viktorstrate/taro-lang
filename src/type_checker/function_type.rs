@@ -44,7 +44,20 @@ fn func_body_type_sig<'a>(
     symbols: &mut SymbolTableZipper<'a>,
     func: &Function<'a>,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {
-    stmt_type(symbols, &func.body)
+    let body_type = stmt_type(symbols, &func.body)?;
+
+    if let Some(return_type) = &func.return_type {
+        if let Some(coerced_type) = TypeSignature::coerce(&body_type, return_type) {
+            Ok(coerced_type.clone())
+        } else {
+            Err(FunctionTypeError::ConflictingReturnTypes(
+                return_type.clone(),
+                body_type,
+            ))
+        }
+    } else {
+        Ok(body_type)
+    }
 }
 
 fn expr_type<'a>(
@@ -102,4 +115,95 @@ fn stmt_compound_type<'a>(
     }
 
     Ok(type_sig.unwrap_or(BuiltinType::Void.type_sig()))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
+
+    use crate::{
+        ast::test_utils::utils::type_check, parser::parse_ast, type_checker::TypeCheckerError,
+    };
+
+    use super::*;
+
+    #[test]
+    fn test_func_call_wrong_arg_type() {
+        let mut ast = parse_ast("func f(a: Number) {}; f(true)").unwrap();
+        match type_check(&mut ast) {
+            Err(TypeCheckerError::TypeSignatureMismatch {
+                type_sig,
+                expr_type,
+            }) => {
+                assert_eq!(
+                    type_sig,
+                    TypeSignature::Function {
+                        args: vec![BuiltinType::Number.type_sig()],
+                        return_type: Box::new(BuiltinType::Void.type_sig())
+                    }
+                );
+
+                assert_eq!(
+                    expr_type,
+                    TypeSignature::Function {
+                        args: vec![BuiltinType::Boolean.type_sig()],
+                        return_type: Box::new(BuiltinType::Void.type_sig())
+                    }
+                );
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_func_call_wrong_arg_amount() {
+        let mut ast = parse_ast("func f(a: Number) {}; f(2, 3)").unwrap();
+        match type_check(&mut ast) {
+            Err(TypeCheckerError::TypeSignatureMismatch {
+                type_sig,
+                expr_type,
+            }) => {
+                assert_eq!(
+                    type_sig,
+                    TypeSignature::Function {
+                        args: vec![BuiltinType::Number.type_sig()],
+                        return_type: Box::new(BuiltinType::Void.type_sig())
+                    }
+                );
+
+                assert_eq!(
+                    expr_type,
+                    TypeSignature::Function {
+                        args: vec![
+                            BuiltinType::Number.type_sig(),
+                            BuiltinType::Number.type_sig()
+                        ],
+                        return_type: Box::new(BuiltinType::Void.type_sig())
+                    }
+                );
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_func_return_typecheck() {
+        let mut ast = parse_ast("func test() -> Number { return false }").unwrap();
+
+        match type_check(&mut ast) {
+            Err(TypeCheckerError::TypeEvalError(TypeEvalError::FunctionType(
+                FunctionTypeError::ConflictingReturnTypes(a, b),
+            ))) => {
+                assert_eq!(a, BuiltinType::Number.type_sig());
+                assert_eq!(b, BuiltinType::Boolean.type_sig());
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_decl_inside_scope() {
+        let mut ast = parse_ast("let f = () -> Boolean { let a = true; return a }").unwrap();
+        assert_matches!(type_check(&mut ast), Ok(_))
+    }
 }
