@@ -27,6 +27,6 @@ pub enum TypeCheckerError<'a> {
     FunctionError(FunctionTypeError<'a>),
     UntypedValue(Box<dyn 'a + Typed<'a>>),
     LookupError(Ident<'a>),
-    AssignmentError(AssignmentError),
+    AssignmentError(AssignmentError<'a>),
     StructError(StructTypeError<'a>),
 }

@@ -1,21 +1,113 @@
 use crate::{
-    ast::node::assignment::Assignment,
-    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
+    ast::node::{
+        assignment::Assignment,
+        expression::Expr,
+        identifier::Ident,
+        type_signature::{Mutability, TypeSignature, Typed},
+    },
+    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolValue},
 };
 
 use super::TypeCheckerError;
 
 #[derive(Debug)]
-pub enum AssignmentError {}
+pub enum AssignmentError<'a> {
+    ImmutableAssignment(Ident<'a>),
+    NotLValue(Ident<'a>),
+    TypesMismatch {
+        lhs: TypeSignature<'a>,
+        rhs: TypeSignature<'a>,
+    },
+}
 
 pub fn check_assignment<'a>(
-    _symbols: &mut SymbolTableZipper,
-    _asg: &Assignment,
+    symbols: &mut SymbolTableZipper<'a>,
+    asg: &Assignment<'a>,
 ) -> Result<(), TypeCheckerError<'a>> {
     // only assign to:
     // - variable
     // - (nested) struct attribute
     // with properties: mutable, same type
 
-    todo!()
+    match &asg.lhs {
+        Expr::Identifier(ident) => {
+            let var = symbols
+                .lookup(&ident)
+                .ok_or(TypeCheckerError::LookupError(ident.clone()))?;
+
+            match var {
+                SymbolValue::VarDecl(var_decl) => {
+                    if var_decl.mutability == Mutability::Immutable {
+                        return Err(TypeCheckerError::AssignmentError(
+                            AssignmentError::ImmutableAssignment(ident.clone()),
+                        ));
+                    }
+                }
+                _ => {
+                    return Err(TypeCheckerError::AssignmentError(
+                        AssignmentError::NotLValue(ident.clone()),
+                    ));
+                }
+            }
+        }
+        _ => {}
+    }
+
+    let lhs_type = asg
+        .lhs
+        .eval_type(symbols)
+        .map_err(TypeCheckerError::TypeEvalError)?;
+    let rhs_type = asg
+        .rhs
+        .eval_type(symbols)
+        .map_err(TypeCheckerError::TypeEvalError)?;
+
+    if !rhs_type.can_coerce_to(&lhs_type) {
+        return Err(TypeCheckerError::AssignmentError(
+            AssignmentError::TypesMismatch {
+                lhs: lhs_type,
+                rhs: rhs_type,
+            },
+        ));
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
+
+    use crate::ast::test_utils::utils::type_check;
+    use crate::parser::parse_ast;
+
+    use super::*;
+
+    #[test]
+    fn test_assign_variable() {
+        let mut ast = parse_ast("let mut foo = 1; foo = 2").unwrap();
+        assert_matches!(type_check(&mut ast), Ok(()))
+    }
+
+    #[test]
+    fn test_assign_variable_immutable() {
+        let mut ast = parse_ast("let foo = 1; foo = 2").unwrap();
+        assert_matches!(
+            type_check(&mut ast),
+            Err(TypeCheckerError::AssignmentError(
+                AssignmentError::ImmutableAssignment(_)
+            ))
+        );
+    }
+
+    #[test]
+    fn test_assign_variable_types_mismatch() {
+        let mut ast = parse_ast("let mut foo = 1; foo = false").unwrap();
+        assert_matches!(
+            type_check(&mut ast),
+            Err(TypeCheckerError::AssignmentError(
+                AssignmentError::TypesMismatch { lhs: _, rhs: _ }
+            ))
+        );
+    }
 }
