@@ -11,7 +11,10 @@ use crate::{
     symbols::{symbol_table::symbol_table_zipper::SymbolTableZipper, symbol_table::SymbolTable},
 };
 
-use super::{types_helpers::type_check, TypeCheckerError};
+use super::{
+    assignment::check_assignment, struct_type::check_struct_init, types_helpers::type_check,
+    TypeCheckerError,
+};
 
 pub struct TypeChecker<'a> {
     pub symbols: SymbolTableZipper<'a>,
@@ -128,6 +131,8 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                 }
             }
             Expr::Function(func) => type_check(&mut self.symbols, func),
+            Expr::Assignment(asg) => check_assignment(&mut self.symbols, asg),
+            Expr::StructInit(st_init) => check_struct_init(&mut self.symbols, st_init),
             _ => Ok(()),
         }
     }
@@ -184,10 +189,9 @@ mod tests {
     fn test_struct_access_mismatched_types() {
         let mut ast = parse_ast(
             "\
-        struct Test { let attr: Number }\n\
+        struct Test { let attr: Number }
         let test = Test { attr: 123 }
-        let wrong: Boolean = test.attr
-        ",
+        let wrong: Boolean = test.attr",
         )
         .unwrap();
 
@@ -199,6 +203,33 @@ mod tests {
                 assert_eq!(type_sig, BuiltinType::Boolean.type_sig());
                 assert_eq!(expr_type, BuiltinType::Number.type_sig());
             }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_struct_init_default() {
+        let mut ast = parse_ast(
+            "\
+        struct Test { let default = 34; let noDefault: Number }
+        let test = Test { noDefault: 123 }",
+        )
+        .unwrap();
+
+        assert!(type_check(&mut ast).is_ok())
+    }
+
+    #[test]
+    fn test_struct_init_not_default() {
+        let mut ast = parse_ast(
+            "\
+        struct Test { let noDefault: Number }
+        let test = Test {}",
+        )
+        .unwrap();
+
+        match type_check(&mut ast) {
+            Err(_) => {}
             _ => assert!(false),
         }
     }
@@ -234,22 +265,11 @@ mod tests {
     }
 
     #[test]
-    fn test_escape_block_var_decl() {
-        let mut ast = parse_ast("let a: Number = @{ 1 + 2 }").unwrap();
-        assert_matches!(type_check(&mut ast), Ok(_));
-
-        let mut ast = parse_ast("let a = @{ 1 + 2 }").unwrap();
-        assert_matches!(type_check(&mut ast), Err(TypeCheckerError::UntypedValue(_)));
-    }
-
-    #[test]
     fn test_escape_block_function_return() {
         let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 } }").unwrap();
         assert_matches!(type_check(&mut ast), Ok(_));
 
         let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 }; return 2 }").unwrap();
-        let check = type_check(&mut ast);
-
-        assert_matches!(check, Ok(_));
+        assert_matches!(type_check(&mut ast), Ok(_));
     }
 }

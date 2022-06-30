@@ -143,6 +143,10 @@ fn walk_expr<'a, W: AstWalker<'a>>(
 
     match expr {
         Expr::Function(func) => walk_func_decl(walker, scope, func),
+        Expr::Assignment(asg) => {
+            walk_expr(walker, scope, &mut asg.lhs)?;
+            walk_expr(walker, scope, &mut asg.rhs)
+        }
         _ => Ok(()),
     }
 }

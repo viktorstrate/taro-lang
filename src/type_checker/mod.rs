@@ -1,9 +1,16 @@
-use crate::ast::node::type_signature::{TypeEvalError, TypeSignature, Typed};
+use crate::ast::node::{
+    identifier::Ident,
+    type_signature::{TypeEvalError, TypeSignature, Typed},
+};
 
-use self::function_type::FunctionTypeError;
+use self::{
+    assignment::AssignmentError, function_type::FunctionTypeError, struct_type::StructTypeError,
+};
 
+pub mod assignment;
 pub mod coercion;
 pub mod function_type;
+pub mod struct_type;
 pub mod types_helpers;
 pub mod types_walker;
 
@@ -19,4 +26,7 @@ pub enum TypeCheckerError<'a> {
     TypeEvalError(TypeEvalError<'a>),
     FunctionError(FunctionTypeError<'a>),
     UntypedValue(Box<dyn 'a + Typed<'a>>),
+    LookupError(Ident<'a>),
+    AssignmentError(AssignmentError),
+    StructError(StructTypeError<'a>),
 }

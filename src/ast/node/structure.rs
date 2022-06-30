@@ -1,4 +1,7 @@
-use crate::{ast::ref_generator::RefID, symbols::symbol_table::SymbolValue};
+use crate::{
+    ast::ref_generator::RefID,
+    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolValue},
+};
 
 use super::{
     expression::Expr,
@@ -60,7 +63,7 @@ impl<'a> Identifiable<'a> for StructAttr<'a> {
 impl<'a> Typed<'a> for Struct<'a> {
     fn eval_type(
         &self,
-        _symbols: &mut crate::symbols::symbol_table::symbol_table_zipper::SymbolTableZipper<'a>,
+        _symbols: &mut SymbolTableZipper<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         Ok(TypeSignature::Struct {
             name: self.name.clone(),
@@ -72,7 +75,7 @@ impl<'a> Typed<'a> for Struct<'a> {
 impl<'a> Typed<'a> for StructAttr<'a> {
     fn eval_type(
         &self,
-        symbols: &mut crate::symbols::symbol_table::symbol_table_zipper::SymbolTableZipper<'a>,
+        symbols: &mut SymbolTableZipper<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         match &self.default_value {
             Some(value) => value.eval_type(symbols),
@@ -92,10 +95,21 @@ impl<'a> Typed<'a> for StructAttr<'a> {
     }
 }
 
+impl<'a> StructInit<'a> {
+    pub fn lookup_struct<'b>(&self, symbols: &'b SymbolTableZipper<'a>) -> Option<&'b Struct<'a>> {
+        let sym_val = symbols.lookup(&self.name);
+
+        match sym_val {
+            Some(SymbolValue::StructDecl(st)) => Some(st),
+            _ => None,
+        }
+    }
+}
+
 impl<'a> Typed<'a> for StructInit<'a> {
     fn eval_type(
         &self,
-        symbols: &mut crate::symbols::symbol_table::symbol_table_zipper::SymbolTableZipper<'a>,
+        symbols: &mut SymbolTableZipper<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let st = symbols
             .lookup(&self.name)
@@ -116,7 +130,7 @@ impl<'a> Typed<'a> for StructInit<'a> {
 impl<'a> Typed<'a> for StructAccess<'a> {
     fn eval_type(
         &self,
-        symbols: &mut crate::symbols::symbol_table::symbol_table_zipper::SymbolTableZipper<'a>,
+        symbols: &mut SymbolTableZipper<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let struct_name = match self.struct_expr.eval_type(symbols)? {
             TypeSignature::Struct { name, ref_id: _ } => name,

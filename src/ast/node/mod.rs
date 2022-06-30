@@ -1,3 +1,4 @@
+pub mod assignment;
 pub mod escape_block;
 pub mod expression;
 pub mod function;

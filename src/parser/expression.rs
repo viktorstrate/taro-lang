@@ -4,12 +4,13 @@ use nom::{
     character::complete::{char as char_parser, digit1},
     combinator::{map, opt},
     error::context,
-    multi::{fold_many1, separated_list0},
+    multi::{fold_many0, separated_list0},
     sequence::{delimited, preceded, tuple},
 };
 
 use crate::ast::node::{
-    expression::Expr, function::FunctionCall, identifier::Ident, structure::StructAccess,
+    assignment::Assignment, expression::Expr, function::FunctionCall, identifier::Ident,
+    structure::StructAccess,
 };
 
 use super::{
@@ -31,28 +32,38 @@ pub fn expression(i: Span) -> Res<Span, Expr> {
         )),
     )(i)?;
 
-    if let Ok(result) = expr_tail(&expr, i.clone()) {
-        return Ok(result);
-    } else {
-        return Ok((i, expr));
-    }
+    expr_tail(&expr, i.clone())
 }
 
-enum ExprTail<'a> {
+enum ExprTailChain<'a> {
     FuncCall(Vec<Expr<'a>>),
     StructAccess(Ident<'a>),
 }
 
 fn expr_tail<'a>(base: &Expr<'a>, i: Span<'a>) -> Res<Span<'a>, Expr<'a>> {
-    fold_many1(
+    let (i, base) = expr_tail_chain(base.clone(), i)?;
+
+    tail_assignments(&base, i)
+}
+
+fn tail_assignments<'a>(base: &Expr<'a>, i: Span<'a>) -> Res<Span<'a>, Expr<'a>> {
+    fold_many0(
+        preceded(token(tag("=")), expression),
+        || base.clone(),
+        |acc, rhs| Expr::Assignment(Box::new(Assignment { lhs: acc, rhs })),
+    )(i)
+}
+
+fn expr_tail_chain<'a>(base: Expr<'a>, i: Span<'a>) -> Res<Span<'a>, Expr<'a>> {
+    fold_many0(
         alt((tail_func_call, tail_struct_access)),
         || base.clone(),
         |acc, expr_tail| match expr_tail {
-            ExprTail::FuncCall(func_args) => Expr::FunctionCall(Box::new(FunctionCall {
+            ExprTailChain::FuncCall(func_args) => Expr::FunctionCall(Box::new(FunctionCall {
                 func: acc,
                 params: func_args,
             })),
-            ExprTail::StructAccess(attr_name) => Expr::StructAccess(StructAccess {
+            ExprTailChain::StructAccess(attr_name) => Expr::StructAccess(StructAccess {
                 struct_expr: Box::new(acc),
                 attr_name,
             }),
@@ -60,19 +71,19 @@ fn expr_tail<'a>(base: &Expr<'a>, i: Span<'a>) -> Res<Span<'a>, Expr<'a>> {
     )(i)
 }
 
-fn tail_func_call(i: Span) -> Res<Span, ExprTail> {
+fn tail_func_call(i: Span) -> Res<Span, ExprTailChain> {
     let func_params = separated_list0(token(tag(",")), expression);
 
     map(
         surround_brackets(BracketType::Round, func_params),
-        ExprTail::FuncCall,
+        ExprTailChain::FuncCall,
     )(i)
 }
 
-fn tail_struct_access(i: Span) -> Res<Span, ExprTail> {
+fn tail_struct_access(i: Span) -> Res<Span, ExprTailChain> {
     map(
         preceded(token(tag(".")), identifier),
-        ExprTail::StructAccess,
+        ExprTailChain::StructAccess,
     )(i)
 }
 
@@ -155,14 +166,35 @@ mod tests {
     }
 
     #[test]
-    fn test_expr_tail() {
+    fn test_expr_tail_chain() {
         let expr = expression(new_span("base()().first.next(123)")).unwrap().1;
-
-        println!("{:#?}", expr);
 
         match expr {
             Expr::FunctionCall(call) => {
                 assert_eq!(call.params.len(), 1);
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_expr_assignments() {
+        let expr = expression(new_span("a = b = 2")).unwrap().1;
+
+        match expr {
+            Expr::Assignment(outer_asg) => {
+                match outer_asg.lhs {
+                    Expr::Identifier(ident) => assert_eq!(ident, Ident::new_unplaced("a")),
+                    _ => assert!(false),
+                }
+
+                match outer_asg.rhs {
+                    Expr::Assignment(rhs_asg) => {
+                        assert_matches!(rhs_asg.lhs, Expr::Identifier(_));
+                        assert_matches!(rhs_asg.rhs, Expr::NumberLiteral(_));
+                    }
+                    _ => assert!(false),
+                }
             }
             _ => assert!(false),
         }

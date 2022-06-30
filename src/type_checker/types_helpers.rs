@@ -26,16 +26,28 @@ where
     }
 
     if let Some(type_sig) = elem.specified_type() {
-        let coerced_type = types_match(type_sig.clone(), eval_type)?;
+        let coerced_type = types_match(type_sig.clone(), eval_type.clone())?;
         elem.specify_type(coerced_type);
     } else {
         // set declaration type to the calculated type of the element
-        elem.specify_type(eval_type);
+        elem.specify_type(eval_type.clone());
     }
 
     if let Some(type_sig) = elem.specified_type() {
         if *type_sig == BuiltinType::Untyped.type_sig() {
             return Err(TypeCheckerError::UntypedValue(Box::new(elem.clone())));
+        }
+    } else {
+        if eval_type == BuiltinType::Untyped.type_sig() {
+            return Err(TypeCheckerError::UntypedValue(Box::new(elem.clone())));
+        } else if let TypeSignature::Function {
+            args: _,
+            return_type,
+        } = eval_type
+        {
+            if *return_type == BuiltinType::Untyped.type_sig() {
+                return Err(TypeCheckerError::UntypedValue(Box::new(elem.clone())));
+            }
         }
     }
 
@@ -83,5 +95,30 @@ pub fn types_match<'a>(
             type_sig,
             expr_type,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
+
+    use crate::ast::test_utils::utils::type_check;
+    use crate::parser::parse_ast;
+
+    use super::*;
+
+    #[test]
+    fn test_escape_block_var_decl() {
+        let mut ast = parse_ast("let a: Number = @{ 1 + 2 }").unwrap();
+        assert_matches!(type_check(&mut ast), Ok(_));
+
+        let mut ast = parse_ast("let a = @{ 1 + 2 }").unwrap();
+        assert_matches!(type_check(&mut ast), Err(TypeCheckerError::UntypedValue(_)));
+    }
+
+    #[test]
+    fn test_untyped_function_return() {
+        let mut ast = parse_ast("func foo() { return @{ 123 } }").unwrap();
+        assert_matches!(type_check(&mut ast), Err(TypeCheckerError::UntypedValue(_)));
     }
 }

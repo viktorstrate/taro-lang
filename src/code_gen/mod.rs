@@ -228,6 +228,11 @@ fn format_expr<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, expr: &Expr<'a>) -> Co
             }
         }
         Expr::EscapeBlock(block) => ctx.write(block.content),
+        Expr::Assignment(asg) => {
+            format_expr(ctx, &asg.lhs)?;
+            ctx.write(" = ")?;
+            format_expr(ctx, &asg.rhs)
+        }
     }
 }
 
@@ -318,10 +323,10 @@ mod tests {
         );
         assert_eq!(
             ast.unwrap(),
-            "function struct_Test (defaultVal, noDefault) {\n\
+            "function Test (defaultVal, noDefault) {\n\
             this.defaultVal = defaultVal ?? 123;\n\
             this.noDefault = noDefault}\n\
-            const testVar = new struct_Test(null, false);\n\
+            const testVar = new Test(null, false);\n\
             const val = testVar.defaultVal;\n"
         );
     }

@@ -4,6 +4,7 @@ use crate::symbols::{
 };
 
 use super::{
+    assignment::Assignment,
     escape_block::EscapeBlock,
     function::{Function, FunctionCall},
     identifier::Ident,
@@ -22,6 +23,7 @@ pub enum Expr<'a> {
     StructInit(StructInit<'a>),
     StructAccess(StructAccess<'a>),
     EscapeBlock(EscapeBlock<'a>),
+    Assignment(Box<Assignment<'a>>),
 }
 
 impl<'a> Typed<'a> for Expr<'a> {
@@ -55,6 +57,7 @@ impl<'a> Typed<'a> for Expr<'a> {
             Expr::StructInit(struct_init) => struct_init.eval_type(symbols),
             Expr::StructAccess(struct_access) => struct_access.eval_type(symbols),
             Expr::EscapeBlock(block) => block.eval_type(symbols),
+            Expr::Assignment(asg) => asg.rhs.eval_type(symbols),
         }
     }
 
@@ -69,6 +72,7 @@ impl<'a> Typed<'a> for Expr<'a> {
             Expr::StructInit(st_init) => st_init.specified_type(),
             Expr::StructAccess(_) => None,
             Expr::EscapeBlock(block) => block.specified_type(),
+            Expr::Assignment(_) => None,
         }
     }
 
@@ -83,6 +87,7 @@ impl<'a> Typed<'a> for Expr<'a> {
             Expr::StructInit(st_init) => st_init.specify_type(new_type),
             Expr::StructAccess(_) => {}
             Expr::EscapeBlock(block) => block.specify_type(new_type),
+            Expr::Assignment(_) => {}
         }
     }
 }
