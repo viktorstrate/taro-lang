@@ -2,7 +2,11 @@ use std::fmt::Debug;
 
 use super::{
     node::{
-        expression::Expr, function::Function, module::Module, statement::Stmt, structure::Struct,
+        expression::Expr,
+        function::Function,
+        module::Module,
+        statement::Stmt,
+        structure::{Struct, StructAttr},
     },
     AST,
 };
@@ -33,6 +37,14 @@ pub trait AstWalker<'a> {
         &mut self,
         scope: &mut Self::Scope,
         st: &mut Struct<'a>,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn visit_struct_attr(
+        &mut self,
+        scope: &mut Self::Scope,
+        attr: &mut StructAttr<'a>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -94,6 +106,8 @@ fn walk_struct<'a, W: AstWalker<'a>>(
         if let Some(value) = &mut attr.default_value {
             walk_expr(walker, &mut st_scope, value)?;
         }
+
+        walker.visit_struct_attr(&mut st_scope, attr)?;
     }
 
     walker.visit_scope_end(scope, st_scope, ScopeValue::Struct(st))?;
@@ -147,6 +161,7 @@ fn walk_expr<'a, W: AstWalker<'a>>(
             walk_expr(walker, scope, &mut asg.lhs)?;
             walk_expr(walker, scope, &mut asg.rhs)
         }
+        Expr::StructAccess(st_access) => walk_expr(walker, scope, &mut *st_access.struct_expr),
         _ => Ok(()),
     }
 }

@@ -13,7 +13,7 @@ use super::TypeCheckerError;
 #[derive(Debug)]
 pub enum AssignmentError<'a> {
     ImmutableAssignment(Ident<'a>),
-    NotLValue(Ident<'a>),
+    NotLValue(Expr<'a>),
     TypesMismatch {
         lhs: TypeSignature<'a>,
         rhs: TypeSignature<'a>,
@@ -45,12 +45,27 @@ pub fn check_assignment<'a>(
                 }
                 _ => {
                     return Err(TypeCheckerError::AssignmentError(
-                        AssignmentError::NotLValue(ident.clone()),
+                        AssignmentError::NotLValue(asg.lhs.clone()),
                     ));
                 }
             }
         }
-        _ => {}
+        Expr::StructAccess(st_access) => {
+            let attr = st_access
+                .lookup_attr(symbols)
+                .map_err(TypeCheckerError::TypeEvalError)?;
+
+            if attr.mutability == Mutability::Immutable {
+                return Err(TypeCheckerError::AssignmentError(
+                    AssignmentError::ImmutableAssignment(st_access.attr_name.clone()),
+                ));
+            }
+        }
+        _ => {
+            return Err(TypeCheckerError::AssignmentError(
+                AssignmentError::NotLValue(asg.lhs.clone()),
+            ));
+        }
     }
 
     let lhs_type = asg
@@ -110,4 +125,28 @@ mod tests {
             ))
         );
     }
+
+    #[test]
+    fn test_assign_struct() {
+        let mut ast = parse_ast(
+            "struct Foo { let mut attr: Number }
+            let mut foo = Foo { attr: 1 }
+            foo.attr = 2",
+        )
+        .unwrap();
+
+        assert_matches!(type_check(&mut ast), Ok(()));
+    }
+
+    // #[test]
+    // fn test_assign_struct_immutable() {
+    //     let mut ast = parse_ast(
+    //         "struct Foo { let attr: Number }
+    //         let mut foo = Foo { attr: 1 }
+    //         foo.attr = 2",
+    //     )
+    //     .unwrap();
+
+    //     assert_matches!(type_check(&mut ast), Err(_));
+    // }
 }

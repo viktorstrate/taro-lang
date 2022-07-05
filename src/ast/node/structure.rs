@@ -132,6 +132,17 @@ impl<'a> Typed<'a> for StructAccess<'a> {
         &self,
         symbols: &mut SymbolTableZipper<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
+        self.lookup_attr(symbols)?.clone().eval_type(symbols)
+    }
+}
+
+impl<'a> StructAccess<'a> {
+    pub fn lookup_attr<'b>(
+        &self,
+        symbols: &'b mut SymbolTableZipper<'a>,
+    ) -> Result<&'b StructAttr<'a>, TypeEvalError<'a>> {
+        println!("Lookup attr STRUCT_ACCESS {:?}", self);
+
         let struct_name = match self.struct_expr.eval_type(symbols)? {
             TypeSignature::Struct { name, ref_id: _ } => name,
             val => return Err(TypeEvalError::AccessNonStruct(val)),
@@ -146,10 +157,34 @@ impl<'a> Typed<'a> for StructAccess<'a> {
             _ => unreachable!("symbol type should match up with expr eval"),
         };
 
-        let attr = st
-            .lookup_attr(&self.attr_name)
-            .ok_or(TypeEvalError::UnknownIdentifier(self.attr_name.clone()))?;
+        st.lookup_attr(&self.attr_name)
+            .ok_or(TypeEvalError::UnknownIdentifier(self.attr_name.clone()))
+    }
+}
 
-        attr.clone().eval_type(symbols)
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
+
+    use crate::{ast::test_utils::utils::type_check, parser::parse_ast};
+
+    #[test]
+    fn test_nested_struct() {
+        let mut ast = parse_ast(
+            "
+        struct Deep {
+            let mut inner = false
+        }
+
+        struct Foo {
+            let mut bar: Deep
+        }
+
+        let foo = Foo { bar: Deep {} }
+        foo.bar.inner = true
+        ",
+        )
+        .unwrap();
+        assert_matches!(type_check(&mut ast), Ok(()))
     }
 }

@@ -4,7 +4,7 @@ use crate::{
         node::{
             expression::Expr,
             statement::Stmt,
-            structure::Struct,
+            structure::StructAttr,
             type_signature::{TypeSignature, Typed},
         },
     },
@@ -80,16 +80,12 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
         }
     }
 
-    fn visit_struct_decl(
+    fn visit_struct_attr(
         &mut self,
         _scope: &mut (),
-        st: &mut Struct<'a>,
+        attr: &mut StructAttr<'a>,
     ) -> Result<(), TypeCheckerError<'a>> {
-        for attr in &mut st.attrs {
-            type_check(&mut self.symbols, attr)?;
-        }
-
-        Ok(())
+        type_check(&mut self.symbols, attr)
     }
 
     fn visit_expr(&mut self, expr: &mut Expr<'a>) -> Result<(), TypeCheckerError<'a>> {
