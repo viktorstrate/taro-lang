@@ -19,7 +19,6 @@ pub enum TypeSignature<'a> {
         ref_id: RefID,
     },
     Reference(Box<TypeSignature<'a>>),
-    // GenericBase(Ident<'a>, Box<Vec<TypeSignatureValue<'a>>>),
 }
 
 #[derive(Debug)]

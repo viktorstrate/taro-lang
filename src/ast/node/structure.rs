@@ -79,10 +79,24 @@ impl<'a> Typed<'a> for StructAttr<'a> {
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         match &self.default_value {
             Some(value) => value.eval_type(symbols),
-            None => Ok(self
-                .type_sig
-                .clone()
-                .expect("struct should have at least a type signature or a default value")),
+            None => {
+                let type_sig = self
+                    .type_sig
+                    .clone()
+                    .expect("struct should have at least a type signature or a default value");
+
+                let type_sig = if let TypeSignature::Base(type_ident) = type_sig {
+                    symbols
+                        .lookup(&type_ident)
+                        .ok_or(TypeEvalError::UnknownIdentifier(type_ident))?
+                        .clone()
+                        .eval_type(symbols)?
+                } else {
+                    type_sig
+                };
+
+                Ok(type_sig)
+            }
         }
     }
 
@@ -111,14 +125,9 @@ impl<'a> Typed<'a> for StructInit<'a> {
         &self,
         symbols: &mut SymbolTableZipper<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        let st = symbols
-            .lookup(&self.name)
-            .expect("struct init base declaration should exist");
-
-        let st = match st {
-            SymbolValue::StructDecl(st) => st,
-            _ => unreachable!(),
-        };
+        let st = self
+            .lookup_struct(symbols)
+            .ok_or(TypeEvalError::UnknownIdentifier(self.name.clone()))?;
 
         Ok(TypeSignature::Struct {
             name: st.name.clone(),
@@ -141,8 +150,6 @@ impl<'a> StructAccess<'a> {
         &self,
         symbols: &'b mut SymbolTableZipper<'a>,
     ) -> Result<&'b StructAttr<'a>, TypeEvalError<'a>> {
-        println!("Lookup attr STRUCT_ACCESS {:?}", self);
-
         let struct_name = match self.struct_expr.eval_type(symbols)? {
             TypeSignature::Struct { name, ref_id: _ } => name,
             val => return Err(TypeEvalError::AccessNonStruct(val)),
@@ -186,5 +193,25 @@ mod tests {
         )
         .unwrap();
         assert_matches!(type_check(&mut ast), Ok(()))
+    }
+
+    #[test]
+    fn test_nested_struct_immutable() {
+        let mut ast = parse_ast(
+            "
+        struct Deep {
+            let mut inner = false
+        }
+
+        struct Foo {
+            let bar: Deep
+        }
+
+        let foo = Foo { bar: Deep {} }
+        foo.bar.inner = true
+        ",
+        )
+        .unwrap();
+        assert_matches!(type_check(&mut ast), Err(_))
     }
 }

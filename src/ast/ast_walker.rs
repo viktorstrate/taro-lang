@@ -98,8 +98,6 @@ fn walk_struct<'a, W: AstWalker<'a>>(
     scope: &mut W::Scope,
     st: &mut Struct<'a>,
 ) -> Result<(), W::Error> {
-    walker.visit_struct_decl(scope, st)?;
-
     let mut st_scope = walker.visit_scope_begin(scope, ScopeValue::Struct(st))?;
 
     for attr in &mut st.attrs {
@@ -111,6 +109,8 @@ fn walk_struct<'a, W: AstWalker<'a>>(
     }
 
     walker.visit_scope_end(scope, st_scope, ScopeValue::Struct(st))?;
+
+    walker.visit_struct_decl(scope, st)?;
 
     Ok(())
 }
@@ -153,8 +153,6 @@ fn walk_expr<'a, W: AstWalker<'a>>(
     scope: &mut W::Scope,
     expr: &mut Expr<'a>,
 ) -> Result<(), W::Error> {
-    walker.visit_expr(expr)?;
-
     match expr {
         Expr::Function(func) => walk_func_decl(walker, scope, func),
         Expr::Assignment(asg) => {
@@ -163,5 +161,7 @@ fn walk_expr<'a, W: AstWalker<'a>>(
         }
         Expr::StructAccess(st_access) => walk_expr(walker, scope, &mut *st_access.struct_expr),
         _ => Ok(()),
-    }
+    }?;
+
+    walker.visit_expr(expr)
 }

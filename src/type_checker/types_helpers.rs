@@ -1,5 +1,8 @@
 use crate::{
-    ast::node::type_signature::{TypeEvalError, TypeSignature, Typed},
+    ast::node::{
+        identifier::Ident,
+        type_signature::{TypeEvalError, TypeSignature, Typed},
+    },
     symbols::{builtin_types::BuiltinType, symbol_table::symbol_table_zipper::SymbolTableZipper},
 };
 
@@ -62,22 +65,33 @@ where
     T: 'a + Typed<'a> + Clone,
 {
     // If specified type is `Base` then locate the actual type from the symbol table
-    match elem.specified_type() {
-        Some(TypeSignature::Base(ident)) => {
-            let val = symbols
-                .lookup(&ident)
-                .ok_or(TypeCheckerError::TypeEvalError(
-                    TypeEvalError::UnknownIdentifier(ident.clone()),
-                ))?
-                .clone();
-
-            let new_type = val
+    let base_ident = match elem.specified_type() {
+        Some(TypeSignature::Base(ident)) => Some(ident.clone()),
+        None => {
+            match elem
                 .eval_type(symbols)
-                .map_err(TypeCheckerError::TypeEvalError)?;
-
-            elem.specify_type(new_type);
+                .map_err(TypeCheckerError::TypeEvalError)?
+            {
+                TypeSignature::Base(ident) => Some(ident),
+                _ => None,
+            }
         }
-        _ => {}
+        _ => None,
+    };
+
+    if let Some(ident) = base_ident {
+        let val = symbols
+            .lookup(&ident)
+            .ok_or(TypeCheckerError::TypeEvalError(
+                TypeEvalError::UnknownIdentifier(ident.clone()),
+            ))?
+            .clone();
+
+        let new_type = val
+            .eval_type(symbols)
+            .map_err(TypeCheckerError::TypeEvalError)?;
+
+        elem.specify_type(new_type);
     }
 
     Ok(())
