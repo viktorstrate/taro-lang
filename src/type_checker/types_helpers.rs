@@ -1,8 +1,5 @@
 use crate::{
-    ast::node::{
-        identifier::Ident,
-        type_signature::{TypeEvalError, TypeSignature, Typed},
-    },
+    ast::node::type_signature::{TypeEvalError, TypeSignature, Typed},
     symbols::{builtin_types::BuiltinType, symbol_table::symbol_table_zipper::SymbolTableZipper},
 };
 

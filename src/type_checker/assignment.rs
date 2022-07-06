@@ -51,11 +51,11 @@ pub fn check_assignment<'a>(
             }
         }
         Expr::StructAccess(st_access) => {
-            let attr = st_access
-                .lookup_attr(symbols)
+            let attrs = st_access
+                .lookup_attr_chain(symbols)
                 .map_err(TypeCheckerError::TypeEvalError)?;
 
-            if attr.mutability == Mutability::Immutable {
+            if !attrs.iter().all(|a| a.mutability == Mutability::Mutable) {
                 return Err(TypeCheckerError::AssignmentError(
                     AssignmentError::ImmutableAssignment(st_access.attr_name.clone()),
                 ));
@@ -138,15 +138,35 @@ mod tests {
         assert_matches!(type_check(&mut ast), Ok(()));
     }
 
-    // #[test]
-    // fn test_assign_struct_immutable() {
-    //     let mut ast = parse_ast(
-    //         "struct Foo { let attr: Number }
-    //         let mut foo = Foo { attr: 1 }
-    //         foo.attr = 2",
-    //     )
-    //     .unwrap();
+    #[test]
+    fn test_assign_struct_immutable() {
+        let mut ast = parse_ast(
+            "struct Foo { let attr: Number }
+            let mut foo = Foo { attr: 1 }
+            foo.attr = 2",
+        )
+        .unwrap();
 
-    //     assert_matches!(type_check(&mut ast), Err(_));
-    // }
+        assert_matches!(type_check(&mut ast), Err(_));
+    }
+
+    #[test]
+    fn test_nested_struct_immutable() {
+        let mut ast = parse_ast(
+            "
+        struct Deep {
+            let mut inner = false
+        }
+
+        struct Foo {
+            let bar: Deep
+        }
+
+        let foo = Foo { bar: Deep {} }
+        foo.bar.inner = true
+        ",
+        )
+        .unwrap();
+        assert_matches!(type_check(&mut ast), Err(_))
+    }
 }

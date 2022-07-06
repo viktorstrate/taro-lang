@@ -167,6 +167,31 @@ impl<'a> StructAccess<'a> {
         st.lookup_attr(&self.attr_name)
             .ok_or(TypeEvalError::UnknownIdentifier(self.attr_name.clone()))
     }
+
+    pub fn lookup_attr_chain<'c>(
+        &self,
+        symbols: &mut SymbolTableZipper<'a>,
+    ) -> Result<Vec<StructAttr<'a>>, TypeEvalError<'a>> {
+        fn recursive_lookup<'a>(
+            result: &mut Vec<StructAttr<'a>>,
+            st_access: &StructAccess<'a>,
+            symbols: &mut SymbolTableZipper<'a>,
+        ) -> Result<(), TypeEvalError<'a>> {
+            if let Expr::StructAccess(inner_access) = st_access.struct_expr.as_ref() {
+                recursive_lookup(result, inner_access, symbols)?;
+            }
+
+            let attr = st_access.lookup_attr(symbols)?;
+            result.push(attr.clone());
+
+            Ok(())
+        }
+
+        let mut result = Vec::new();
+        recursive_lookup(&mut result, self, symbols)?;
+
+        Ok(result)
+    }
 }
 
 #[cfg(test)]
@@ -193,25 +218,5 @@ mod tests {
         )
         .unwrap();
         assert_matches!(type_check(&mut ast), Ok(()))
-    }
-
-    #[test]
-    fn test_nested_struct_immutable() {
-        let mut ast = parse_ast(
-            "
-        struct Deep {
-            let mut inner = false
-        }
-
-        struct Foo {
-            let bar: Deep
-        }
-
-        let foo = Foo { bar: Deep {} }
-        foo.bar.inner = true
-        ",
-        )
-        .unwrap();
-        assert_matches!(type_check(&mut ast), Err(_))
     }
 }
