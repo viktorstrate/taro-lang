@@ -58,7 +58,7 @@ impl<'a> Typed<'a> for Expr<'a> {
         }
     }
 
-    fn specified_type(&self) -> Option<&TypeSignature<'a>> {
+    fn specified_type(&self) -> Option<TypeSignature<'a>> {
         match self {
             Expr::StringLiteral(_) => None,
             Expr::NumberLiteral(_) => None,

@@ -38,7 +38,7 @@ pub trait Typed<'a>: Debug {
         symbols: &mut SymbolTableZipper<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>>;
 
-    fn specified_type(&self) -> Option<&TypeSignature<'a>> {
+    fn specified_type(&self) -> Option<TypeSignature<'a>> {
         None
     }
 

@@ -80,14 +80,14 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                 Expr::Function(func) => match &var_decl.type_sig {
                     Some(
                         type_sig @ TypeSignature::Function {
-                            args,
+                            args: _,
                             return_type: _,
                         },
                     ) => {
-                        fill_type_signature(&mut self.symbols, func, Some(&type_sig))?;
-                        for (arg, arg_type) in func.args.iter_mut().zip(args.iter()) {
-                            fill_type_signature(&mut self.symbols, arg, Some(arg_type))?;
-                        }
+                        fill_type_signature(&mut self.symbols, func, Some(type_sig.clone()))?;
+                        // for (arg, arg_type) in func.args.iter_mut().zip(args.iter()) {
+                        //     fill_type_signature(&mut self.symbols, arg, Some(arg_type))?;
+                        // }
                     }
                     Some(type_sig) => {
                         return Err(TypeCheckerError::TypeSignatureMismatch {

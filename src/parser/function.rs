@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use nom::{
     bytes::complete::tag,
     combinator::{cut, map, opt},
@@ -34,12 +36,12 @@ pub fn function_decl(i: Span) -> Res<Span, Stmt> {
 
     Ok((
         i,
-        Stmt::FunctionDecl(Function::new(
-            name.into(),
+        Stmt::FunctionDecl(Function {
+            name,
             args,
             return_type,
-            Box::new(body),
-        )),
+            body: Box::new(body),
+        }),
     ))
 }
 
@@ -54,12 +56,12 @@ pub fn function_expr(i: Span) -> Res<Span, Expr> {
 
     Ok((
         i,
-        Expr::Function(Function::new(
-            Ident::new_anon(name_ref),
+        Expr::Function(Function {
+            name: Ident::new_anon(name_ref),
             args,
             return_type,
-            Box::new(body),
-        )),
+            body: Box::new(body),
+        }),
     ))
 }
 
@@ -87,7 +89,10 @@ fn function_arg(i: Span) -> Res<Span, FunctionArg> {
                     opt(preceded(token(tag(":")), type_signature)),
                 ),
             )),
-            |(name, type_sig)| FunctionArg { name, type_sig },
+            |(name, type_sig)| FunctionArg {
+                name,
+                type_sig: Rc::new(RefCell::new(type_sig)),
+            },
         ),
     )(i)
 }
@@ -131,8 +136,14 @@ mod tests {
                 assert_eq!(func.args.len(), 2);
                 assert_eq!(func.args[0].name, Ident::new_unplaced("a"));
                 assert_eq!(func.args[1].name, Ident::new_unplaced("b"));
-                assert_eq!(func.args[0].type_sig, Some(BuiltinType::Number.type_sig()));
-                assert_eq!(func.args[1].type_sig, Some(BuiltinType::Number.type_sig()));
+                assert_eq!(
+                    *func.args[0].type_sig.borrow(),
+                    Some(BuiltinType::Number.type_sig())
+                );
+                assert_eq!(
+                    *func.args[1].type_sig.borrow(),
+                    Some(BuiltinType::Number.type_sig())
+                );
             }
             _ => assert!(false),
         }
@@ -148,9 +159,15 @@ mod tests {
             Expr::Function(func) => {
                 assert_eq!(func.args.len(), 2);
                 assert_eq!(func.args[0].name, Ident::new_unplaced("a"));
-                assert_eq!(func.args[0].type_sig, Some(BuiltinType::Number.type_sig()));
+                assert_eq!(
+                    *func.args[0].type_sig.borrow(),
+                    Some(BuiltinType::Number.type_sig())
+                );
                 assert_eq!(func.args[1].name, Ident::new_unplaced("b"));
-                assert_eq!(func.args[1].type_sig, Some(BuiltinType::Number.type_sig()));
+                assert_eq!(
+                    *func.args[1].type_sig.borrow(),
+                    Some(BuiltinType::Number.type_sig())
+                );
                 assert_eq!(func.return_type, None);
             }
             _ => assert!(false),

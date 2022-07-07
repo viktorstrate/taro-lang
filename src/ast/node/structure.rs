@@ -100,8 +100,8 @@ impl<'a> Typed<'a> for StructAttr<'a> {
         }
     }
 
-    fn specified_type(&self) -> Option<&TypeSignature<'a>> {
-        self.type_sig.as_ref()
+    fn specified_type(&self) -> Option<TypeSignature<'a>> {
+        self.type_sig.clone()
     }
 
     fn specify_type(&mut self, new_type: TypeSignature<'a>) {

@@ -88,7 +88,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
         }
     }
 
-    fn specified_type(&self) -> Option<&TypeSignature<'a>> {
+    fn specified_type(&self) -> Option<TypeSignature<'a>> {
         match self {
             SymbolValue::BuiltinType(_) => None,
             SymbolValue::VarDecl(var) => var.specified_type(),

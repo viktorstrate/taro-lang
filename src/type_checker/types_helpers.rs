@@ -13,19 +13,20 @@ where
     T: 'a + Typed<'a> + Clone,
 {
     fill_type_signature(symbols, elem, None)?;
+    let specified_type = elem.specified_type();
 
     let eval_type = elem
         .eval_type(symbols)
         .map_err(TypeCheckerError::TypeEvalError)?;
 
     // don't allow user to specify type signatures as the Untyped type
-    if let Some(type_sig) = elem.specified_type() {
+    if let Some(type_sig) = &specified_type {
         if *type_sig == BuiltinType::Untyped.type_sig() {
             return Err(TypeCheckerError::UntypedValue(Box::new(elem.clone())));
         }
     }
 
-    if let Some(type_sig) = elem.specified_type() {
+    if let Some(type_sig) = &specified_type {
         let coerced_type = types_match(type_sig.clone(), eval_type.clone())?;
         elem.specify_type(coerced_type);
     } else {
@@ -33,7 +34,7 @@ where
         elem.specify_type(eval_type.clone());
     }
 
-    let type_sig = elem.specified_type().cloned().unwrap_or(eval_type);
+    let type_sig = specified_type.unwrap_or(eval_type);
     if type_sig == BuiltinType::Untyped.type_sig() {
         return Err(TypeCheckerError::UntypedValue(Box::new(elem.clone())));
     } else if let TypeSignature::Function {
@@ -52,12 +53,12 @@ where
 pub fn fill_type_signature<'a, T>(
     symbols: &mut SymbolTableZipper<'a>,
     elem: &mut T,
-    extra_type_sig: Option<&TypeSignature<'a>>,
+    extra_type_sig: Option<TypeSignature<'a>>,
 ) -> Result<(), TypeCheckerError<'a>>
 where
     T: 'a + Typed<'a> + Clone,
 {
-    let specified_type = elem.specified_type().or(extra_type_sig).cloned();
+    let specified_type = elem.specified_type().or(extra_type_sig.clone());
 
     // If specified type is `Base` then locate the actual type from the symbol table
     let base_ident = match &specified_type {
