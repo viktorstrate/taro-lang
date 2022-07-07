@@ -25,6 +25,14 @@ pub trait AstWalker<'a> {
         Ok(())
     }
 
+    fn pre_visit_stmt(
+        &mut self,
+        scope: &mut Self::Scope,
+        stmt: &mut Stmt<'a>,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
     fn visit_stmt(
         &mut self,
         scope: &mut Self::Scope,
@@ -120,6 +128,7 @@ fn walk_stmt<'a, W: AstWalker<'a>>(
     scope: &mut W::Scope,
     stmt: &mut Stmt<'a>,
 ) -> Result<(), W::Error> {
+    walker.pre_visit_stmt(scope, stmt)?;
     match stmt {
         Stmt::VariableDecl(decl) => walk_expr(walker, scope, &mut decl.value)?,
         Stmt::Expression(expr) => walk_expr(walker, scope, expr)?,

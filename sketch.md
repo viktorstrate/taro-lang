@@ -105,7 +105,7 @@ let funcs = {
 ## Async functions
 
 ```
-let fetch_data: (String) -> Promise<String> = async (url: String) -> String {
+let fetch_data: (String) -> Promise<String> = async (url) {
   let res = await fetch(url)
   let text = await res.text()
   return text

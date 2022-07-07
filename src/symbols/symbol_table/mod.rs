@@ -81,7 +81,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
         match self {
             SymbolValue::BuiltinType(builtin) => Ok(TypeSignature::Base(builtin.clone())),
             SymbolValue::VarDecl(var) => var.eval_type(symbols),
-            SymbolValue::FuncDecl(func) => func.eval_type(symbols),
+            SymbolValue::FuncDecl(decl) => decl.eval_type(symbols),
             SymbolValue::FuncArg(arg) => arg.eval_type(symbols),
             SymbolValue::StructDecl(st) => st.eval_type(symbols),
             SymbolValue::StructAttr(attr) => attr.eval_type(symbols),
@@ -92,7 +92,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
         match self {
             SymbolValue::BuiltinType(_) => None,
             SymbolValue::VarDecl(var) => var.specified_type(),
-            SymbolValue::FuncDecl(func) => func.specified_type(),
+            SymbolValue::FuncDecl(decl) => decl.specified_type(),
             SymbolValue::FuncArg(arg) => arg.specified_type(),
             SymbolValue::StructDecl(st) => st.specified_type(),
             SymbolValue::StructAttr(attr) => attr.specified_type(),
@@ -103,7 +103,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
         match self {
             SymbolValue::BuiltinType(_) => {}
             SymbolValue::VarDecl(var) => var.specify_type(new_type),
-            SymbolValue::FuncDecl(func) => func.specify_type(new_type),
+            SymbolValue::FuncDecl(decl) => decl.specify_type(new_type),
             SymbolValue::FuncArg(arg) => arg.specify_type(new_type),
             SymbolValue::StructDecl(st) => st.specify_type(new_type),
             SymbolValue::StructAttr(attr) => attr.specify_type(new_type),

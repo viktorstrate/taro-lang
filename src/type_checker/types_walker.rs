@@ -8,11 +8,16 @@ use crate::{
             type_signature::{TypeSignature, Typed},
         },
     },
-    symbols::{symbol_table::symbol_table_zipper::SymbolTableZipper, symbol_table::SymbolTable},
+    symbols::{
+        builtin_types::BuiltinType, symbol_table::symbol_table_zipper::SymbolTableZipper,
+        symbol_table::SymbolTable,
+    },
 };
 
 use super::{
-    assignment::check_assignment, struct_type::check_struct_init, types_helpers::type_check,
+    assignment::check_assignment,
+    struct_type::check_struct_init,
+    types_helpers::{fill_type_signature, type_check},
     TypeCheckerError,
 };
 
@@ -61,6 +66,44 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
         self.symbols
             .exit_scope()
             .expect("scope should not be global scope");
+
+        Ok(())
+    }
+
+    fn pre_visit_stmt(
+        &mut self,
+        _scope: &mut Self::Scope,
+        stmt: &mut Stmt<'a>,
+    ) -> Result<(), Self::Error> {
+        match stmt {
+            Stmt::VariableDecl(var_decl) => match &mut var_decl.value {
+                Expr::Function(func) => match &var_decl.type_sig {
+                    Some(
+                        type_sig @ TypeSignature::Function {
+                            args,
+                            return_type: _,
+                        },
+                    ) => {
+                        fill_type_signature(&mut self.symbols, func, Some(&type_sig))?;
+                        for (arg, arg_type) in func.args.iter_mut().zip(args.iter()) {
+                            fill_type_signature(&mut self.symbols, arg, Some(arg_type))?;
+                        }
+                    }
+                    Some(type_sig) => {
+                        return Err(TypeCheckerError::TypeSignatureMismatch {
+                            type_sig: type_sig.clone(),
+                            expr_type: TypeSignature::Function {
+                                args: vec![],
+                                return_type: Box::new(BuiltinType::Void.type_sig()),
+                            },
+                        })
+                    }
+                    None => {}
+                },
+                _ => {}
+            },
+            _ => {}
+        }
 
         Ok(())
     }

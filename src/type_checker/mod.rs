@@ -4,12 +4,13 @@ use crate::ast::node::{
 };
 
 use self::{
-    assignment::AssignmentError, function_type::FunctionTypeError, struct_type::StructTypeError,
+    assignment::AssignmentError, function_body_type_eval::FunctionTypeError,
+    struct_type::StructTypeError,
 };
 
 pub mod assignment;
 pub mod coercion;
-pub mod function_type;
+pub mod function_body_type_eval;
 pub mod struct_type;
 pub mod types_helpers;
 pub mod types_walker;

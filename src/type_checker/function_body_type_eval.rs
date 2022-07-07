@@ -8,39 +8,13 @@ use crate::{
     symbols::{builtin_types::BuiltinType, symbol_table::symbol_table_zipper::SymbolTableZipper},
 };
 
-impl<'a> Typed<'a> for Function<'a> {
-    fn eval_type(
-        &self,
-        symbols: &mut SymbolTableZipper<'a>,
-    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        let args = self
-            .args
-            .iter()
-            .map(|arg| arg.type_sig.clone())
-            .collect::<Vec<_>>();
-
-        symbols
-            .enter_scope(self.name.clone())
-            .expect("function should be located in current scope");
-
-        let return_type = func_body_type_sig(symbols, self).map_err(TypeEvalError::FunctionType)?;
-
-        symbols.exit_scope().unwrap();
-
-        Ok(TypeSignature::Function {
-            args,
-            return_type: Box::new(return_type),
-        })
-    }
-}
-
 #[derive(Debug)]
 pub enum FunctionTypeError<'a> {
     ExprValue(Box<TypeEvalError<'a>>),
     ConflictingReturnTypes(TypeSignature<'a>, TypeSignature<'a>),
 }
 
-fn func_body_type_sig<'a>(
+pub fn eval_func_body_type_sig<'a>(
     symbols: &mut SymbolTableZipper<'a>,
     func: &Function<'a>,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {
@@ -204,6 +178,12 @@ mod tests {
     #[test]
     fn test_decl_inside_scope() {
         let mut ast = parse_ast("let f = () -> Boolean { let a = true; return a }").unwrap();
+        assert_matches!(type_check(&mut ast), Ok(_))
+    }
+
+    #[test]
+    fn test_func_type_deduce() {
+        let mut ast = parse_ast("let f: (Boolean) -> Boolean = (val) { return val }").unwrap();
         assert_matches!(type_check(&mut ast), Ok(_))
     }
 }

@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use crate::{
     ast::ref_generator::RefID, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
-    type_checker::function_type::FunctionTypeError,
+    type_checker::function_body_type_eval::FunctionTypeError,
 };
 
 use super::{expression::Expr, identifier::Ident};
@@ -28,6 +28,7 @@ pub enum TypeEvalError<'a> {
     CallNonFunction(TypeSignature<'a>),
     AccessNonStruct(TypeSignature<'a>),
     UnknownIdentifier(Ident<'a>),
+    UndeterminableType(Ident<'a>),
 }
 
 #[allow(unused_variables)]

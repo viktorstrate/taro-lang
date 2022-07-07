@@ -12,7 +12,7 @@ pub fn type_check<'a, T>(
 where
     T: 'a + Typed<'a> + Clone,
 {
-    fill_type_signature(symbols, elem)?;
+    fill_type_signature(symbols, elem, None)?;
 
     let eval_type = elem
         .eval_type(symbols)
@@ -33,21 +33,16 @@ where
         elem.specify_type(eval_type.clone());
     }
 
-    if let Some(type_sig) = elem.specified_type() {
-        if *type_sig == BuiltinType::Untyped.type_sig() {
+    let type_sig = elem.specified_type().cloned().unwrap_or(eval_type);
+    if type_sig == BuiltinType::Untyped.type_sig() {
+        return Err(TypeCheckerError::UntypedValue(Box::new(elem.clone())));
+    } else if let TypeSignature::Function {
+        args: _,
+        return_type,
+    } = type_sig
+    {
+        if *return_type == BuiltinType::Untyped.type_sig() {
             return Err(TypeCheckerError::UntypedValue(Box::new(elem.clone())));
-        }
-    } else {
-        if eval_type == BuiltinType::Untyped.type_sig() {
-            return Err(TypeCheckerError::UntypedValue(Box::new(elem.clone())));
-        } else if let TypeSignature::Function {
-            args: _,
-            return_type,
-        } = eval_type
-        {
-            if *return_type == BuiltinType::Untyped.type_sig() {
-                return Err(TypeCheckerError::UntypedValue(Box::new(elem.clone())));
-            }
         }
     }
 
@@ -57,12 +52,15 @@ where
 pub fn fill_type_signature<'a, T>(
     symbols: &mut SymbolTableZipper<'a>,
     elem: &mut T,
+    extra_type_sig: Option<&TypeSignature<'a>>,
 ) -> Result<(), TypeCheckerError<'a>>
 where
     T: 'a + Typed<'a> + Clone,
 {
+    let specified_type = elem.specified_type().or(extra_type_sig).cloned();
+
     // If specified type is `Base` then locate the actual type from the symbol table
-    let base_ident = match elem.specified_type() {
+    let base_ident = match &specified_type {
         Some(TypeSignature::Base(ident)) => Some(ident.clone()),
         None => {
             match elem
@@ -89,6 +87,8 @@ where
             .map_err(TypeCheckerError::TypeEvalError)?;
 
         elem.specify_type(new_type);
+    } else if let Some(type_sig) = extra_type_sig {
+        elem.specify_type(type_sig.clone())
     }
 
     Ok(())

@@ -45,11 +45,8 @@ impl<'a> Typed<'a> for Expr<'a> {
                 match sym_val {
                     SymbolValue::BuiltinType(builtin) => Ok(TypeSignature::Base(builtin.clone())),
                     SymbolValue::VarDecl(var_decl) => var_decl.clone().value.eval_type(symbols),
-                    SymbolValue::FuncDecl(func_decl) => Ok(func_decl
-                        .clone()
-                        .eval_type(symbols)
-                        .expect("function type sig always succeeds")),
-                    SymbolValue::FuncArg(arg) => Ok(arg.type_sig.clone()),
+                    SymbolValue::FuncDecl(func) => func.clone().eval_type(symbols),
+                    SymbolValue::FuncArg(arg) => arg.clone().eval_type(symbols),
                     SymbolValue::StructDecl(st) => st.clone().eval_type(symbols),
                     SymbolValue::StructAttr(attr) => attr.clone().eval_type(symbols),
                 }

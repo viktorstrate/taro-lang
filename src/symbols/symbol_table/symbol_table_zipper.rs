@@ -9,6 +9,7 @@ struct SymbolTableZipperBreadcrumb<'a> {
     visited_symbols: usize,
 }
 
+/// Structure used to keep track of the current position in a symbol table.
 #[derive(Debug)]
 pub struct SymbolTableZipper<'a> {
     cursor: SymbolTable<'a>,

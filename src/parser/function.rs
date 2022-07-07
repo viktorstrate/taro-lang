@@ -34,12 +34,12 @@ pub fn function_decl(i: Span) -> Res<Span, Stmt> {
 
     Ok((
         i,
-        Stmt::FunctionDecl(Function {
-            name: name.into(),
+        Stmt::FunctionDecl(Function::new(
+            name.into(),
             args,
             return_type,
-            body: Box::new(body),
-        }),
+            Box::new(body),
+        )),
     ))
 }
 
@@ -54,12 +54,12 @@ pub fn function_expr(i: Span) -> Res<Span, Expr> {
 
     Ok((
         i,
-        Expr::Function(Function {
-            name: Ident::new_anon(name_ref),
+        Expr::Function(Function::new(
+            Ident::new_anon(name_ref),
             args,
             return_type,
-            body: Box::new(body),
-        }),
+            Box::new(body),
+        )),
     ))
 }
 
@@ -75,7 +75,7 @@ fn function_args(i: Span) -> Res<Span, Vec<FunctionArg>> {
 }
 
 fn function_arg(i: Span) -> Res<Span, FunctionArg> {
-    // IDENT : TYPE_SIG
+    // IDENT [: TYPE_SIG]
 
     context(
         "function argument",
@@ -84,7 +84,7 @@ fn function_arg(i: Span) -> Res<Span, FunctionArg> {
                 identifier,
                 context(
                     "argument type",
-                    cut(preceded(token(tag(":")), type_signature)),
+                    opt(preceded(token(tag(":")), type_signature)),
                 ),
             )),
             |(name, type_sig)| FunctionArg { name, type_sig },
@@ -131,8 +131,8 @@ mod tests {
                 assert_eq!(func.args.len(), 2);
                 assert_eq!(func.args[0].name, Ident::new_unplaced("a"));
                 assert_eq!(func.args[1].name, Ident::new_unplaced("b"));
-                assert_eq!(func.args[0].type_sig, BuiltinType::Number.type_sig());
-                assert_eq!(func.args[1].type_sig, BuiltinType::Number.type_sig());
+                assert_eq!(func.args[0].type_sig, Some(BuiltinType::Number.type_sig()));
+                assert_eq!(func.args[1].type_sig, Some(BuiltinType::Number.type_sig()));
             }
             _ => assert!(false),
         }
@@ -148,9 +148,9 @@ mod tests {
             Expr::Function(func) => {
                 assert_eq!(func.args.len(), 2);
                 assert_eq!(func.args[0].name, Ident::new_unplaced("a"));
-                assert_eq!(func.args[0].type_sig, BuiltinType::Number.type_sig());
+                assert_eq!(func.args[0].type_sig, Some(BuiltinType::Number.type_sig()));
                 assert_eq!(func.args[1].name, Ident::new_unplaced("b"));
-                assert_eq!(func.args[1].type_sig, BuiltinType::Number.type_sig());
+                assert_eq!(func.args[1].type_sig, Some(BuiltinType::Number.type_sig()));
                 assert_eq!(func.return_type, None);
             }
             _ => assert!(false),
