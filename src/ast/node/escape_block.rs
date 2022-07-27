@@ -2,7 +2,7 @@ use crate::symbols::{
     builtin_types::BuiltinType, symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
-use super::type_signature::{TypeSignature, Typed};
+use super::type_signature::{TypeEvalError, TypeSignature, Typed};
 
 #[derive(Debug, Clone)]
 pub struct EscapeBlock<'a> {
@@ -26,7 +26,8 @@ impl<'a> Typed<'a> for EscapeBlock<'a> {
         self.type_sig.clone()
     }
 
-    fn specify_type(&mut self, new_type: TypeSignature<'a>) {
+    fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
         self.type_sig = Some(new_type);
+        Ok(())
     }
 }

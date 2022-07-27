@@ -42,7 +42,9 @@ pub trait Typed<'a>: Debug {
         None
     }
 
-    fn specify_type(&mut self, new_type: TypeSignature<'a>) {}
+    fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
+        Ok(())
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

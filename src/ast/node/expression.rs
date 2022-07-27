@@ -73,18 +73,18 @@ impl<'a> Typed<'a> for Expr<'a> {
         }
     }
 
-    fn specify_type(&mut self, new_type: TypeSignature<'a>) {
+    fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
         match self {
-            Expr::StringLiteral(_) => {}
-            Expr::NumberLiteral(_) => {}
-            Expr::BoolLiteral(_) => {}
+            Expr::StringLiteral(_) => Ok(()),
+            Expr::NumberLiteral(_) => Ok(()),
+            Expr::BoolLiteral(_) => Ok(()),
             Expr::Function(func) => func.specify_type(new_type),
             Expr::FunctionCall(call) => call.specify_type(new_type),
-            Expr::Identifier(_) => {}
+            Expr::Identifier(_) => Ok(()),
             Expr::StructInit(st_init) => st_init.specify_type(new_type),
-            Expr::StructAccess(_) => {}
+            Expr::StructAccess(_) => Ok(()),
             Expr::EscapeBlock(block) => block.specify_type(new_type),
-            Expr::Assignment(_) => {}
+            Expr::Assignment(_) => Ok(()),
         }
     }
 }

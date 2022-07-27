@@ -6,7 +6,7 @@ use super::{
         function::Function,
         module::Module,
         statement::Stmt,
-        structure::{Struct, StructAttr},
+        structure::{Struct, StructAttr, StructInit},
     },
     AST,
 };
@@ -14,6 +14,7 @@ use super::{
 pub enum ScopeValue<'a, 'v> {
     Func(&'v mut Function<'a>),
     Struct(&'v mut Struct<'a>),
+    // StructInit(&'v mut StructInit<'a>),
 }
 
 #[allow(unused_variables)]
@@ -169,8 +170,22 @@ fn walk_expr<'a, W: AstWalker<'a>>(
             walk_expr(walker, scope, &mut asg.rhs)
         }
         Expr::StructAccess(st_access) => walk_expr(walker, scope, &mut *st_access.struct_expr),
+        // Expr::StructInit(st_init) => walk_struct_init(walker, scope, st_init),
         _ => Ok(()),
     }?;
 
     walker.visit_expr(expr)
 }
+
+// fn walk_struct_init<'a, W: AstWalker<'a>>(
+//     walker: &mut W,
+//     scope: &mut W::Scope,
+//     st_init: &mut StructInit<'a>,
+// ) -> Result<(), W::Error> {
+//     let child_scope = walker.visit_scope_begin(scope, ScopeValue::StructInit(st_init))?;
+//     for value in &mut st_init.values {
+//         walker.visit_expr(&mut value.value)?
+//     }
+//     walker.visit_scope_end(scope, child_scope, ScopeValue::StructInit(st_init))?;
+//     Ok(())
+// }

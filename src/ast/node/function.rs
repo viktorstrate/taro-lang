@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
-    type_checker::function_body_type_eval::eval_func_body_type_sig,
+    type_checker::function_body_type_eval::{eval_func_body_type_sig, FunctionTypeError},
 };
 
 use super::{
@@ -94,16 +94,26 @@ impl<'a> Typed<'a> for Function<'a> {
         Self::calculate_type_sig(&self.args, &self.return_type)
     }
 
-    fn specify_type(&mut self, new_type: TypeSignature<'a>) {
+    fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
         let TypeSignature::Function { args, return_type: _ } = &new_type else {
             unreachable!("specified type expected to be function");
         };
 
-        debug_assert_eq!(args.len(), self.args.len());
+        if args.len() != self.args.len() {
+            return Err(TypeEvalError::FunctionType(
+                FunctionTypeError::WrongNumberOfArgs {
+                    func: self.clone(),
+                    expected: args.len(),
+                    actual: self.args.len(),
+                },
+            ));
+        }
 
         for (arg_type, arg) in args.iter().zip(self.args.iter_mut()) {
             *arg.type_sig.borrow_mut() = Some(arg_type.clone());
         }
+
+        Ok(())
     }
 }
 
@@ -122,8 +132,9 @@ impl<'a> Typed<'a> for FunctionArg<'a> {
         self.type_sig.borrow().clone()
     }
 
-    fn specify_type(&mut self, new_type: TypeSignature<'a>) {
+    fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
         *self.type_sig.borrow_mut() = Some(new_type);
+        Ok(())
     }
 }
 

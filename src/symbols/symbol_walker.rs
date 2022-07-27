@@ -43,7 +43,7 @@ impl<'a> AstWalker<'a> for SymbolCollector {
                 for attr in &st.attrs {
                     new_scope.insert(SymbolValue::StructAttr(attr.clone()))?;
                 }
-            }
+            } // ScopeValue::StructInit(_) => {}
         }
 
         Ok(new_scope)
@@ -59,6 +59,9 @@ impl<'a> AstWalker<'a> for SymbolCollector {
         match value {
             ScopeValue::Func(func) => parent.insert_scope(func.name.clone(), child).map(|_| ()),
             ScopeValue::Struct(st) => parent.insert_scope(st.name.clone(), child).map(|_| ()),
+            // ScopeValue::StructInit(st_init) => {
+            //     parent.insert_scope(st_init.name.clone(), child).map(|_| ())
+            // }
         }
     }
 

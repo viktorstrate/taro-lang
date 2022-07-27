@@ -52,6 +52,10 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                     .enter_scope(st.name.clone())
                     .expect("scope should exist");
             }
+            // ScopeValue::StructInit(st_init) => self
+            //     .symbols
+            //     .enter_scope(st_init.name.clone())
+            //     .expect("scope should exist"),
         }
 
         Ok(())

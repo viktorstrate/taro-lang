@@ -99,9 +99,9 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
         }
     }
 
-    fn specify_type(&mut self, new_type: TypeSignature<'a>) {
+    fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
         match self {
-            SymbolValue::BuiltinType(_) => {}
+            SymbolValue::BuiltinType(_) => Ok(()),
             SymbolValue::VarDecl(var) => var.specify_type(new_type),
             SymbolValue::FuncDecl(decl) => decl.specify_type(new_type),
             SymbolValue::FuncArg(arg) => arg.specify_type(new_type),

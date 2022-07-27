@@ -10,21 +10,27 @@ use crate::{
 
 #[derive(Debug)]
 pub enum FunctionTypeError<'a> {
-    ExprValue(Box<TypeEvalError<'a>>),
-    ConflictingReturnTypes(TypeSignature<'a>, TypeSignature<'a>),
+    ExprValue(Function<'a>, Box<TypeEvalError<'a>>),
+    ConflictingReturnTypes(Function<'a>, TypeSignature<'a>, TypeSignature<'a>),
+    WrongNumberOfArgs {
+        func: Function<'a>,
+        expected: usize,
+        actual: usize,
+    },
 }
 
 pub fn eval_func_body_type_sig<'a>(
     symbols: &mut SymbolTableZipper<'a>,
     func: &Function<'a>,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {
-    let body_type = stmt_type(symbols, &func.body)?;
+    let body_type = stmt_type(symbols, func, &func.body)?;
 
     if let Some(return_type) = &func.return_type {
         if let Some(coerced_type) = TypeSignature::coerce(&body_type, return_type) {
             Ok(coerced_type.clone())
         } else {
             Err(FunctionTypeError::ConflictingReturnTypes(
+                func.clone(),
                 return_type.clone(),
                 body_type,
             ))
@@ -36,14 +42,16 @@ pub fn eval_func_body_type_sig<'a>(
 
 fn expr_type<'a>(
     symbols: &mut SymbolTableZipper<'a>,
+    func: &Function<'a>,
     expr: &Expr<'a>,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {
     expr.eval_type(symbols)
-        .map_err(|err| FunctionTypeError::ExprValue(Box::new(err)))
+        .map_err(|err| FunctionTypeError::ExprValue(func.clone(), Box::new(err)))
 }
 
 fn stmt_type<'a>(
     symbols: &mut SymbolTableZipper<'a>,
+    func: &Function<'a>,
     stmt: &Stmt<'a>,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {
     match stmt {
@@ -53,20 +61,21 @@ fn stmt_type<'a>(
         }
         Stmt::FunctionDecl(_) => Ok(BuiltinType::Void.type_sig()),
         Stmt::StructDecl(_) => Ok(BuiltinType::Void.type_sig()),
-        Stmt::Expression(expr) => expr_type(symbols, expr),
-        Stmt::Return(expr) => expr_type(symbols, expr),
-        Stmt::Compound(stmts) => stmt_compound_type(symbols, stmts),
+        Stmt::Expression(expr) => expr_type(symbols, func, expr),
+        Stmt::Return(expr) => expr_type(symbols, func, expr),
+        Stmt::Compound(stmts) => stmt_compound_type(symbols, func, stmts),
     }
 }
 
 fn stmt_compound_type<'a>(
     symbols: &mut SymbolTableZipper<'a>,
+    func: &Function<'a>,
     stmts: &Vec<Stmt<'a>>,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {
     let mut type_sig: Option<TypeSignature<'a>> = None;
 
     for stmt in stmts {
-        let stmt_type_sig = stmt_type(symbols, stmt)?;
+        let stmt_type_sig = stmt_type(symbols, func, stmt)?;
         match stmt {
             Stmt::Compound(_) | Stmt::Return(_) => {
                 if let Some(type_sig_val) = &type_sig {
@@ -76,6 +85,7 @@ fn stmt_compound_type<'a>(
                         type_sig = Some(coerced_type.clone())
                     } else {
                         return Err(FunctionTypeError::ConflictingReturnTypes(
+                            func.clone(),
                             type_sig_val.clone(),
                             stmt_type_sig,
                         ));
@@ -166,7 +176,7 @@ mod tests {
 
         match type_check(&mut ast) {
             Err(TypeCheckerError::TypeEvalError(TypeEvalError::FunctionType(
-                FunctionTypeError::ConflictingReturnTypes(a, b),
+                FunctionTypeError::ConflictingReturnTypes(_, a, b),
             ))) => {
                 assert_eq!(a, BuiltinType::Number.type_sig());
                 assert_eq!(b, BuiltinType::Boolean.type_sig());

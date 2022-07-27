@@ -28,10 +28,12 @@ where
 
     if let Some(type_sig) = &specified_type {
         let coerced_type = types_match(type_sig.clone(), eval_type.clone())?;
-        elem.specify_type(coerced_type);
+        elem.specify_type(coerced_type)
+            .map_err(TypeCheckerError::TypeEvalError)?;
     } else {
         // set declaration type to the calculated type of the element
-        elem.specify_type(eval_type.clone());
+        elem.specify_type(eval_type.clone())
+            .map_err(TypeCheckerError::TypeEvalError)?;
     }
 
     let type_sig = specified_type.unwrap_or(eval_type);
@@ -87,9 +89,11 @@ where
             .eval_type(symbols)
             .map_err(TypeCheckerError::TypeEvalError)?;
 
-        elem.specify_type(new_type);
+        elem.specify_type(new_type)
+            .map_err(TypeCheckerError::TypeEvalError)?;
     } else if let Some(type_sig) = extra_type_sig {
         elem.specify_type(type_sig.clone())
+            .map_err(TypeCheckerError::TypeEvalError)?;
     }
 
     Ok(())
