@@ -4,7 +4,7 @@ use crate::ast::node::{
     function::{Function, FunctionArg},
     identifier::{Ident, Identifiable},
     statement::VarDecl,
-    structure::{Struct, StructAttr},
+    structure::{Struct, StructAttr, StructInit},
     type_signature::{TypeEvalError, TypeSignature, Typed},
 };
 
@@ -37,6 +37,7 @@ pub enum SymbolValue<'a> {
     FuncArg(FunctionArg<'a>),
     StructDecl(Struct<'a>),
     StructAttr(StructAttr<'a>),
+    StructInit(StructInit<'a>),
 }
 
 impl<'a> From<Function<'a>> for SymbolValue<'a> {
@@ -60,6 +61,7 @@ impl<'a> Identifiable<'a> for SymbolValue<'a> {
             SymbolValue::FuncArg(arg) => arg.name(),
             SymbolValue::StructDecl(st) => st.name(),
             SymbolValue::StructAttr(attr) => attr.name(),
+            SymbolValue::StructInit(st_init) => st_init.name(),
         }
     }
 }
@@ -85,6 +87,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValue::FuncArg(arg) => arg.eval_type(symbols),
             SymbolValue::StructDecl(st) => st.eval_type(symbols),
             SymbolValue::StructAttr(attr) => attr.eval_type(symbols),
+            SymbolValue::StructInit(st_init) => st_init.eval_type(symbols),
         }
     }
 
@@ -96,6 +99,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValue::FuncArg(arg) => arg.specified_type(),
             SymbolValue::StructDecl(st) => st.specified_type(),
             SymbolValue::StructAttr(attr) => attr.specified_type(),
+            SymbolValue::StructInit(st_init) => st_init.specified_type(),
         }
     }
 
@@ -107,6 +111,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValue::FuncArg(arg) => arg.specify_type(new_type),
             SymbolValue::StructDecl(st) => st.specify_type(new_type),
             SymbolValue::StructAttr(attr) => attr.specify_type(new_type),
+            SymbolValue::StructInit(st_init) => st_init.specify_type(new_type),
         }
     }
 }
@@ -147,24 +152,6 @@ impl<'a> SymbolTable<'a> {
     pub fn lookup_global_table(&self, ident: &Ident<'a>) -> Option<&SymbolValue<'a>> {
         self.scope_global_table.get(ident)
     }
-
-    // fn lookup_nested_ident_scope(&self, ident: &'a Box<Ident<'a>>) -> Option<&SymbolTable<'a>> {
-    //     match ident.value {
-    //         IdentValue::Nested { scope, name: _ } => self
-    //             .lookup_nested_ident_scope(ident)
-    //             .and_then(|inner_scope| inner_scope.scopes.get(ident)),
-    //         _ => self.scopes.get(ident),
-    //     }
-    // }
-
-    // pub fn lookup_global_table(&self, ident: &'a Ident<'a>) -> Option<&SymbolValue<'a>> {
-    //     match &ident.value {
-    //         IdentValue::Nested { scope, name } => self
-    //             .lookup_nested_ident_scope(scope)
-    //             .and_then(|scope| scope.scope_global_table.get(ident)),
-    //         _ => self.scope_global_table.get(ident),
-    //     }
-    // }
 }
 
 #[cfg(test)]

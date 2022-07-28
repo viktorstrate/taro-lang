@@ -188,11 +188,14 @@ fn format_expr<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, expr: &Expr<'a>) -> Co
         }
         Expr::Identifier(ident) => ctx.write_ident(ident),
         Expr::StructInit(st_init) => {
+            ctx.symbols
+                .enter_scope(st_init.scope_name.clone())
+                .expect("struct init scope should exist");
             ctx.write("new ")?;
-            ctx.write_ident(&st_init.name)?;
+            ctx.write_ident(&st_init.struct_name)?;
             ctx.write("(")?;
 
-            let st = ctx.symbols.lookup(&st_init.name).unwrap();
+            let st = ctx.symbols.lookup(&st_init.struct_name).unwrap();
             let st = match st {
                 SymbolValue::StructDecl(st) => st,
                 _ => unreachable!(),
@@ -213,7 +216,9 @@ fn format_expr<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, expr: &Expr<'a>) -> Co
                 }
             })?;
 
-            ctx.write(")")
+            ctx.write(")")?;
+            ctx.symbols.exit_scope().unwrap();
+            Ok(())
         }
         Expr::StructAccess(st_access) => {
             format_expr(ctx, &*st_access.struct_expr)?;

@@ -10,6 +10,7 @@ use nom::{
 
 use crate::ast::node::{
     expression::Expr,
+    identifier::Ident,
     statement::Stmt,
     structure::{Struct, StructAttr, StructInit, StructInitValue},
 };
@@ -86,9 +87,9 @@ pub fn struct_stmt(i: Span) -> Res<Span, Stmt> {
 pub fn struct_init_expr(i: Span) -> Res<Span, Expr> {
     // IDENT "{" <IDENT: EXPR> , ... "}"
 
-    let (i, name) = identifier(i)?;
+    let (i, struct_name) = identifier(i)?;
 
-    let (i, values) = surround_brackets(
+    let (mut i, values) = surround_brackets(
         BracketType::Curly,
         separated_list0(
             token(tag(",")),
@@ -99,7 +100,16 @@ pub fn struct_init_expr(i: Span) -> Res<Span, Expr> {
         ),
     )(i)?;
 
-    Ok((i, Expr::StructInit(StructInit { name, values })))
+    let ref_id = i.extra.ref_gen.make_ref();
+
+    Ok((
+        i,
+        Expr::StructInit(StructInit {
+            struct_name,
+            scope_name: Ident::new_anon(ref_id),
+            values,
+        }),
+    ))
 }
 
 #[cfg(test)]
@@ -133,7 +143,11 @@ mod tests {
         let struct_init = expression(new_span("StructName { attr: true }")).unwrap().1;
 
         match struct_init {
-            Expr::StructInit(StructInit { name, values }) => {
+            Expr::StructInit(StructInit {
+                struct_name: name,
+                scope_name: _,
+                values,
+            }) => {
                 assert_eq!(name, Ident::new_unplaced("StructName"));
                 assert_eq!(values.len(), 1);
                 assert_eq!(values[0].name, Ident::new_unplaced("attr"));

@@ -1,6 +1,5 @@
 use crate::symbols::{
     builtin_types::BuiltinType, symbol_table::symbol_table_zipper::SymbolTableZipper,
-    symbol_table::SymbolValue,
 };
 
 use super::{
@@ -42,14 +41,7 @@ impl<'a> Typed<'a> for Expr<'a> {
                     .lookup(ident)
                     .ok_or(TypeEvalError::UnknownIdentifier(ident.clone()))?;
 
-                match sym_val {
-                    SymbolValue::BuiltinType(builtin) => Ok(TypeSignature::Base(builtin.clone())),
-                    SymbolValue::VarDecl(var_decl) => var_decl.clone().value.eval_type(symbols),
-                    SymbolValue::FuncDecl(func) => func.clone().eval_type(symbols),
-                    SymbolValue::FuncArg(arg) => arg.clone().eval_type(symbols),
-                    SymbolValue::StructDecl(st) => st.clone().eval_type(symbols),
-                    SymbolValue::StructAttr(attr) => attr.clone().eval_type(symbols),
-                }
+                sym_val.clone().eval_type(symbols)
             }
             Expr::StructInit(struct_init) => struct_init.eval_type(symbols),
             Expr::StructAccess(struct_access) => struct_access.eval_type(symbols),

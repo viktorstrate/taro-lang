@@ -26,7 +26,8 @@ pub struct StructAttr<'a> {
 
 #[derive(Debug, Clone)]
 pub struct StructInit<'a> {
-    pub name: Ident<'a>,
+    pub struct_name: Ident<'a>,
+    pub scope_name: Ident<'a>,
     pub values: Vec<StructInitValue<'a>>,
 }
 
@@ -57,6 +58,12 @@ impl<'a> Identifiable<'a> for Struct<'a> {
 impl<'a> Identifiable<'a> for StructAttr<'a> {
     fn name(&self) -> &Ident<'a> {
         &self.name
+    }
+}
+
+impl<'a> Identifiable<'a> for StructInit<'a> {
+    fn name(&self) -> &Ident<'a> {
+        &self.scope_name
     }
 }
 
@@ -112,7 +119,7 @@ impl<'a> Typed<'a> for StructAttr<'a> {
 
 impl<'a> StructInit<'a> {
     pub fn lookup_struct<'b>(&self, symbols: &'b SymbolTableZipper<'a>) -> Option<&'b Struct<'a>> {
-        let sym_val = symbols.lookup(&self.name);
+        let sym_val = symbols.lookup(&self.struct_name);
 
         match sym_val {
             Some(SymbolValue::StructDecl(st)) => Some(st),
@@ -128,7 +135,7 @@ impl<'a> Typed<'a> for StructInit<'a> {
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let st = self
             .lookup_struct(symbols)
-            .ok_or(TypeEvalError::UnknownIdentifier(self.name.clone()))?;
+            .ok_or(TypeEvalError::UnknownIdentifier(self.struct_name.clone()))?;
 
         Ok(TypeSignature::Struct {
             name: st.name.clone(),

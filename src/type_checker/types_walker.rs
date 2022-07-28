@@ -4,7 +4,6 @@ use crate::{
         node::{
             expression::Expr,
             statement::Stmt,
-            structure::StructAttr,
             type_signature::{TypeSignature, Typed},
         },
     },
@@ -52,10 +51,10 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                     .enter_scope(st.name.clone())
                     .expect("scope should exist");
             }
-            // ScopeValue::StructInit(st_init) => self
-            //     .symbols
-            //     .enter_scope(st_init.name.clone())
-            //     .expect("scope should exist"),
+            ScopeValue::StructInit(st_init) => self
+                .symbols
+                .enter_scope(st_init.scope_name.clone())
+                .expect("scope should exist"),
         }
 
         Ok(())
@@ -89,9 +88,6 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                         },
                     ) => {
                         fill_type_signature(&mut self.symbols, func, Some(type_sig.clone()))?;
-                        // for (arg, arg_type) in func.args.iter_mut().zip(args.iter()) {
-                        //     fill_type_signature(&mut self.symbols, arg, Some(arg_type))?;
-                        // }
                     }
                     Some(type_sig) => {
                         return Err(TypeCheckerError::TypeSignatureMismatch {
@@ -123,19 +119,21 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                 type_check(&mut self.symbols, var_decl)
             }
             Stmt::FunctionDecl(func_decl) => type_check(&mut self.symbols, func_decl),
+            Stmt::StructDecl(st) => {
+                for attr in &mut st.attrs {
+                    type_check(&mut self.symbols, attr)?;
+                }
+                Ok(())
+            }
             _ => Ok(()),
         }
     }
 
-    fn visit_struct_attr(
+    fn visit_expr(
         &mut self,
         _scope: &mut (),
-        attr: &mut StructAttr<'a>,
+        expr: &mut Expr<'a>,
     ) -> Result<(), TypeCheckerError<'a>> {
-        type_check(&mut self.symbols, attr)
-    }
-
-    fn visit_expr(&mut self, expr: &mut Expr<'a>) -> Result<(), TypeCheckerError<'a>> {
         match expr {
             Expr::FunctionCall(call) => {
                 match call

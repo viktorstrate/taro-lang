@@ -1,9 +1,9 @@
 use crate::{
-    ast::node::{identifier::Ident, structure::StructInit},
+    ast::node::{identifier::Ident, structure::StructInit, type_signature::Typed},
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
-use super::TypeCheckerError;
+use super::{types_helpers::types_match, TypeCheckerError};
 
 #[derive(Debug)]
 pub enum StructTypeError<'a> {
@@ -13,11 +13,12 @@ pub enum StructTypeError<'a> {
 
 pub fn check_struct_init<'a>(
     symbols: &mut SymbolTableZipper<'a>,
-    st_init: &StructInit<'a>,
+    st_init: &mut StructInit<'a>,
 ) -> Result<(), TypeCheckerError<'a>> {
     let st = st_init
         .lookup_struct(symbols)
-        .ok_or(TypeCheckerError::LookupError(st_init.name.clone()))?;
+        .cloned()
+        .ok_or(TypeCheckerError::LookupError(st_init.struct_name.clone()))?;
 
     // Check that all attributes without default values are declared
     for attr in &st.attrs {
@@ -43,6 +44,31 @@ pub fn check_struct_init<'a>(
             ));
         }
     }
+
+    // Type check attributes
+    symbols
+        .enter_scope(st_init.scope_name.clone())
+        .expect("struct init scope should exist");
+    for attr in &mut st_init.values {
+        let attr_type = attr
+            .value
+            .eval_type(symbols)
+            .map_err(TypeCheckerError::TypeEvalError)?;
+
+        let st_attr_type = st
+            .attrs
+            .iter()
+            .find(|val| val.name == attr.name)
+            .expect("checked earlier")
+            .eval_type(symbols)
+            .map_err(TypeCheckerError::TypeEvalError)?;
+
+        let coerced_type = types_match(st_attr_type, attr_type)?;
+        attr.value
+            .specify_type(coerced_type)
+            .map_err(TypeCheckerError::TypeEvalError)?;
+    }
+    symbols.exit_scope().unwrap();
 
     Ok(())
 }

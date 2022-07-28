@@ -1,9 +1,6 @@
 use crate::ast::{
     ast_walker::{AstWalker, ScopeValue},
-    node::{
-        statement::Stmt::{self, FunctionDecl, VariableDecl},
-        structure::Struct,
-    },
+    node::statement::Stmt::{self, VariableDecl},
 };
 
 use super::{
@@ -28,22 +25,27 @@ impl<'a> AstWalker<'a> for SymbolCollector {
 
     fn visit_scope_begin(
         &mut self,
-        _parent: &mut SymbolTable<'a>,
+        parent: &mut SymbolTable<'a>,
         value: ScopeValue<'a, '_>,
     ) -> Result<SymbolTable<'a>, Self::Error> {
         let mut new_scope = SymbolTable::default();
 
         match value {
             ScopeValue::Func(func) => {
+                parent.insert(SymbolValue::FuncDecl(func.clone()))?;
                 for arg in &func.args {
                     new_scope.insert(SymbolValue::FuncArg(arg.clone()))?;
                 }
             }
             ScopeValue::Struct(st) => {
+                parent.insert(SymbolValue::StructDecl(st.clone()))?;
                 for attr in &st.attrs {
                     new_scope.insert(SymbolValue::StructAttr(attr.clone()))?;
                 }
-            } // ScopeValue::StructInit(_) => {}
+            }
+            ScopeValue::StructInit(st_init) => {
+                new_scope.insert(SymbolValue::StructInit(st_init.clone()))?;
+            }
         }
 
         Ok(new_scope)
@@ -59,9 +61,9 @@ impl<'a> AstWalker<'a> for SymbolCollector {
         match value {
             ScopeValue::Func(func) => parent.insert_scope(func.name.clone(), child).map(|_| ()),
             ScopeValue::Struct(st) => parent.insert_scope(st.name.clone(), child).map(|_| ()),
-            // ScopeValue::StructInit(st_init) => {
-            //     parent.insert_scope(st_init.name.clone(), child).map(|_| ())
-            // }
+            ScopeValue::StructInit(st_init) => parent
+                .insert_scope(st_init.scope_name.clone(), child)
+                .map(|_| ()),
         }
     }
 
@@ -72,25 +74,9 @@ impl<'a> AstWalker<'a> for SymbolCollector {
     ) -> Result<(), Self::Error> {
         match stmt {
             VariableDecl(var_decl) => scope.insert(var_decl.clone().into()).map(|_| ()),
-            FunctionDecl(func_decl) => scope.insert(func_decl.clone().into()).map(|_| ()),
+            // FunctionDecl(func) => scope.insert(func.clone().into()).map(|_| ()),
             _ => Ok(()),
         }
-    }
-
-    fn visit_struct_decl(
-        &mut self,
-        scope: &mut SymbolTable<'a>,
-        st: &mut Struct<'a>,
-    ) -> Result<(), Self::Error> {
-        scope.insert(SymbolValue::StructDecl(st.clone()))?;
-
-        let mut struct_scope = SymbolTable::default();
-
-        for attr in &st.attrs {
-            struct_scope.insert(SymbolValue::StructAttr(attr.clone()))?;
-        }
-
-        Ok(())
     }
 }
 
