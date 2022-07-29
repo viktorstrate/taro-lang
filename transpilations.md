@@ -46,7 +46,7 @@ Object.assign(Test.protocol, {
 
 ```
 enum IPAddress {
-  v4(Number, Number, Number, Number),
+  v4(Number, Number, Number, Number)
   v6(String)
 }
 
