@@ -2,7 +2,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::streaming::char,
-    combinator::{cut, map, opt},
+    combinator::{map, opt},
     error::context,
     multi::separated_list0,
     sequence::{preceded, tuple},
@@ -17,8 +17,8 @@ use crate::{
 };
 
 use super::{
-    function::function_decl, identifier::identifier, structure::struct_stmt, token,
-    type_signature::type_signature, ws, Res, Span, enumeration::enum_stmt,
+    enumeration::enum_stmt, function::function_decl, identifier::identifier,
+    structure::struct_stmt, token, type_signature::type_signature, ws, Res, Span,
 };
 
 pub fn statement<'a>(i: Span<'a>) -> Res<Span<'a>, Stmt<'a>> {
@@ -59,9 +59,9 @@ pub fn variable_decl(i: Span) -> Res<Span, Stmt> {
         map(
             tuple((
                 preceded(let_specifier, mut_specifier),
-                cut(identifier),
-                cut(opt(preceded(token(char(':')), type_signature))),
-                cut(preceded(token(char('=')), expression)),
+                identifier,
+                opt(preceded(token(char(':')), type_signature)),
+                preceded(token(char('=')), expression),
             )),
             |(mutability, name, type_sig, value)| {
                 Stmt::VariableDecl(VarDecl {
@@ -95,10 +95,7 @@ pub fn stmt_expression(i: Span) -> Res<Span, Stmt> {
 pub fn stmt_return(i: Span) -> Res<Span, Stmt> {
     context(
         "return",
-        map(
-            preceded(token(tag("return")), cut(expression)),
-            Stmt::Return,
-        ),
+        map(preceded(token(tag("return")), expression), Stmt::Return),
     )(i)
 }
 

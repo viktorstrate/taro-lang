@@ -2,7 +2,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::streaming::char,
-    combinator::{cut, map, opt},
+    combinator::{map, opt},
     error::context,
     multi::separated_list0,
     sequence::{preceded, tuple},
@@ -34,7 +34,7 @@ pub fn structure<'a>(mut i: Span<'a>) -> Res<Span<'a>, Struct<'a>> {
         map(
             tuple((
                 preceded(token(tuple((tag("struct"), ws))), identifier),
-                cut(surround_brackets(BracketType::Curly, struct_attrs)),
+                surround_brackets(BracketType::Curly, struct_attrs),
             )),
             move |(name, attrs)| Struct {
                 name,

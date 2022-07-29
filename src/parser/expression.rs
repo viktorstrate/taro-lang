@@ -10,7 +10,7 @@ use nom::{
 
 use crate::ast::node::{
     assignment::Assignment, expression::Expr, function::FunctionCall, identifier::Ident,
-    structure::StructAccess,
+    structure::StructAccess, tuple::Tuple,
 };
 
 use super::{
@@ -28,6 +28,7 @@ pub fn expression(i: Span) -> Res<Span, Expr> {
             expr_number_literal,
             expr_boolean_literal,
             function_expr,
+            expr_tuple,
             map(escape_block, Expr::EscapeBlock),
         )),
     )(i)?;
@@ -121,6 +122,24 @@ pub fn expr_identifier(i: Span) -> Res<Span, Expr> {
     context("identifier expression", map(identifier, Expr::Identifier))(i)
 }
 
+pub fn expr_tuple(i: Span) -> Res<Span, Expr> {
+    context(
+        "tuple expression",
+        map(
+            surround_brackets(
+                BracketType::Round,
+                separated_list0(token(tag(",")), expression),
+            ),
+            |exprs| {
+                Expr::Tuple(Tuple {
+                    values: exprs,
+                    type_sig: None,
+                })
+            },
+        ),
+    )(i)
+}
+
 #[cfg(test)]
 mod tests {
     use std::assert_matches::assert_matches;
@@ -195,6 +214,22 @@ mod tests {
                     }
                     _ => assert!(false),
                 }
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_expr_tuple() {
+        let expr = expression(new_span("(true, 42)")).unwrap().1;
+
+        match expr {
+            Expr::Tuple(Tuple {
+                values,
+                type_sig: None,
+            }) => {
+                assert_eq!(values.len(), 2);
+                assert_matches!(values[0], Expr::BoolLiteral(true));
             }
             _ => assert!(false),
         }

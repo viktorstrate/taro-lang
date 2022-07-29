@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use nom::{
     bytes::complete::tag,
-    combinator::{cut, map, opt},
+    combinator::{map, opt},
     error::context,
     multi::separated_list0,
     sequence::{preceded, tuple},
@@ -25,13 +25,13 @@ pub fn function_decl(i: Span) -> Res<Span, Stmt> {
     // func IDENT "(" FUNC_ARGS ")" [-> RETURN_SIG] "{" BODY "}"
 
     let (i, _) = token(tuple((tag("func"), ws)))(i)?;
-    let (i, name) = context("function name", cut(identifier))(i)?;
+    let (i, name) = context("function name", identifier)(i)?;
 
-    let (i, args) = cut(surround_brackets(BracketType::Round, function_args))(i)?;
+    let (i, args) = surround_brackets(BracketType::Round, function_args)(i)?;
     let (i, return_type) = return_signature(i)?;
     let (i, body) = context(
         "function body",
-        cut(surround_brackets(BracketType::Curly, statement)),
+        surround_brackets(BracketType::Curly, statement),
     )(i)?;
 
     Ok((
@@ -68,7 +68,7 @@ pub fn function_expr(i: Span) -> Res<Span, Expr> {
 fn return_signature(i: Span) -> Res<Span, Option<TypeSignature>> {
     context(
         "return signature",
-        cut(opt(preceded(token(tag("->")), type_signature))),
+        opt(preceded(token(tag("->")), type_signature)),
     )(i)
 }
 

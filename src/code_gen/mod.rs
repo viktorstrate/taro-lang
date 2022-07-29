@@ -239,6 +239,17 @@ fn format_expr<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, expr: &Expr<'a>) -> Co
             ctx.write(" = ")?;
             format_expr(ctx, &asg.rhs)
         }
+        Expr::Tuple(tup) => {
+            ctx.write("[")?;
+            for (i, val) in tup.values.iter().enumerate() {
+                format_expr(ctx, val)?;
+
+                if i < tup.values.len() - 1 {
+                    ctx.write(", ")?;
+                }
+            }
+            ctx.write("]")
+        }
     }
 }
 
@@ -335,5 +346,11 @@ mod tests {
             const testVar = new Test(null, false);\n\
             const val = testVar.defaultVal;\n"
         );
+    }
+
+    #[test]
+    fn test_enum() {
+        let ast = final_codegen("let val: (Boolean, Number) = (true, 42)");
+        assert_eq!(ast.unwrap(), "const val = [true, 42];\n");
     }
 }

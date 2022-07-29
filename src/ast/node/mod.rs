@@ -7,4 +7,5 @@ pub mod identifier;
 pub mod module;
 pub mod statement;
 pub mod structure;
+pub mod tuple;
 pub mod type_signature;

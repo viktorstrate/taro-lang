@@ -8,6 +8,7 @@ use super::{
     function::{Function, FunctionCall},
     identifier::Ident,
     structure::{StructAccess, StructInit},
+    tuple::Tuple,
     type_signature::{TypeEvalError, TypeSignature, Typed},
 };
 
@@ -23,6 +24,7 @@ pub enum Expr<'a> {
     StructAccess(StructAccess<'a>),
     EscapeBlock(EscapeBlock<'a>),
     Assignment(Box<Assignment<'a>>),
+    Tuple(Tuple<'a>),
 }
 
 impl<'a> Typed<'a> for Expr<'a> {
@@ -47,6 +49,7 @@ impl<'a> Typed<'a> for Expr<'a> {
             Expr::StructAccess(struct_access) => struct_access.eval_type(symbols),
             Expr::EscapeBlock(block) => block.eval_type(symbols),
             Expr::Assignment(asg) => asg.rhs.eval_type(symbols),
+            Expr::Tuple(tup) => tup.eval_type(symbols),
         }
     }
 
@@ -62,6 +65,7 @@ impl<'a> Typed<'a> for Expr<'a> {
             Expr::StructAccess(_) => None,
             Expr::EscapeBlock(block) => block.specified_type(),
             Expr::Assignment(_) => None,
+            Expr::Tuple(tup) => tup.specified_type(),
         }
     }
 
@@ -77,6 +81,7 @@ impl<'a> Typed<'a> for Expr<'a> {
             Expr::StructAccess(_) => Ok(()),
             Expr::EscapeBlock(block) => block.specify_type(new_type),
             Expr::Assignment(_) => Ok(()),
+            Expr::Tuple(tup) => tup.specify_type(new_type),
         }
     }
 }
