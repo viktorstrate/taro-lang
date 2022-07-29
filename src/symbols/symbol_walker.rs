@@ -46,6 +46,9 @@ impl<'a> AstWalker<'a> for SymbolCollector {
             ScopeValue::StructInit(st_init) => {
                 new_scope.insert(SymbolValue::StructInit(st_init.clone()))?;
             }
+            ScopeValue::Enum(enm) => {
+                parent.insert(SymbolValue::EnumDecl(enm.clone()))?;
+            }
         }
 
         Ok(new_scope)
@@ -64,6 +67,7 @@ impl<'a> AstWalker<'a> for SymbolCollector {
             ScopeValue::StructInit(st_init) => parent
                 .insert_scope(st_init.scope_name.clone(), child)
                 .map(|_| ()),
+            ScopeValue::Enum(enm) => parent.insert_scope(enm.name.clone(), child).map(|_| ()),
         }
     }
 

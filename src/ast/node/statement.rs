@@ -1,4 +1,5 @@
 use super::{
+    enumeration::Enum,
     expression::Expr,
     function::Function,
     identifier::{Ident, Identifiable},
@@ -10,9 +11,10 @@ use super::{
 pub enum Stmt<'a> {
     VariableDecl(VarDecl<'a>),
     FunctionDecl(Function<'a>),
+    StructDecl(Struct<'a>),
+    EnumDecl(Enum<'a>),
     Compound(Vec<Stmt<'a>>),
     Expression(Expr<'a>),
-    StructDecl(Struct<'a>),
     Return(Expr<'a>),
 }
 

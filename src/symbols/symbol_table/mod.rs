@@ -1,6 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 
 use crate::ast::node::{
+    enumeration::Enum,
     function::{Function, FunctionArg},
     identifier::{Ident, Identifiable},
     statement::VarDecl,
@@ -38,6 +39,7 @@ pub enum SymbolValue<'a> {
     StructDecl(Struct<'a>),
     StructAttr(StructAttr<'a>),
     StructInit(StructInit<'a>),
+    EnumDecl(Enum<'a>),
 }
 
 impl<'a> From<Function<'a>> for SymbolValue<'a> {
@@ -62,6 +64,7 @@ impl<'a> Identifiable<'a> for SymbolValue<'a> {
             SymbolValue::StructDecl(st) => st.name(),
             SymbolValue::StructAttr(attr) => attr.name(),
             SymbolValue::StructInit(st_init) => st_init.name(),
+            SymbolValue::EnumDecl(enm) => enm.name(),
         }
     }
 }
@@ -88,6 +91,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValue::StructDecl(st) => st.eval_type(symbols),
             SymbolValue::StructAttr(attr) => attr.eval_type(symbols),
             SymbolValue::StructInit(st_init) => st_init.eval_type(symbols),
+            SymbolValue::EnumDecl(enm) => enm.eval_type(symbols),
         }
     }
 
@@ -100,6 +104,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValue::StructDecl(st) => st.specified_type(),
             SymbolValue::StructAttr(attr) => attr.specified_type(),
             SymbolValue::StructInit(st_init) => st_init.specified_type(),
+            SymbolValue::EnumDecl(enm) => enm.specified_type(),
         }
     }
 
@@ -112,6 +117,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValue::StructDecl(st) => st.specify_type(new_type),
             SymbolValue::StructAttr(attr) => attr.specify_type(new_type),
             SymbolValue::StructInit(st_init) => st_init.specify_type(new_type),
+            SymbolValue::EnumDecl(enm) => enm.specify_type(new_type),
         }
     }
 }

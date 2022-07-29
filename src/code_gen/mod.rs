@@ -107,6 +107,7 @@ fn format_stmt<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, stmt: &Stmt<'a>) -> Co
             ctx.write(";")
         }
         Stmt::StructDecl(st) => format_struct(ctx, st),
+        Stmt::EnumDecl(_) => Ok(()),
         Stmt::Return(expr) => {
             ctx.write("return ")?;
             format_expr(ctx, expr)?;

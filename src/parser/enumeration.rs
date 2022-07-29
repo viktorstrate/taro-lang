@@ -3,26 +3,39 @@ use nom::{
     bytes::complete::tag,
     combinator::{map, opt},
     error::context,
-    multi::{many1, separated_list0, separated_list1},
+    multi::{separated_list0, separated_list1},
     sequence::{pair, preceded},
 };
 
-use crate::ast::node::enumeration::{Enum, EnumValue};
+use crate::ast::node::{
+    enumeration::{Enum, EnumValue},
+    statement::Stmt,
+};
 
 use super::{
     identifier::identifier, surround_brackets, token, type_signature::type_signature, BracketType,
     Res, Span,
 };
 
-pub fn enumeration(i: Span) -> Res<Span, Enum> {
+pub fn enum_stmt(i: Span) -> Res<Span, Stmt> {
+    map(enumeration, Stmt::EnumDecl)(i)
+}
+
+pub fn enumeration(mut i: Span) -> Res<Span, Enum> {
     // enum IDENT "{" ENUM_VALUE* "}"
+
+    let ref_id = i.extra.ref_gen.make_ref();
 
     map(
         pair(
             preceded(token(tag("enum")), identifier),
             surround_brackets(BracketType::Curly, enum_values),
         ),
-        |(name, values)| Enum { name, values },
+        move |(name, values)| Enum {
+            name,
+            values,
+            ref_id,
+        },
     )(i)
 }
 

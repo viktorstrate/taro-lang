@@ -18,7 +18,7 @@ use crate::{
 
 use super::{
     function::function_decl, identifier::identifier, structure::struct_stmt, token,
-    type_signature::type_signature, ws, Res, Span,
+    type_signature::type_signature, ws, Res, Span, enumeration::enum_stmt,
 };
 
 pub fn statement<'a>(i: Span<'a>) -> Res<Span<'a>, Stmt<'a>> {
@@ -44,6 +44,7 @@ pub fn single_statement(i: Span) -> Res<Span, Stmt> {
             variable_decl,
             function_decl,
             struct_stmt,
+            enum_stmt,
             stmt_return,
             stmt_expression,
         )),

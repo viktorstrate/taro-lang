@@ -61,6 +61,7 @@ fn stmt_type<'a>(
         }
         Stmt::FunctionDecl(_) => Ok(BuiltinType::Void.type_sig()),
         Stmt::StructDecl(_) => Ok(BuiltinType::Void.type_sig()),
+        Stmt::EnumDecl(_) => Ok(BuiltinType::Void.type_sig()),
         Stmt::Expression(expr) => expr_type(symbols, func, expr),
         Stmt::Return(expr) => expr_type(symbols, func, expr),
         Stmt::Compound(stmts) => stmt_compound_type(symbols, func, stmts),

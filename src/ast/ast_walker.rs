@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use super::{
     node::{
+        enumeration::Enum,
         expression::Expr,
         function::Function,
         module::Module,
@@ -15,6 +16,7 @@ pub enum ScopeValue<'a, 'v> {
     Func(&'v mut Function<'a>),
     Struct(&'v mut Struct<'a>),
     StructInit(&'v mut StructInit<'a>),
+    Enum(&'v mut Enum<'a>),
 }
 
 #[allow(unused_variables)]
@@ -108,6 +110,17 @@ fn walk_struct<'a, W: AstWalker<'a>>(
     Ok(())
 }
 
+fn walk_enum<'a, W: AstWalker<'a>>(
+    walker: &mut W,
+    scope: &mut W::Scope,
+    enm: &mut Enum<'a>,
+) -> Result<(), W::Error> {
+    let enm_scope = walker.visit_scope_begin(scope, ScopeValue::Enum(enm))?;
+    walker.visit_scope_end(scope, enm_scope, ScopeValue::Enum(enm))?;
+
+    Ok(())
+}
+
 fn walk_stmt<'a, W: AstWalker<'a>>(
     walker: &mut W,
     scope: &mut W::Scope,
@@ -124,6 +137,7 @@ fn walk_stmt<'a, W: AstWalker<'a>>(
             }
         }
         Stmt::StructDecl(st) => walk_struct(walker, scope, st)?,
+        Stmt::EnumDecl(enm) => walk_enum(walker, scope, enm)?,
         Stmt::Return(expr) => walk_expr(walker, scope, expr)?,
     };
     walker.visit_stmt(scope, stmt)?;

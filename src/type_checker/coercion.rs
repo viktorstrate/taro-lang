@@ -2,7 +2,12 @@ use crate::{ast::node::type_signature::TypeSignature, symbols::builtin_types::Bu
 
 impl<'a> TypeSignature<'a> {
     pub fn can_coerce_to(&self, other: &Self) -> bool {
-        if *self == BuiltinType::Untyped.type_sig() {
+        if let (TypeSignature::Tuple(selves), TypeSignature::Tuple(others)) = (self, other) {
+            selves
+                .iter()
+                .zip(others.iter())
+                .all(|(slf, other)| slf.can_coerce_to(other))
+        } else if *self == BuiltinType::Untyped.type_sig() {
             true
         } else {
             *self == *other

@@ -55,6 +55,10 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                 .symbols
                 .enter_scope(st_init.scope_name.clone())
                 .expect("scope should exist"),
+            ScopeValue::Enum(enm) => self
+                .symbols
+                .enter_scope(enm.name.clone())
+                .expect("scope should exist"),
         }
 
         Ok(())
@@ -123,6 +127,10 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                 for attr in &mut st.attrs {
                     type_check(&mut self.symbols, attr)?;
                 }
+                Ok(())
+            }
+            Stmt::EnumDecl(enm) => {
+                type_check(&mut self.symbols, enm)?;
                 Ok(())
             }
             _ => Ok(()),

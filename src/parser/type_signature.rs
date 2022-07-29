@@ -12,7 +12,10 @@ use crate::ast::node::type_signature::TypeSignature;
 use super::{identifier::identifier, surround_brackets, token, BracketType, Res, Span};
 
 pub fn type_signature(i: Span) -> Res<Span, TypeSignature> {
-    context("type signature", alt((type_sig_func, type_sig_base)))(i)
+    context(
+        "type signature",
+        alt((type_sig_func, type_sig_base, type_sig_tuple)),
+    )(i)
 }
 
 fn type_sig_base(i: Span) -> Res<Span, TypeSignature> {
@@ -38,6 +41,21 @@ fn type_sig_func(i: Span) -> Res<Span, TypeSignature> {
                 args,
                 return_type: Box::new(return_type),
             },
+        ),
+    )(i)
+}
+
+fn type_sig_tuple(i: Span) -> Res<Span, TypeSignature> {
+    // "(" TYPE_SIG , ... ")"
+
+    context(
+        "tuple type",
+        map(
+            surround_brackets(
+                BracketType::Round,
+                separated_list0(token(tag(",")), type_signature),
+            ),
+            TypeSignature::Tuple,
         ),
     )(i)
 }
@@ -83,6 +101,22 @@ mod tests {
                 ],
                 return_type: Box::new(BuiltinType::Boolean.type_sig())
             }
+        );
+    }
+
+    #[test]
+    fn test_tuple_type() {
+        assert_eq!(
+            type_signature(new_span("()")).unwrap().1,
+            TypeSignature::Tuple(Vec::new())
+        );
+
+        assert_eq!(
+            type_signature(new_span("(Number, String)")).unwrap().1,
+            TypeSignature::Tuple(vec![
+                BuiltinType::Number.type_sig(),
+                BuiltinType::String.type_sig()
+            ])
         );
     }
 }

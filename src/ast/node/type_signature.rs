@@ -18,7 +18,11 @@ pub enum TypeSignature<'a> {
         name: Ident<'a>,
         ref_id: RefID,
     },
-    Reference(Box<TypeSignature<'a>>),
+    Enum {
+        name: Ident<'a>,
+        ref_id: RefID,
+    },
+    Tuple(Vec<TypeSignature<'a>>),
 }
 
 #[derive(Debug)]

@@ -52,6 +52,42 @@ where
     Ok(())
 }
 
+fn fill_tuple_type_signature<'a>(
+    symbols: &mut SymbolTableZipper<'a>,
+    mut specified_type: &mut TypeSignature<'a>,
+) -> Result<(), TypeCheckerError<'a>> {
+    // If specified type is `Tuple` then fill types recursiveley instead
+    if let TypeSignature::Tuple(type_sigs) = &mut specified_type {
+        for type_sig in type_sigs {
+            fill_tuple_type_signature(symbols, type_sig)?;
+        }
+        return Ok(());
+    }
+
+    // If specified type is `Base` then locate the actual type from the symbol table
+    let base_ident = match &specified_type {
+        TypeSignature::Base(ident) => Some(ident.clone()),
+        _ => None,
+    };
+
+    if let Some(ident) = base_ident {
+        let val = symbols
+            .lookup(&ident)
+            .ok_or(TypeCheckerError::TypeEvalError(
+                TypeEvalError::UnknownIdentifier(ident.clone()),
+            ))?
+            .clone();
+
+        let new_type = val
+            .eval_type(symbols)
+            .map_err(TypeCheckerError::TypeEvalError)?;
+
+        *specified_type = new_type;
+    }
+
+    Ok(())
+}
+
 pub fn fill_type_signature<'a, T>(
     symbols: &mut SymbolTableZipper<'a>,
     elem: &mut T,
@@ -60,7 +96,12 @@ pub fn fill_type_signature<'a, T>(
 where
     T: 'a + Typed<'a> + Clone,
 {
-    let specified_type = elem.specified_type().or(extra_type_sig.clone());
+    let mut specified_type = elem.specified_type().or(extra_type_sig.clone());
+    if let Some(type_sig @ TypeSignature::Tuple(_)) = &mut specified_type {
+        fill_tuple_type_signature(symbols, type_sig)?;
+        elem.specify_type(type_sig.clone())
+            .map_err(TypeCheckerError::TypeEvalError)?;
+    }
 
     // If specified type is `Base` then locate the actual type from the symbol table
     let base_ident = match &specified_type {
