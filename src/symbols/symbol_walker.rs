@@ -1,4 +1,4 @@
-use crate::ast::{
+use crate::ir::{
     ast_walker::{AstWalker, ScopeValue},
     node::statement::Stmt::{self, VariableDecl},
 };
@@ -89,7 +89,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::ast_walker::walk_ast,
+        ir::ast_walker::walk_ast,
         parser::parse_ast,
         symbols::{symbol_table::SymbolsError, symbol_walker::SymbolCollector},
     };

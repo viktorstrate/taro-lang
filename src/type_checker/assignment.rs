@@ -1,5 +1,5 @@
 use crate::{
-    ast::node::{
+    ir::node::{
         assignment::Assignment,
         expression::Expr,
         identifier::Ident,
@@ -93,7 +93,7 @@ pub fn check_assignment<'a>(
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::ast::test_utils::utils::type_check;
+    use crate::ir::test_utils::utils::type_check;
     use crate::parser::parse_ast;
 
     use super::*;

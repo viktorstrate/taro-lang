@@ -1,5 +1,13 @@
-use crate::{ast::ref_generator::RefID, parser::Span};
-use std::{fmt::Debug, hash::Hash};
+use crate::{
+    ir::ref_generator::RefID,
+    parser::Span,
+    symbols::{symbol_table::symbol_table_zipper::SymbolTableZipper, symbol_table::SymbolValue},
+};
+use std::{fmt::Debug, hash::Hash, io::Write};
+
+pub trait Identifiable<'a> {
+    fn name(&self) -> &Ident<'a>;
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IdentValue<'a> {
@@ -9,13 +17,13 @@ pub enum IdentValue<'a> {
 
 #[derive(Clone)]
 pub struct Ident<'a> {
-    pub span: Option<Span<'a>>,
+    pub pos: Option<Span<'a>>,
     pub value: IdentValue<'a>,
 }
 
 impl<'a> Debug for Ident<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.span {
+        match &self.pos {
             Some(pos) => f
                 .debug_struct("Ident")
                 .field("value", &self.value)
@@ -30,22 +38,44 @@ impl<'a> Debug for Ident<'a> {
 impl<'a> Ident<'a> {
     pub const fn new(pos: Span<'a>, value: &'a str) -> Self {
         Ident {
-            span: Some(pos),
+            pos: Some(pos),
             value: IdentValue::Named(value),
         }
     }
 
     pub const fn new_unplaced(value: &'a str) -> Self {
         Ident {
-            span: None,
+            pos: None,
             value: IdentValue::Named(value),
         }
     }
 
     pub const fn new_anon(ref_id: RefID) -> Self {
         Ident {
-            span: None,
+            pos: None,
             value: IdentValue::Anonymous(ref_id),
+        }
+    }
+}
+
+impl<'a> Ident<'a> {
+    pub fn write<W: Write>(
+        &self,
+        writer: &mut W,
+        symbols: &SymbolTableZipper<'a>,
+    ) -> std::io::Result<()> {
+        let symval = symbols.lookup(self).expect("identifier should exist");
+
+        match self.value {
+            IdentValue::Named(name) => match symval {
+                _ => writer.write_all(name.as_bytes()),
+            },
+            IdentValue::Anonymous(ref_id) => match symval {
+                SymbolValue::FuncDecl(_) => {
+                    writer.write_all(format!("anon_func_{}", ref_id).as_bytes())
+                }
+                _ => unreachable!("only functions can be anonymous"),
+            },
         }
     }
 }

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 
-use crate::ast::node::{
+use crate::ir::node::{
     enumeration::Enum,
     function::{Function, FunctionArg},
     identifier::{Ident, Identifiable},
@@ -82,7 +82,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
     fn eval_type(
         &self,
         symbols: &mut symbol_table_zipper::SymbolTableZipper<'a>,
-    ) -> Result<crate::ast::node::type_signature::TypeSignature<'a>, TypeEvalError<'a>> {
+    ) -> Result<crate::ir::node::type_signature::TypeSignature<'a>, TypeEvalError<'a>> {
         match self {
             SymbolValue::BuiltinType(builtin) => Ok(TypeSignature::Base(builtin.clone())),
             SymbolValue::VarDecl(var) => var.eval_type(symbols),
@@ -165,7 +165,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::{ast_walker::walk_ast, node::expression::Expr},
+        ir::{ast_walker::walk_ast, node::expression::Expr},
         parser::parse_ast,
         symbols::symbol_walker::SymbolCollector,
     };

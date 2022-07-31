@@ -1,5 +1,5 @@
 use crate::{
-    ast::node::type_signature::{TypeEvalError, TypeSignature, Typed},
+    ir::node::type_signature::{TypeEvalError, TypeSignature, Typed},
     symbols::{builtin_types::BuiltinType, symbol_table::symbol_table_zipper::SymbolTableZipper},
 };
 
@@ -159,7 +159,7 @@ pub fn types_match<'a>(
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::ast::test_utils::utils::type_check;
+    use crate::ir::test_utils::utils::type_check;
     use crate::parser::parse_ast;
 
     use super::*;

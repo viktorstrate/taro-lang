@@ -10,12 +10,13 @@ use symbols::symbol_table::SymbolsError;
 use type_checker::{types_walker::TypeChecker, TypeCheckerError};
 
 use crate::{
-    ast::ast_walker::walk_ast, code_gen::format_ast, parser::parse_ast,
+    code_gen::format_ast, ir::ast_walker::walk_ast, parser::parse_ast,
     symbols::symbol_walker::SymbolCollector,
 };
 
 pub mod ast;
 pub mod code_gen;
+pub mod ir;
 pub mod parser;
 pub mod symbols;
 pub mod type_checker;

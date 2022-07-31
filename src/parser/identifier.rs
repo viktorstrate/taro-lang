@@ -5,7 +5,7 @@ use nom::{
     sequence::{pair, preceded},
 };
 
-use crate::ast::node::identifier::Ident;
+use crate::ir::node::identifier::Ident;
 
 use super::{Res, Span};
 

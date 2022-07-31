@@ -1,21 +1,14 @@
 use std::fmt::Debug;
 
 use crate::{
-    ir::ref_generator::RefID, parser::Span,
-    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
+    ir::ref_generator::RefID, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
     type_checker::function_body_type_eval::FunctionTypeError,
 };
 
 use super::{expression::Expr, identifier::Ident};
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct TypeSignature<'a> {
-    pub span: Span<'a>,
-    pub value: TypeSignatureValue<'a>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum TypeSignatureValue<'a> {
+#[derive(PartialEq, Debug, Clone)]
+pub enum TypeSignature<'a> {
     Base(Ident<'a>),
     Function {
         args: Vec<TypeSignature<'a>>,

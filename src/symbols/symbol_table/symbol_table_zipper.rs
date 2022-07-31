@@ -1,4 +1,4 @@
-use crate::ast::node::identifier::{Ident, Identifiable};
+use crate::ir::node::identifier::{Ident, Identifiable};
 
 use super::{SymbolTable, SymbolValue, SymbolsError};
 

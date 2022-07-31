@@ -1,4 +1,4 @@
-use crate::ast::node::{
+use crate::ir::node::{
     identifier::Ident,
     type_signature::{TypeEvalError, TypeSignature, Typed},
 };

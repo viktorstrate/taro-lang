@@ -2,9 +2,9 @@ use super::{
     enumeration::Enum,
     expression::Expr,
     function::Function,
-    identifier::{Ident, Identifiable},
+    identifier::Ident,
     structure::Struct,
-    type_signature::{Mutability, TypeEvalError, TypeSignature, Typed},
+    type_signature::{Mutability, TypeSignature},
 };
 
 #[derive(Debug, Clone)]
@@ -24,28 +24,4 @@ pub struct VarDecl<'a> {
     pub mutability: Mutability,
     pub type_sig: Option<TypeSignature<'a>>,
     pub value: Expr<'a>,
-}
-
-impl<'a> Identifiable<'a> for VarDecl<'a> {
-    fn name(&self) -> &Ident<'a> {
-        &self.name
-    }
-}
-
-impl<'a> Typed<'a> for VarDecl<'a> {
-    fn eval_type(
-        &self,
-        symbols: &mut crate::symbols::symbol_table::symbol_table_zipper::SymbolTableZipper<'a>,
-    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        self.value.eval_type(symbols)
-    }
-
-    fn specified_type(&self) -> Option<TypeSignature<'a>> {
-        self.type_sig.clone()
-    }
-
-    fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
-        self.type_sig = Some(new_type);
-        Ok(())
-    }
 }

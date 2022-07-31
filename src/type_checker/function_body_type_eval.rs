@@ -1,5 +1,5 @@
 use crate::{
-    ast::node::{
+    ir::node::{
         expression::Expr,
         function::Function,
         statement::Stmt,
@@ -107,7 +107,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::test_utils::utils::type_check, parser::parse_ast, type_checker::TypeCheckerError,
+        ir::test_utils::utils::type_check, parser::parse_ast, type_checker::TypeCheckerError,
     };
 
     use super::*;

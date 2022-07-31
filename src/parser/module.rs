@@ -1,4 +1,4 @@
-use crate::ast::node::{module::Module, statement::Stmt};
+use crate::ir::node::{module::Module, statement::Stmt};
 
 use super::{statement::statement, Res, Span};
 

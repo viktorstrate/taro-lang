@@ -1,5 +1,5 @@
 use crate::{
-    ast::node::{identifier::Ident, structure::StructInit, type_signature::Typed},
+    ir::node::{identifier::Ident, structure::StructInit, type_signature::Typed},
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
@@ -78,7 +78,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::test_utils::utils::type_check, parser::parse_ast, type_checker::TypeCheckerError,
+        ir::test_utils::utils::type_check, parser::parse_ast, type_checker::TypeCheckerError,
     };
 
     #[test]

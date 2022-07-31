@@ -6,7 +6,7 @@ use nom::{
     sequence::{pair, preceded},
 };
 
-use crate::ast::node::escape_block::EscapeBlock;
+use crate::ir::node::escape_block::EscapeBlock;
 
 use super::{surround_brackets, token, type_signature::type_signature, BracketType, Res, Span};
 

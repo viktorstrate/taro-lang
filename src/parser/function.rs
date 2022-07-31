@@ -8,7 +8,7 @@ use nom::{
     sequence::{preceded, tuple},
 };
 
-use crate::ast::node::{
+use crate::ir::node::{
     expression::Expr,
     function::{Function, FunctionArg},
     identifier::Ident,
@@ -102,7 +102,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::node::identifier::{Ident, IdentValue},
+        ir::node::identifier::{Ident, IdentValue},
         parser::{expression::expression, new_span, parse_ast},
         symbols::builtin_types::BuiltinType,
     };

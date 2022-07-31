@@ -8,7 +8,7 @@ use nom::{
     sequence::{delimited, preceded, tuple},
 };
 
-use crate::ast::node::{
+use crate::ir::node::{
     assignment::Assignment,
     expression::Expr,
     function::FunctionCall,
@@ -160,7 +160,7 @@ pub fn expr_tuple(i: Span) -> Res<Span, Expr> {
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::{ast::node::identifier::Ident, parser::new_span};
+    use crate::{ir::node::identifier::Ident, parser::new_span};
 
     use super::*;
 

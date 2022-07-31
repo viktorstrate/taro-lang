@@ -1,4 +1,4 @@
-use crate::ast::node::{identifier::Ident, type_signature::TypeSignature};
+use crate::ir::node::{identifier::Ident, type_signature::TypeSignature};
 
 pub const BUILTIN_TYPES: &'static [Ident<'static>] = &[
     BuiltinType::String.ident(),

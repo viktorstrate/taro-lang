@@ -1,4 +1,4 @@
-use crate::{ast::node::type_signature::TypeSignature, symbols::builtin_types::BuiltinType};
+use crate::{ir::node::type_signature::TypeSignature, symbols::builtin_types::BuiltinType};
 
 impl<'a> TypeSignature<'a> {
     pub fn can_coerce_to(&self, other: &Self) -> bool {

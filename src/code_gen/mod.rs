@@ -1,7 +1,7 @@
 use std::io::{BufWriter, Write};
 
 use crate::{
-    ast::{
+    ir::{
         node::{
             expression::Expr,
             function::{Function, FunctionArg},
@@ -296,7 +296,7 @@ where
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::ast::test_utils::utils::{final_codegen, FinalAstError};
+    use crate::ir::test_utils::utils::{final_codegen, FinalAstError};
 
     #[test]
     fn test_let_assign_simple() {

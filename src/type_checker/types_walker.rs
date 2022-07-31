@@ -1,5 +1,5 @@
 use crate::{
-    ast::{
+    ir::{
         ast_walker::{AstWalker, ScopeValue},
         node::{
             expression::Expr,
@@ -192,7 +192,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::test_utils::utils::type_check, parser::parse_ast, symbols::builtin_types::BuiltinType,
+        ir::test_utils::utils::type_check, parser::parse_ast, symbols::builtin_types::BuiltinType,
         type_checker::TypeCheckerError,
     };
 

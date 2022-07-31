@@ -7,7 +7,7 @@ use nom::{
     sequence::{pair, preceded},
 };
 
-use crate::ast::node::{
+use crate::ir::node::{
     enumeration::{Enum, EnumInit, EnumValue},
     statement::Stmt,
 };
@@ -64,7 +64,7 @@ fn enum_values(i: Span) -> Res<Span, Vec<EnumValue>> {
     )(i)
 }
 
-fn enum_init(i: Span) -> Res<Span, EnumInit> {
+fn enum_init(_i: Span) -> Res<Span, EnumInit> {
     // [IDENT] "." VALUE [ "(" EXPR+ ")" ]
     todo!()
 }
@@ -72,7 +72,7 @@ fn enum_init(i: Span) -> Res<Span, EnumInit> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::node::identifier::Ident, parser::new_span, symbols::builtin_types::BuiltinType,
+        ir::node::identifier::Ident, parser::new_span, symbols::builtin_types::BuiltinType,
     };
 
     use super::*;

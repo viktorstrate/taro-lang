@@ -7,7 +7,7 @@ use nom::{
 };
 use nom_locate::LocatedSpan;
 
-use crate::ast::{ref_generator::RefGen, AST};
+use crate::ir::{ref_generator::RefGen, AST};
 
 pub mod enumeration;
 pub mod escape_block;

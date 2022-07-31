@@ -8,7 +8,7 @@ use nom::{
     sequence::{preceded, tuple},
 };
 
-use crate::ast::node::{
+use crate::ir::node::{
     expression::Expr,
     identifier::Ident,
     statement::Stmt,
@@ -117,7 +117,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::node::{identifier::Ident, structure::StructAccess, type_signature::Mutability},
+        ir::node::{identifier::Ident, structure::StructAccess, type_signature::Mutability},
         parser::new_span,
         symbols::builtin_types::BuiltinType,
     };

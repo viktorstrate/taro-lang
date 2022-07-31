@@ -9,7 +9,7 @@ use nom::{
 };
 
 use crate::{
-    ast::node::{
+    ir::node::{
         statement::{Stmt, VarDecl},
         type_signature::Mutability,
     },
@@ -104,7 +104,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::node::{
+        ir::node::{
             expression::Expr,
             identifier::{Ident, IdentValue},
             type_signature::{Mutability, TypeSignature},

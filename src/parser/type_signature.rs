@@ -7,7 +7,7 @@ use nom::{
     sequence::{preceded, tuple},
 };
 
-use crate::ast::node::type_signature::TypeSignature;
+use crate::ir::node::type_signature::TypeSignature;
 
 use super::{identifier::identifier, surround_brackets, token, BracketType, Res, Span};
 
