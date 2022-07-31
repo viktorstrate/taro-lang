@@ -4,7 +4,7 @@ use crate::{
 
 use super::{
     identifier::{Ident, Identifiable},
-    type_signature::{TypeEvalError, TypeSignature, Typed},
+    type_signature::{TypeEvalError, TypeSignature, Typed}, expression::Expr,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -18,6 +18,12 @@ pub struct Enum<'a> {
 pub struct EnumValue<'a> {
     pub name: Ident<'a>,
     pub items: Vec<TypeSignature<'a>>,
+}
+
+pub struct EnumInit<'a> {
+    pub enum_name: Option<Ident<'a>>,
+    pub enum_value: Ident<'a>,
+    pub items: Vec<Expr<'a>>,
 }
 
 impl<'a> Identifiable<'a> for Enum<'a> {

@@ -1,9 +1,39 @@
-# Web lang
+# The Taro Programming Language
 
 A programming language that transpiles to pure javascript,
-which aims for great interoperability with javascript, strictly typed, generic, trait oriented.
+which aims for great interoperability with javascript, strictly typed, generics, trait oriented.
+It is heavily inspired by many functional and modern languages like Swift, Rust and Haskell.
 
-## Variables
+It is designed such that transpilation to javascript is as direct as possible, by leveraging javascript features with minimal overhead.
+
+## Taro compared to Typescript
+
+The main goal for both Taro and Typescript is to make programming javascript more safe.
+Typescript does this by adding a type system on top of javascript.
+Taro on the other hand is a completely different programming language that transpiles to javascript.
+This allows for an even stricter and flexible type system by leveraging [algebraic data types](https://en.wikipedia.org/wiki/Algebraic_data_type).
+By making a completely new language, inconsistencies and complexities in Javascript can be removed and new features like [pattern matching](https://en.wikipedia.org/wiki/Pattern_matching) can be added.
+
+## Features
+
+- [x] Super fast type-checking and transpilation
+- [x] Javascript interoperability
+- [x] Strict type safety
+- [x] Type inference
+- [x] Structures
+- [x] Tuples
+- [x] Functions
+- [ ] Enumerations
+- [ ] Traits
+- [ ] Generics
+- [ ] Extensions
+- [ ] Async support
+- [ ] Pattern matching
+- [ ] Generate Typescript definitions
+
+## Documentation
+
+### Variables
 
 Variables are declared using the `let` keyword.
 By default a variable is immutable, to declare a mutable variable, the `let mut` keyword is used instead.
@@ -18,7 +48,7 @@ A type signature can optionally be added, either for clarity or special cases wh
 let greeting: String = "Hello, World!"
 ```
 
-## Structures
+### Structures
 
 Structures are backed by javascript classes.
 To declare a new structure, each of its attributes must be declared upfront.
@@ -42,7 +72,13 @@ All attributes without a default value must be specified when instanciating a ne
 let deLorean = Car { maxSpeed: 100, model: "DMC DeLorean" }
 ```
 
-## Tuples
+Attributes can then be retrived as such.
+
+```
+let model: String = deLorean.model
+```
+
+### Tuples
 
 Tuples are typed primitives that combine multiple expressions into one.
 
@@ -58,7 +94,7 @@ let second: Number = a.1
 let third: Boolean = a.3
 ```
 
-## Functions
+### Functions
 
 Functions can either be declared normally,
 
@@ -76,7 +112,7 @@ let sum = (a: Number, b: Number) -> Number {
 }
 ```
 
-## Javascript interoperability
+### Javascript interoperability
 
 Raw javascript can be inserted as an expression anywhere using an escape block.
 

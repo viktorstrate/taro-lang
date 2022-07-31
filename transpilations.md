@@ -1,6 +1,8 @@
 # Transpilation examples
 
-## Struct
+Examples of how Taro concepts are transpiled to javascript
+
+## Structures
 
 ```
 struct Test {
@@ -43,6 +45,8 @@ Object.assign(Test.protocol, {
 ```
 
 ## Enum
+
+Enum definitions will only be used for type definitions and will be compiled away
 
 ```
 enum IPAddress {

@@ -8,7 +8,7 @@ use nom::{
 };
 
 use crate::ast::node::{
-    enumeration::{Enum, EnumValue},
+    enumeration::{Enum, EnumInit, EnumValue},
     statement::Stmt,
 };
 
@@ -62,6 +62,11 @@ fn enum_values(i: Span) -> Res<Span, Vec<EnumValue>> {
         alt((tag(";"), tag("\n"))),
         context("enum value", enum_value),
     )(i)
+}
+
+fn enum_init(i: Span) -> Res<Span, EnumInit> {
+    // [IDENT] "." VALUE [ "(" EXPR+ ")" ]
+    todo!()
 }
 
 #[cfg(test)]
