@@ -11,6 +11,12 @@ pub struct Tuple<'a> {
     pub type_sig: Option<TypeSignature<'a>>,
 }
 
+#[derive(Debug, Clone)]
+pub struct TupleAccess<'a> {
+    pub tuple_expr: Box<Expr<'a>>,
+    pub attr: usize,
+}
+
 impl<'a> Typed<'a> for Tuple<'a> {
     fn eval_type(
         &self,
@@ -37,5 +43,25 @@ impl<'a> Typed<'a> for Tuple<'a> {
 
         self.type_sig = Some(new_type);
         Ok(())
+    }
+}
+
+impl<'a> Typed<'a> for TupleAccess<'a> {
+    fn eval_type(
+        &self,
+        symbols: &mut SymbolTableZipper<'a>,
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
+        match self.tuple_expr.eval_type(symbols)? {
+            TypeSignature::Tuple(tuple) => {
+                tuple
+                    .get(self.attr)
+                    .cloned()
+                    .ok_or(TypeEvalError::TupleAccessOutOfBounds {
+                        tuple_len: tuple.len(),
+                        access_item: self.attr,
+                    })
+            }
+            val => Err(TypeEvalError::AccessNonTuple(val)),
+        }
     }
 }

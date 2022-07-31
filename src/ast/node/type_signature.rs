@@ -31,6 +31,11 @@ pub enum TypeEvalError<'a> {
     FunctionType(FunctionTypeError<'a>),
     CallNonFunction(TypeSignature<'a>),
     AccessNonStruct(TypeSignature<'a>),
+    AccessNonTuple(TypeSignature<'a>),
+    TupleAccessOutOfBounds {
+        tuple_len: usize,
+        access_item: usize,
+    },
     UnknownIdentifier(Ident<'a>),
     UndeterminableType(Ident<'a>),
 }

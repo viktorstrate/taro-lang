@@ -9,8 +9,12 @@ use nom::{
 };
 
 use crate::ast::node::{
-    assignment::Assignment, expression::Expr, function::FunctionCall, identifier::Ident,
-    structure::StructAccess, tuple::Tuple,
+    assignment::Assignment,
+    expression::Expr,
+    function::FunctionCall,
+    identifier::Ident,
+    structure::StructAccess,
+    tuple::{Tuple, TupleAccess},
 };
 
 use super::{
@@ -39,6 +43,7 @@ pub fn expression(i: Span) -> Res<Span, Expr> {
 enum ExprTailChain<'a> {
     FuncCall(Vec<Expr<'a>>),
     StructAccess(Ident<'a>),
+    TupleAccess(usize),
 }
 
 fn expr_tail<'a>(base: &Expr<'a>, i: Span<'a>) -> Res<Span<'a>, Expr<'a>> {
@@ -57,7 +62,7 @@ fn tail_assignments<'a>(base: &Expr<'a>, i: Span<'a>) -> Res<Span<'a>, Expr<'a>>
 
 fn expr_tail_chain<'a>(base: Expr<'a>, i: Span<'a>) -> Res<Span<'a>, Expr<'a>> {
     fold_many0(
-        alt((tail_func_call, tail_struct_access)),
+        alt((tail_func_call, tail_struct_access, tail_tuple_access)),
         || base.clone(),
         |acc, expr_tail| match expr_tail {
             ExprTailChain::FuncCall(func_args) => Expr::FunctionCall(Box::new(FunctionCall {
@@ -67,6 +72,10 @@ fn expr_tail_chain<'a>(base: Expr<'a>, i: Span<'a>) -> Res<Span<'a>, Expr<'a>> {
             ExprTailChain::StructAccess(attr_name) => Expr::StructAccess(StructAccess {
                 struct_expr: Box::new(acc),
                 attr_name,
+            }),
+            ExprTailChain::TupleAccess(attr) => Expr::TupleAccess(TupleAccess {
+                tuple_expr: Box::new(acc),
+                attr,
             }),
         },
     )(i)
@@ -86,6 +95,13 @@ fn tail_struct_access(i: Span) -> Res<Span, ExprTailChain> {
         preceded(token(tag(".")), identifier),
         ExprTailChain::StructAccess,
     )(i)
+}
+
+fn tail_tuple_access(i: Span) -> Res<Span, ExprTailChain> {
+    let (i, digit) = preceded(token(tag(".")), digit1)(i)?;
+    let num = digit.parse().unwrap();
+
+    Ok((i, ExprTailChain::TupleAccess(num)))
 }
 
 pub fn expr_string_literal(i: Span) -> Res<Span, Expr> {

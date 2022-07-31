@@ -42,6 +42,22 @@ All attributes without a default value must be specified when instanciating a ne
 let deLorean = Car { maxSpeed: 100, model: "DMC DeLorean" }
 ```
 
+## Tuples
+
+Tuples are typed primitives that combine multiple expressions into one.
+
+```
+let a: (String, Number, Boolean) = ("hello", 42, true)
+```
+
+Each component can be accessed in the following way
+
+```
+let first: String = a.0
+let second: Number = a.1
+let third: Boolean = a.3
+```
+
 ## Functions
 
 Functions can either be declared normally,

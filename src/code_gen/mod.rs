@@ -250,6 +250,12 @@ fn format_expr<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, expr: &Expr<'a>) -> Co
             }
             ctx.write("]")
         }
+        Expr::TupleAccess(tup_acc) => {
+            format_expr(ctx, tup_acc.tuple_expr.as_ref())?;
+            ctx.write("[")?;
+            ctx.write(tup_acc.attr.to_string().as_str())?;
+            ctx.write("]")
+        }
     }
 }
 
@@ -349,8 +355,27 @@ mod tests {
     }
 
     #[test]
-    fn test_enum() {
-        let ast = final_codegen("let val: (Boolean, Number) = (true, 42)");
-        assert_eq!(ast.unwrap(), "const val = [true, 42];\n");
+    fn test_tuple() {
+        let ast = final_codegen(
+            "let val: (Boolean, Number) = (true, 42)\
+            let val2: Number = val.1",
+        );
+        assert_eq!(
+            ast.unwrap(),
+            "const val = [true, 42];\n\
+            const val2 = val[1];\n"
+        );
     }
+
+    // #[test]
+    // fn test_enum() {
+    //     let ast = final_codegen(
+    //         "enum IPAddress {\n\
+    //             v4(Number, Number, Number, Number)\n\
+    //             v6(String)\n\
+    //           }\n
+    //           let ipValue: IPAddress = .v4(192, 168, 0, 1)",
+    //     );
+    //     assert_eq!(ast.unwrap(), "\n");
+    // }
 }

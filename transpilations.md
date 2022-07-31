@@ -54,7 +54,7 @@ let ipValue: IPAddress = .v4(192, 168, 0, 1)
 
 ----
 
-const ipValue = [0, 192, 168, 0, 1]
+const ipValue = [0, [192, 168, 0, 1]]
 ```
 
 ## Pattern matching
