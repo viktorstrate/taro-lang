@@ -5,9 +5,9 @@ use nom::{
     sequence::{delimited, preceded},
     AsChar, Finish, IResult, InputTakeAtPosition,
 };
-use nom_locate::LocatedSpan;
+use nom_locate::{position, LocatedSpan};
 
-use crate::ir::{ref_generator::RefGen, AST};
+use crate::ast::AST;
 
 pub mod enumeration;
 pub mod escape_block;
@@ -20,29 +20,27 @@ pub mod structure;
 pub mod type_signature;
 
 pub fn parse_ast(input: &str) -> Result<AST, ParserError> {
-    match module::module(new_span(input)).finish() {
+    match module::module(new_input(input)).finish() {
         Ok((_, module)) => Ok(AST::from(module)),
         Err(err) => Err(err),
     }
 }
 
-pub type ParserError<'a> = VerboseError<Span<'a>>;
+pub type ParserError<'a> = VerboseError<Input<'a>>;
 
 pub type Res<I, O> = IResult<I, O, VerboseError<I>>;
 
 #[derive(Debug, Default, Clone)]
-pub struct ParserContext {
-    pub ref_gen: RefGen,
-}
+pub struct ParserContext();
 
-pub type Span<'a> = LocatedSpan<&'a str, ParserContext>;
+pub type Input<'a> = LocatedSpan<&'a str, ParserContext>;
 
-pub fn ws(i: Span) -> Res<Span, Span> {
+pub fn ws(i: Input) -> Res<Input, Input> {
     return multispace1(i);
 }
 
-pub fn new_span(input: &str) -> Span {
-    Span::new_extra(input, ParserContext::default())
+pub fn new_input(input: &str) -> Input {
+    Input::new_extra(input, ParserContext::default())
 }
 
 pub fn token<F, I, O>(mut parser: F) -> impl FnMut(I) -> Res<I, O>
@@ -87,13 +85,52 @@ impl BracketType {
 pub fn surround_brackets<'a, F, O>(
     brackets: BracketType,
     parser: F,
-) -> impl FnMut(Span<'a>) -> Res<Span<'a>, O>
+) -> impl FnMut(Input<'a>) -> Res<Input<'a>, O>
 where
-    F: FnMut(Span<'a>) -> Res<Span<'a>, O>,
+    F: FnMut(Input<'a>) -> Res<Input<'a>, O>,
 {
     delimited(
         token(tag(brackets.open())),
         parser,
         preceded(multispace0, tag(brackets.close())),
     )
+}
+
+#[derive(Debug, Clone)]
+pub struct Span<'a> {
+    pub line: usize,
+    pub offset: usize,
+    pub fragment: &'a str,
+}
+
+impl<'a> Span<'a> {
+    pub fn new(start: Input<'a>, end: Input<'a>) -> Span<'a> {
+        let len = end.location_offset() - start.location_offset();
+
+        Span {
+            line: start.location_line() as usize,
+            offset: start.get_utf8_column(),
+            fragment: &start.fragment()[0..len],
+        }
+    }
+}
+
+// Equality comparisons should not consider span attributes
+impl PartialEq for Span<'_> {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+pub fn span<'a, F, O>(mut parser: F) -> impl FnMut(Input<'a>) -> Res<Input<'a>, (Span<'a>, O)>
+where
+    F: FnMut(Input<'a>) -> Res<Input<'a>, O>,
+{
+    return move |i: Input<'a>| {
+        let (start_i, _) = position(i)?;
+        let (parsed_i, out) = parser(start_i.clone())?;
+        let (i, end) = position(parsed_i.clone())?;
+
+        Ok((i, (Span::new(start_i, end), out)))
+    };
 }

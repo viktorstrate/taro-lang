@@ -6,11 +6,11 @@ use nom::{
     sequence::{pair, preceded},
 };
 
-use crate::ir::node::escape_block::EscapeBlock;
+use crate::ast::node::escape_block::EscapeBlock;
 
-use super::{surround_brackets, token, type_signature::type_signature, BracketType, Res, Span};
+use super::{surround_brackets, token, type_signature::type_signature, BracketType, Input, Res};
 
-pub fn escape_block(i: Span) -> Res<Span, EscapeBlock> {
+pub fn escape_block(i: Input) -> Res<Input, EscapeBlock> {
     // "@" [TYPE_SIG] "{" CONTENT "}"
 
     context(
@@ -28,7 +28,7 @@ pub fn escape_block(i: Span) -> Res<Span, EscapeBlock> {
     )(i)
 }
 
-pub fn escape_block_content<'a>(i: Span<'a>) -> Res<Span<'a>, &'a str> {
+pub fn escape_block_content<'a>(i: Input<'a>) -> Res<Input<'a>, &'a str> {
     // ( TEXT "{" CONTENT "}" * "}" )* TEXT "}"
 
     map(
@@ -47,14 +47,14 @@ pub fn escape_block_content<'a>(i: Span<'a>) -> Res<Span<'a>, &'a str> {
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::{parser::new_span, symbols::builtin_types::BuiltinType};
+    use crate::{ast::test_utils::test_type_sig, parser::new_input};
 
     use super::*;
 
     #[test]
     fn test_escape_block_brackets_balance() {
         assert_matches!(
-            escape_block(new_span(
+            escape_block(new_input(
                 "@{ const f = ({ a }) => { console.log({a}) }; f() }"
             ))
             .unwrap()
@@ -68,11 +68,11 @@ mod tests {
 
     #[test]
     fn test_typed_escape_block() {
-        let block = escape_block(new_span("@Boolean{ true || false }"))
+        let block = escape_block(new_input("@Boolean{ true || false }"))
             .unwrap()
             .1;
 
         assert_eq!(block.content, "true || false");
-        assert_eq!(block.type_sig, Some(BuiltinType::Boolean.type_sig()));
+        assert_eq!(block.type_sig, Some(test_type_sig("Boolean")));
     }
 }

@@ -1,12 +1,8 @@
 use std::fmt::Debug;
 
-use crate::{
-    ir::ref_generator::RefID, parser::Span,
-    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
-    type_checker::function_body_type_eval::FunctionTypeError,
-};
+use crate::parser::Span;
 
-use super::{expression::Expr, identifier::Ident};
+use super::identifier::Ident;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypeSignature<'a> {
@@ -23,44 +19,11 @@ pub enum TypeSignatureValue<'a> {
     },
     Struct {
         name: Ident<'a>,
-        ref_id: RefID,
     },
     Enum {
         name: Ident<'a>,
-        ref_id: RefID,
     },
     Tuple(Vec<TypeSignature<'a>>),
-}
-
-#[derive(Debug)]
-pub enum TypeEvalError<'a> {
-    Expression(Expr<'a>),
-    FunctionType(FunctionTypeError<'a>),
-    CallNonFunction(TypeSignature<'a>),
-    AccessNonStruct(TypeSignature<'a>),
-    AccessNonTuple(TypeSignature<'a>),
-    TupleAccessOutOfBounds {
-        tuple_len: usize,
-        access_item: usize,
-    },
-    UnknownIdentifier(Ident<'a>),
-    UndeterminableType(Ident<'a>),
-}
-
-#[allow(unused_variables)]
-pub trait Typed<'a>: Debug {
-    fn eval_type(
-        &self,
-        symbols: &mut SymbolTableZipper<'a>,
-    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>>;
-
-    fn specified_type(&self) -> Option<TypeSignature<'a>> {
-        None
-    }
-
-    fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
-        Ok(())
-    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

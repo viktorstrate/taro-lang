@@ -1,3 +1,5 @@
+use crate::parser::Span;
+
 use super::{
     assignment::Assignment,
     escape_block::EscapeBlock,
@@ -8,7 +10,13 @@ use super::{
 };
 
 #[derive(Debug, Clone)]
-pub enum Expr<'a> {
+pub struct Expr<'a> {
+    pub span: Span<'a>,
+    pub value: ExprValue<'a>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExprValue<'a> {
     StringLiteral(&'a str),
     NumberLiteral(f64),
     BoolLiteral(bool),

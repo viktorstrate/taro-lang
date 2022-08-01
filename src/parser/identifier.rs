@@ -1,18 +1,19 @@
 use nom::{
     character::complete::{multispace0, satisfy},
-    combinator::{recognize, verify},
+    combinator::{map, recognize, verify},
+    error::context,
     multi::many0,
     sequence::{pair, preceded},
 };
 
-use crate::ir::node::identifier::Ident;
+use crate::ast::node::identifier::Ident;
 
-use super::{Res, Span};
+use super::{span, Input, Res};
 
 const RESERVED_KEYWORDS: &'static [&str] =
     &["struct", "func", "return", "let", "mut", "true", "false"];
 
-pub fn identifier(i: Span) -> Res<Span, Ident> {
+pub fn identifier(i: Input) -> Res<Input, Ident> {
     let ident_base = preceded(
         multispace0,
         recognize(pair(
@@ -21,7 +22,27 @@ pub fn identifier(i: Span) -> Res<Span, Ident> {
         )),
     );
 
-    let mut not_keyword_ident = verify(ident_base, |s: &Span| !RESERVED_KEYWORDS.contains(s));
+    let not_keyword_ident = context(
+        "identifier",
+        span(verify(ident_base, |s: &Input| {
+            !RESERVED_KEYWORDS.contains(s)
+        })),
+    );
 
-    not_keyword_ident(i).map(|(i, val)| (i.clone(), Ident::new(i, &val)))
+    map(not_keyword_ident, |(span, val)| Ident { span, value: *val })(i)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::parser::new_input;
+
+    use super::*;
+
+    #[test]
+    fn test_valid_identifier() {
+        assert_eq!(
+            identifier(new_input("hello123")).unwrap().1.value,
+            "hello123"
+        );
+    }
 }

@@ -4,7 +4,7 @@ use super::{expression::Expr, identifier::Ident, statement::Stmt, type_signature
 
 #[derive(Debug, Clone)]
 pub struct Function<'a> {
-    pub name: Ident<'a>,
+    pub name: Option<Ident<'a>>,
     pub args: Vec<FunctionArg<'a>>,
     pub return_type: Option<TypeSignature<'a>>,
     pub body: Box<Stmt<'a>>,

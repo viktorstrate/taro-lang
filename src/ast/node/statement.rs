@@ -1,3 +1,5 @@
+use crate::parser::Span;
+
 use super::{
     enumeration::Enum,
     expression::Expr,
@@ -8,7 +10,13 @@ use super::{
 };
 
 #[derive(Debug, Clone)]
-pub enum Stmt<'a> {
+pub struct Stmt<'a> {
+    pub span: Span<'a>,
+    pub value: StmtValue<'a>,
+}
+
+#[derive(Debug, Clone)]
+pub enum StmtValue<'a> {
     VariableDecl(VarDecl<'a>),
     FunctionDecl(Function<'a>),
     StructDecl(Struct<'a>),

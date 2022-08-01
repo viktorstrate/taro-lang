@@ -1,4 +1,4 @@
-use crate::ir::ref_generator::RefID;
+use crate::parser::Span;
 
 use super::{
     expression::Expr,
@@ -10,7 +10,6 @@ use super::{
 pub struct Struct<'a> {
     pub name: Ident<'a>,
     pub attrs: Vec<StructAttr<'a>>,
-    pub ref_id: RefID,
 }
 
 #[derive(Debug, Clone)]
@@ -19,12 +18,12 @@ pub struct StructAttr<'a> {
     pub mutability: Mutability,
     pub type_sig: Option<TypeSignature<'a>>,
     pub default_value: Option<Expr<'a>>,
+    pub span: Span<'a>,
 }
 
 #[derive(Debug, Clone)]
 pub struct StructInit<'a> {
     pub struct_name: Ident<'a>,
-    pub scope_name: Ident<'a>,
     pub values: Vec<StructInitValue<'a>>,
 }
 
@@ -32,6 +31,7 @@ pub struct StructInit<'a> {
 pub struct StructInitValue<'a> {
     pub name: Ident<'a>,
     pub value: Expr<'a>,
+    pub span: Span<'a>,
 }
 
 #[derive(Debug, Clone)]

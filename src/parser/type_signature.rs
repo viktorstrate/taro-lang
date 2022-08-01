@@ -7,24 +7,27 @@ use nom::{
     sequence::{preceded, tuple},
 };
 
-use crate::ir::node::type_signature::TypeSignature;
+use crate::ast::node::type_signature::{TypeSignature, TypeSignatureValue};
 
-use super::{identifier::identifier, surround_brackets, token, BracketType, Res, Span};
+use super::{identifier::identifier, span, surround_brackets, token, BracketType, Input, Res};
 
-pub fn type_signature(i: Span) -> Res<Span, TypeSignature> {
+pub fn type_signature(i: Input) -> Res<Input, TypeSignature> {
     context(
         "type signature",
-        alt((type_sig_func, type_sig_base, type_sig_tuple)),
+        map(
+            span(alt((type_sig_func, type_sig_base, type_sig_tuple))),
+            |(span, value)| TypeSignature { span, value },
+        ),
     )(i)
 }
 
-fn type_sig_base(i: Span) -> Res<Span, TypeSignature> {
+fn type_sig_base(i: Input) -> Res<Input, TypeSignatureValue> {
     // IDENT
 
-    context("base type", map(identifier, TypeSignature::Base))(i)
+    context("base type", map(identifier, TypeSignatureValue::Base))(i)
 }
 
-fn type_sig_func(i: Span) -> Res<Span, TypeSignature> {
+fn type_sig_func(i: Input) -> Res<Input, TypeSignatureValue> {
     // "(" TYPE_SIG , ... ")" "->" TYPE_SIG
 
     context(
@@ -37,7 +40,7 @@ fn type_sig_func(i: Span) -> Res<Span, TypeSignature> {
                 ),
                 preceded(token(tag("->")), type_signature),
             )),
-            |(args, return_type)| TypeSignature::Function {
+            |(args, return_type)| TypeSignatureValue::Function {
                 args,
                 return_type: Box::new(return_type),
             },
@@ -45,7 +48,7 @@ fn type_sig_func(i: Span) -> Res<Span, TypeSignature> {
     )(i)
 }
 
-fn type_sig_tuple(i: Span) -> Res<Span, TypeSignature> {
+fn type_sig_tuple(i: Input) -> Res<Input, TypeSignatureValue> {
     // "(" TYPE_SIG , ... ")"
 
     context(
@@ -55,68 +58,111 @@ fn type_sig_tuple(i: Span) -> Res<Span, TypeSignature> {
                 BracketType::Round,
                 separated_list0(token(tag(",")), type_signature),
             ),
-            TypeSignature::Tuple,
+            TypeSignatureValue::Tuple,
         ),
     )(i)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{parser::new_span, symbols::builtin_types::BuiltinType};
+
+    use std::assert_matches::assert_matches;
+
+    use crate::{
+        ast::{node::identifier::Ident, test_utils::test_type_sig},
+        parser::{new_input, Span},
+    };
 
     use super::*;
 
     #[test]
     fn test_base_type() {
-        assert_eq!(
-            type_signature(new_span("Boolean")).unwrap().1,
-            BuiltinType::Boolean.type_sig()
+        assert_matches!(
+            type_signature(new_input("Boolean")).unwrap().1,
+            TypeSignature {
+                span: Span {
+                    line: _,
+                    offset: _,
+                    fragment: "Boolean"
+                },
+                value: TypeSignatureValue::Base(Ident {
+                    span: _,
+                    value: "Boolean"
+                })
+            }
         );
     }
 
     #[test]
     fn test_function_type() {
-        assert_eq!(
-            type_signature(new_span("() -> Void")).unwrap().1,
-            TypeSignature::Function {
-                args: vec![],
-                return_type: Box::new(BuiltinType::Void.type_sig())
+        let func_type = type_signature(new_input("() -> Void")).unwrap().1;
+
+        match func_type {
+            TypeSignature {
+                span,
+                value: TypeSignatureValue::Function { args, return_type },
+            } => {
+                assert_eq!(span.fragment, "() -> Void");
+                assert!(args.is_empty());
+                assert_eq!(*return_type, test_type_sig("Void"));
+                assert_eq!(return_type.span.fragment, "Void");
             }
-        );
+            _ => assert!(false),
+        }
     }
 
     #[test]
     fn test_nested_function_type() {
-        assert_eq!(
-            type_signature(new_span("(Number, (Number) -> Boolean) -> Boolean"))
-                .unwrap()
-                .1,
-            TypeSignature::Function {
-                args: vec![
-                    BuiltinType::Number.type_sig(),
-                    TypeSignature::Function {
-                        args: vec![BuiltinType::Number.type_sig()],
-                        return_type: Box::new(BuiltinType::Boolean.type_sig())
+        let func_type = type_signature(new_input("(Number, (Number) -> Boolean) -> Boolean"))
+            .unwrap()
+            .1;
+
+        match func_type {
+            TypeSignature {
+                span,
+                value: TypeSignatureValue::Function { args, return_type },
+            } => {
+                assert_eq!(span.fragment, "(Number, (Number) -> Boolean) -> Boolean");
+                assert_eq!(args.len(), 2);
+                assert_eq!(args[0], test_type_sig("Number"));
+                assert_eq!(*return_type, test_type_sig("Boolean"));
+                match &args[1] {
+                    TypeSignature {
+                        span,
+                        value: TypeSignatureValue::Function { args, return_type },
+                    } => {
+                        assert_eq!(span.fragment, "(Number) -> Boolean");
+                        assert_eq!(args.len(), 1);
+                        assert_eq!(args[0], test_type_sig("Number"));
+                        assert_eq!(*return_type.as_ref(), test_type_sig("Boolean"));
                     }
-                ],
-                return_type: Box::new(BuiltinType::Boolean.type_sig())
+                    _ => assert!(false),
+                }
             }
-        );
+            _ => assert!(false),
+        }
     }
 
     #[test]
     fn test_tuple_type() {
         assert_eq!(
-            type_signature(new_span("()")).unwrap().1,
-            TypeSignature::Tuple(Vec::new())
+            type_signature(new_input("()")).unwrap().1.value,
+            TypeSignatureValue::Tuple(Vec::new())
         );
 
-        assert_eq!(
-            type_signature(new_span("(Number, String)")).unwrap().1,
-            TypeSignature::Tuple(vec![
-                BuiltinType::Number.type_sig(),
-                BuiltinType::String.type_sig()
-            ])
-        );
+        let pair = type_signature(new_input("(Number, String)")).unwrap().1;
+
+        match pair {
+            TypeSignature {
+                span,
+                value: TypeSignatureValue::Tuple(types),
+            } => {
+                assert_eq!(span.fragment, "(Number, String)");
+                assert_eq!(types.len(), 2);
+                assert_eq!(types[0].span.fragment, "Number");
+                assert_eq!(types[1].span.fragment, "String");
+            }
+            _ => assert!(false),
+        }
     }
 }

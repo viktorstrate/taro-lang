@@ -1,11 +1,8 @@
-use crate::ir::ref_generator::RefID;
-
 use super::{expression::Expr, identifier::Ident, type_signature::TypeSignature};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Enum<'a> {
     pub name: Ident<'a>,
-    pub ref_id: RefID,
     pub values: Vec<EnumValue<'a>>,
 }
 
