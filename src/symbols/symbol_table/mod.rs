@@ -160,31 +160,31 @@ impl<'a> SymbolTable<'a> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::assert_matches::assert_matches;
+// #[cfg(test)]
+// mod tests {
+//     use std::assert_matches::assert_matches;
 
-    use crate::{
-        ir::{ast_walker::walk_ast, node::expression::Expr},
-        parser::parse_ast,
-        symbols::symbol_walker::SymbolCollector,
-    };
+//     use crate::{
+//         ir::{ast_walker::walk_ast, node::expression::Expr},
+//         parser::parse_ast,
+//         symbols::symbol_walker::SymbolCollector,
+//     };
 
-    use super::*;
+//     use super::*;
 
-    #[test]
-    fn test_locate_ordered_symbol() {
-        let mut ast = parse_ast("let x: Boolean = true").unwrap();
-        let mut collector = SymbolCollector::default();
-        let symtable = walk_ast(&mut collector, &mut ast).unwrap();
-        let sym_val = symtable.ordered_symbols.front().unwrap();
+//     #[test]
+//     fn test_locate_ordered_symbol() {
+//         let mut ast = parse_ast("let x: Boolean = true").unwrap();
+//         let mut collector = SymbolCollector::default();
+//         let symtable = walk_ast(&mut collector, &mut ast).unwrap();
+//         let sym_val = symtable.ordered_symbols.front().unwrap();
 
-        assert_eq!(*sym_val.name(), Ident::new_unplaced("x"));
-        match sym_val {
-            SymbolValue::VarDecl(var_decl) => {
-                assert_matches!(var_decl.value, Expr::BoolLiteral(true));
-            }
-            _ => assert!(false),
-        }
-    }
-}
+//         assert_eq!(*sym_val.name(), Ident::new_unplaced("x"));
+//         match sym_val {
+//             SymbolValue::VarDecl(var_decl) => {
+//                 assert_matches!(var_decl.value, Expr::BoolLiteral(true));
+//             }
+//             _ => assert!(false),
+//         }
+//     }
+// }

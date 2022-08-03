@@ -1,6 +1,6 @@
 use super::statement::Stmt;
 
-#[derive(Debug, Clone)]
-pub struct Module<'a> {
-    pub stmts: Vec<Stmt<'a>>,
+#[derive(Debug)]
+pub struct Module<'a, 'ctx> {
+    pub stmts: Vec<&'ctx mut Stmt<'a, 'ctx>>,
 }

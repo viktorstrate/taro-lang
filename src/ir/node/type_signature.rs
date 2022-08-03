@@ -1,37 +1,30 @@
 use std::fmt::Debug;
 
-use crate::{
-    ir::ref_generator::RefID, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
-    type_checker::function_body_type_eval::FunctionTypeError,
-};
-
 use super::{expression::Expr, identifier::Ident};
 
-#[derive(PartialEq, Debug, Clone)]
-pub enum TypeSignature<'a> {
-    Base(Ident<'a>),
+#[derive(PartialEq, Eq, Debug, Clone, Hash)]
+pub enum TypeSignature<'a, 'ctx> {
+    Builtin(BuiltinType),
     Function {
-        args: Vec<TypeSignature<'a>>,
-        return_type: Box<TypeSignature<'a>>,
+        args: Vec<&'ctx TypeSignature<'a, 'ctx>>,
+        return_type: &'ctx TypeSignature<'a, 'ctx>,
     },
     Struct {
-        name: Ident<'a>,
-        ref_id: RefID,
+        name: &'ctx Ident<'a>,
     },
     Enum {
-        name: Ident<'a>,
-        ref_id: RefID,
+        name: &'ctx Ident<'a>,
     },
-    Tuple(Vec<TypeSignature<'a>>),
+    Tuple(Vec<&'ctx TypeSignature<'a, 'ctx>>),
 }
 
 #[derive(Debug)]
-pub enum TypeEvalError<'a> {
-    Expression(Expr<'a>),
-    FunctionType(FunctionTypeError<'a>),
-    CallNonFunction(TypeSignature<'a>),
-    AccessNonStruct(TypeSignature<'a>),
-    AccessNonTuple(TypeSignature<'a>),
+pub enum TypeEvalError<'a, 'ctx> {
+    Expression(Expr<'a, 'ctx>),
+    // FunctionType(FunctionTypeError<'a>),
+    CallNonFunction(TypeSignature<'a, 'ctx>),
+    AccessNonStruct(TypeSignature<'a, 'ctx>),
+    AccessNonTuple(TypeSignature<'a, 'ctx>),
     TupleAccessOutOfBounds {
         tuple_len: usize,
         access_item: usize,
@@ -40,21 +33,21 @@ pub enum TypeEvalError<'a> {
     UndeterminableType(Ident<'a>),
 }
 
-#[allow(unused_variables)]
-pub trait Typed<'a>: Debug {
-    fn eval_type(
-        &self,
-        symbols: &mut SymbolTableZipper<'a>,
-    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>>;
+// #[allow(unused_variables)]
+// pub trait Typed<'a>: Debug {
+//     fn eval_type(
+//         &self,
+//         symbols: &mut SymbolTableZipper<'a>,
+//     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>>;
 
-    fn specified_type(&self) -> Option<TypeSignature<'a>> {
-        None
-    }
+//     fn specified_type(&self) -> Option<TypeSignature<'a>> {
+//         None
+//     }
 
-    fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
-        Ok(())
-    }
-}
+//     fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
+//         Ok(())
+//     }
+// }
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Mutability {
@@ -76,4 +69,13 @@ impl Into<bool> for Mutability {
     fn into(self) -> bool {
         self == Mutability::Mutable
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum BuiltinType {
+    String,
+    Number,
+    Boolean,
+    Void,
+    Untyped,
 }

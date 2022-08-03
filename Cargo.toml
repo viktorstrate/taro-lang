@@ -8,6 +8,7 @@ version = "0.1.0"
 [dependencies]
 nom = "7"
 nom_locate = "4.0.0"
+typed-arena = "2.0.1"
 
 [profile.release]
 lto = true # substantially improves speed of `nom` parsers

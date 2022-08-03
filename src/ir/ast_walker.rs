@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug};
 
 use super::{
     node::{
@@ -12,15 +12,15 @@ use super::{
     AST,
 };
 
-pub enum ScopeValue<'a, 'v> {
-    Func(&'v mut Function<'a>),
-    Struct(&'v mut Struct<'a>),
-    StructInit(&'v mut StructInit<'a>),
-    Enum(&'v mut Enum<'a>),
+pub enum ScopeValue<'a, 'ctx, 'scp> {
+    Func(&'scp mut Function<'a, 'ctx>),
+    Struct(&'scp mut Struct<'a, 'ctx>),
+    StructInit(&'scp mut StructInit<'a, 'ctx>),
+    Enum(&'scp mut Enum<'a, 'ctx>),
 }
 
 #[allow(unused_variables)]
-pub trait AstWalker<'a> {
+pub trait AstWalker<'a, 'ctx> {
     type Scope: Default = ();
     type Error: Debug = ();
 
@@ -31,7 +31,7 @@ pub trait AstWalker<'a> {
     fn pre_visit_stmt(
         &mut self,
         scope: &mut Self::Scope,
-        stmt: &mut Stmt<'a>,
+        stmt: &mut Stmt<'a, 'ctx>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -39,7 +39,7 @@ pub trait AstWalker<'a> {
     fn visit_stmt(
         &mut self,
         scope: &mut Self::Scope,
-        stmt: &mut Stmt<'a>,
+        stmt: &mut Stmt<'a, 'ctx>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -47,7 +47,7 @@ pub trait AstWalker<'a> {
     fn visit_scope_begin(
         &mut self,
         parent: &mut Self::Scope,
-        value: ScopeValue<'a, '_>,
+        value: ScopeValue<'a, 'ctx, '_>,
     ) -> Result<Self::Scope, Self::Error> {
         Ok(Self::Scope::default())
     }
@@ -56,7 +56,7 @@ pub trait AstWalker<'a> {
         &mut self,
         parent: &mut Self::Scope,
         child: Self::Scope,
-        value: ScopeValue<'a, '_>,
+        value: ScopeValue<'a, 'ctx, '_>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -64,15 +64,15 @@ pub trait AstWalker<'a> {
     fn visit_expr(
         &mut self,
         scope: &mut Self::Scope,
-        expr: &mut Expr<'a>,
+        expr: &mut Expr<'a, 'ctx>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
 }
 
-pub fn walk_ast<'a, W: AstWalker<'a>>(
+pub fn walk_ast<'a, 'ctx, W: AstWalker<'a, 'ctx>>(
     walker: &mut W,
-    ast: &mut AST<'a>,
+    ast: &mut AST<'a, 'ctx>,
 ) -> Result<W::Scope, W::Error> {
     let mut global_scope = W::Scope::default();
     walker.visit_begin(&mut global_scope)?;
@@ -80,10 +80,10 @@ pub fn walk_ast<'a, W: AstWalker<'a>>(
     Ok(global_scope)
 }
 
-fn walk_module<'a, W: AstWalker<'a>>(
+fn walk_module<'a, 'ctx, W: AstWalker<'a, 'ctx>>(
     walker: &mut W,
     scope: &mut W::Scope,
-    module: &mut Module<'a>,
+    module: &mut Module<'a, 'ctx>,
 ) -> Result<(), W::Error> {
     for stmt in &mut module.stmts {
         walk_stmt(walker, scope, stmt)?;
@@ -92,10 +92,10 @@ fn walk_module<'a, W: AstWalker<'a>>(
     Ok(())
 }
 
-fn walk_struct<'a, W: AstWalker<'a>>(
+fn walk_struct<'a, 'ctx, W: AstWalker<'a, 'ctx>>(
     walker: &mut W,
     scope: &mut W::Scope,
-    st: &mut Struct<'a>,
+    st: &mut Struct<'a, 'ctx>,
 ) -> Result<(), W::Error> {
     let mut st_scope = walker.visit_scope_begin(scope, ScopeValue::Struct(st))?;
 
@@ -110,10 +110,10 @@ fn walk_struct<'a, W: AstWalker<'a>>(
     Ok(())
 }
 
-fn walk_enum<'a, W: AstWalker<'a>>(
+fn walk_enum<'a, 'ctx, W: AstWalker<'a, 'ctx>>(
     walker: &mut W,
     scope: &mut W::Scope,
-    enm: &mut Enum<'a>,
+    enm: &mut Enum<'a, 'ctx>,
 ) -> Result<(), W::Error> {
     let enm_scope = walker.visit_scope_begin(scope, ScopeValue::Enum(enm))?;
     walker.visit_scope_end(scope, enm_scope, ScopeValue::Enum(enm))?;
@@ -121,10 +121,10 @@ fn walk_enum<'a, W: AstWalker<'a>>(
     Ok(())
 }
 
-fn walk_stmt<'a, W: AstWalker<'a>>(
+fn walk_stmt<'a, 'ctx, W: AstWalker<'a, 'ctx>>(
     walker: &mut W,
     scope: &mut W::Scope,
-    stmt: &mut Stmt<'a>,
+    stmt: &mut Stmt<'a, 'ctx>,
 ) -> Result<(), W::Error> {
     walker.pre_visit_stmt(scope, stmt)?;
     match stmt {
@@ -144,10 +144,10 @@ fn walk_stmt<'a, W: AstWalker<'a>>(
     Ok(())
 }
 
-fn walk_func_decl<'a, W: AstWalker<'a>>(
+fn walk_func_decl<'a, 'ctx, W: AstWalker<'a, 'ctx>>(
     walker: &mut W,
     scope: &mut W::Scope,
-    func: &mut Function<'a>,
+    func: &mut Function<'a, 'ctx>,
 ) -> Result<(), W::Error> {
     let mut func_scope = walker.visit_scope_begin(scope, ScopeValue::Func(func))?;
     walk_stmt(walker, &mut func_scope, &mut func.body)?;
@@ -156,18 +156,18 @@ fn walk_func_decl<'a, W: AstWalker<'a>>(
     Ok(())
 }
 
-fn walk_expr<'a, W: AstWalker<'a>>(
+fn walk_expr<'a, 'ctx, W: AstWalker<'a, 'ctx>>(
     walker: &mut W,
     scope: &mut W::Scope,
-    expr: &mut Expr<'a>,
+    expr: &mut Expr<'a, 'ctx>,
 ) -> Result<(), W::Error> {
     match expr {
         Expr::Function(func) => walk_func_decl(walker, scope, func),
         Expr::Assignment(asg) => {
-            walk_expr(walker, scope, &mut asg.lhs)?;
-            walk_expr(walker, scope, &mut asg.rhs)
+            walk_expr(walker, scope, asg.lhs)?;
+            walk_expr(walker, scope, asg.rhs)
         }
-        Expr::StructAccess(st_access) => walk_expr(walker, scope, &mut *st_access.struct_expr),
+        Expr::StructAccess(st_access) => walk_expr(walker, scope, st_access.struct_expr),
         Expr::StructInit(st_init) => walk_struct_init(walker, scope, st_init),
         _ => Ok(()),
     }?;
@@ -175,10 +175,10 @@ fn walk_expr<'a, W: AstWalker<'a>>(
     walker.visit_expr(scope, expr)
 }
 
-fn walk_struct_init<'a, W: AstWalker<'a>>(
+fn walk_struct_init<'a, 'ctx, W: AstWalker<'a, 'ctx>>(
     walker: &mut W,
     scope: &mut W::Scope,
-    st_init: &mut StructInit<'a>,
+    st_init: &mut StructInit<'a, 'ctx>,
 ) -> Result<(), W::Error> {
     let mut child_scope = walker.visit_scope_begin(scope, ScopeValue::StructInit(st_init))?;
     for value in &mut st_init.values {

@@ -1,21 +1,21 @@
 use self::node::module::Module;
 
 pub mod ast_walker;
+pub mod context;
 pub mod node;
-pub mod ref_generator;
-pub mod test_utils;
+// pub mod test_utils;
 
 #[derive(Debug)]
-pub struct AST<'a>(Module<'a>);
+pub struct AST<'a, 'ctx>(Module<'a, 'ctx>);
 
-impl<'a> AST<'a> {
-    pub fn inner_module(&self) -> &Module<'a> {
+impl<'a, 'ctx> AST<'a, 'ctx> {
+    pub fn inner_module(&self) -> &Module<'a, 'ctx> {
         &self.0
     }
 }
 
-impl<'a> From<Module<'a>> for AST<'a> {
-    fn from(module: Module<'a>) -> Self {
+impl<'a, 'ctx> From<Module<'a, 'ctx>> for AST<'a, 'ctx> {
+    fn from(module: Module<'a, 'ctx>) -> Self {
         AST(module)
     }
 }
