@@ -6,7 +6,7 @@ use crate::ast::node::{
 use super::{statement::statement, Input, Res};
 
 pub fn module<'a>(i: Input<'a>) -> Res<Input<'a>, Module<'a>> {
-    let mut stmts: Vec<Stmt> = Vec::new();
+    let mut stmts: Vec<Stmt<'_>> = Vec::new();
 
     let mut input = i;
 

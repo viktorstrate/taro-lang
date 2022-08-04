@@ -19,7 +19,7 @@ pub mod statement;
 pub mod structure;
 pub mod type_signature;
 
-pub fn parse_ast(input: &str) -> Result<AST, ParserError> {
+pub fn parse_ast(input: &str) -> Result<AST<'_>, ParserError<'_>> {
     match module::module(new_input(input)).finish() {
         Ok((_, module)) => Ok(AST::from(module)),
         Err(err) => Err(err),
@@ -35,11 +35,11 @@ pub struct ParserContext();
 
 pub type Input<'a> = LocatedSpan<&'a str, ParserContext>;
 
-pub fn ws(i: Input) -> Res<Input, Input> {
+pub fn ws(i: Input<'_>) -> Res<Input<'_>, Input<'_>> {
     return multispace1(i);
 }
 
-pub fn new_input(input: &str) -> Input {
+pub fn new_input(input: &str) -> Input<'_> {
     Input::new_extra(input, ParserContext::default())
 }
 

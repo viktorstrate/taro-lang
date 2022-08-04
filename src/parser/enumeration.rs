@@ -14,7 +14,7 @@ use super::{
     Input, Res,
 };
 
-pub fn enumeration(i: Input) -> Res<Input, Enum> {
+pub fn enumeration(i: Input<'_>) -> Res<Input<'_>, Enum<'_>> {
     // enum IDENT "{" ENUM_VALUE* "}"
 
     map(
@@ -26,7 +26,7 @@ pub fn enumeration(i: Input) -> Res<Input, Enum> {
     )(i)
 }
 
-fn enum_values(i: Input) -> Res<Input, Vec<EnumValue>> {
+fn enum_values(i: Input<'_>) -> Res<Input<'_>, Vec<EnumValue<'_>>> {
     // IDENT [ "(" TYPE_SIG+ ")" ]
     // let (i, name) = identifier(i)?;
     // let (i, items) = opt(surround_brackets(BracketType::Round, many1(type_signature)))(i)?;

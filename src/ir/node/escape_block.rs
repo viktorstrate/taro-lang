@@ -1,9 +1,9 @@
-use super::type_signature::{TypeSignature};
+use super::type_signature::TypeSignature;
 
 #[derive(Debug, Clone)]
 pub struct EscapeBlock<'a, 'ctx> {
     pub content: &'a str,
-    pub type_sig: Option<&'ctx TypeSignature<'a, 'ctx>>,
+    pub type_sig: Option<TypeSignature<'a, 'ctx>>,
 }
 
 // impl<'a> Typed<'a> for EscapeBlock<'a> {

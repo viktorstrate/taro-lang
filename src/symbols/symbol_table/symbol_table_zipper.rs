@@ -3,22 +3,22 @@ use crate::ir::node::identifier::{Ident, Identifiable};
 use super::{SymbolTable, SymbolValue, SymbolsError};
 
 #[derive(Debug)]
-struct SymbolTableZipperBreadcrumb<'a> {
-    scope_name: Ident<'a>,
-    sym_table: SymbolTable<'a>,
+struct SymbolTableZipperBreadcrumb<'a, 'ctx> {
+    scope_name: Ident<'a, 'ctx>,
+    sym_table: SymbolTable<'a, 'ctx>,
     visited_symbols: usize,
 }
 
 /// Structure used to keep track of the current position in a symbol table.
 #[derive(Debug)]
-pub struct SymbolTableZipper<'a> {
-    cursor: SymbolTable<'a>,
+pub struct SymbolTableZipper<'a, 'ctx> {
+    cursor: SymbolTable<'a, 'ctx>,
     visited_symbols: usize,
-    breadcrumb: Vec<SymbolTableZipperBreadcrumb<'a>>,
+    breadcrumb: Vec<SymbolTableZipperBreadcrumb<'a, 'ctx>>,
 }
 
-impl<'a> Into<SymbolTableZipper<'a>> for SymbolTable<'a> {
-    fn into(self) -> SymbolTableZipper<'a> {
+impl<'a, 'ctx> Into<SymbolTableZipper<'a, 'ctx>> for SymbolTable<'a, 'ctx> {
+    fn into(self) -> SymbolTableZipper<'a, 'ctx> {
         SymbolTableZipper {
             cursor: self,
             visited_symbols: 0,
@@ -27,12 +27,12 @@ impl<'a> Into<SymbolTableZipper<'a>> for SymbolTable<'a> {
     }
 }
 
-impl<'a> SymbolTableZipper<'a> {
-    pub fn enter_scope(&mut self, ident: Ident<'a>) -> Result<(), SymbolsError> {
+impl<'a, 'ctx> SymbolTableZipper<'a, 'ctx> {
+    pub fn enter_scope(&mut self, ident: Ident<'a, 'ctx>) -> Result<(), SymbolsError<'a, 'ctx>> {
         let mut temp_cursor = self
             .cursor
             .remove_scope(&ident)
-            .ok_or(SymbolsError::ScopeNotFound(ident.clone()))?;
+            .ok_or(SymbolsError::ScopeNotFound(ident))?;
 
         std::mem::swap(&mut self.cursor, &mut temp_cursor);
         self.breadcrumb.push(SymbolTableZipperBreadcrumb {
@@ -44,7 +44,7 @@ impl<'a> SymbolTableZipper<'a> {
         Ok(())
     }
 
-    pub fn exit_scope(&mut self) -> Result<(), SymbolsError> {
+    pub fn exit_scope(&mut self) -> Result<(), SymbolsError<'a, 'ctx>> {
         let mut breadcrumb = self
             .breadcrumb
             .pop()
@@ -59,7 +59,7 @@ impl<'a> SymbolTableZipper<'a> {
         Ok(())
     }
 
-    pub fn lookup(&self, ident: &Ident<'a>) -> Option<&SymbolValue<'a>> {
+    pub fn lookup(&self, ident: &Ident<'a, 'ctx>) -> Option<&SymbolValue<'a, 'ctx>> {
         if let Some(value) = self.lookup_current_scope(ident) {
             return Some(value);
         }
@@ -82,10 +82,10 @@ impl<'a> SymbolTableZipper<'a> {
     }
 
     fn locate_visited_symbol<'b>(
-        sym_table: &'b SymbolTable<'a>,
+        sym_table: &'b SymbolTable<'a, 'ctx>,
         visited_symbols: usize,
-        ident: &Ident<'a>,
-    ) -> Option<&'b SymbolValue<'a>> {
+        ident: &Ident<'a, 'ctx>,
+    ) -> Option<&'b SymbolValue<'a, 'ctx>> {
         sym_table
             .ordered_symbols
             .iter()
@@ -94,7 +94,7 @@ impl<'a> SymbolTableZipper<'a> {
             .find(|sym| *sym.name() == *ident)
     }
 
-    pub fn lookup_current_scope(&self, ident: &Ident<'a>) -> Option<&SymbolValue<'a>> {
+    pub fn lookup_current_scope(&self, ident: &Ident<'a, 'ctx>) -> Option<&SymbolValue<'a, 'ctx>> {
         if let Some(sym) = self.cursor.lookup_global_table(ident) {
             return Some(sym);
         }

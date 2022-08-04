@@ -1,17 +1,15 @@
-
-
 use super::{
     expression::Expr,
     identifier::{Ident, Identifiable},
     statement::Stmt,
-    type_signature::{TypeSignature},
+    type_signature::TypeSignature,
 };
 
 #[derive(Debug)]
 pub struct Function<'a, 'ctx> {
-    pub name: &'ctx Ident<'a>,
-    pub args: Vec<&'ctx FunctionArg<'a, 'ctx>>,
-    pub return_type: Option<&'ctx TypeSignature<'a, 'ctx>>,
+    pub name: Ident<'a, 'ctx>,
+    pub args: Vec<&'ctx mut FunctionArg<'a, 'ctx>>,
+    pub return_type: Option<TypeSignature<'a, 'ctx>>,
     pub body: &'ctx mut Stmt<'a, 'ctx>,
 }
 
@@ -35,26 +33,26 @@ pub struct Function<'a, 'ctx> {
 //     }
 // }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct FunctionArg<'a, 'ctx> {
-    pub name: &'ctx Ident<'a>,
-    pub type_sig: Option<&'ctx TypeSignature<'a, 'ctx>>,
+    pub name: Ident<'a, 'ctx>,
+    pub type_sig: Option<TypeSignature<'a, 'ctx>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct FunctionCall<'a, 'ctx> {
-    pub func: &'ctx Expr<'a, 'ctx>,
-    pub params: Vec<&'ctx Expr<'a, 'ctx>>,
+    pub func: &'ctx mut Expr<'a, 'ctx>,
+    pub params: Vec<&'ctx mut Expr<'a, 'ctx>>,
 }
 
 impl<'a, 'ctx> Identifiable<'a, 'ctx> for Function<'a, 'ctx> {
-    fn name(&self) -> &'ctx Ident<'a> {
+    fn name(&self) -> &Ident<'a, 'ctx> {
         &self.name
     }
 }
 
 impl<'a, 'ctx> Identifiable<'a, 'ctx> for FunctionArg<'a, 'ctx> {
-    fn name(&self) -> &'ctx Ident<'a> {
+    fn name(&self) -> &Ident<'a, 'ctx> {
         &self.name
     }
 }

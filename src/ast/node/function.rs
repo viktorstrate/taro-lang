@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use super::{expression::Expr, identifier::Ident, statement::Stmt, type_signature::TypeSignature};
 
 #[derive(Debug, Clone)]
@@ -13,7 +11,7 @@ pub struct Function<'a> {
 #[derive(Debug, Clone)]
 pub struct FunctionArg<'a> {
     pub name: Ident<'a>,
-    pub type_sig: Rc<RefCell<Option<TypeSignature<'a>>>>,
+    pub type_sig: Option<TypeSignature<'a>>,
 }
 
 #[derive(Debug, Clone)]

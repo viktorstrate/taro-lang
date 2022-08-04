@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use nom::{
     bytes::complete::tag,
     combinator::{map, opt},
@@ -19,7 +17,7 @@ use super::{
     type_signature::type_signature, ws, BracketType, Input, Res,
 };
 
-pub fn function_decl(i: Input) -> Res<Input, Function> {
+pub fn function_decl(i: Input<'_>) -> Res<Input<'_>, Function<'_>> {
     // func IDENT "(" FUNC_ARGS ")" [-> RETURN_SIG] "{" BODY "}"
 
     let (i, _) = token(tuple((tag("func"), ws)))(i)?;
@@ -43,7 +41,7 @@ pub fn function_decl(i: Input) -> Res<Input, Function> {
     ))
 }
 
-pub fn function_expr(i: Input) -> Res<Input, ExprValue> {
+pub fn function_expr(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
     // "(" FUNC_ARGS ")" [-> RETURN_SIG] "{" BODY "}"
 
     let (i, args) = surround_brackets(BracketType::Round, function_args)(i)?;
@@ -61,18 +59,18 @@ pub fn function_expr(i: Input) -> Res<Input, ExprValue> {
     ))
 }
 
-fn return_signature(i: Input) -> Res<Input, Option<TypeSignature>> {
+fn return_signature(i: Input<'_>) -> Res<Input<'_>, Option<TypeSignature<'_>>> {
     context(
         "return signature",
         opt(preceded(token(tag("->")), type_signature)),
     )(i)
 }
 
-fn function_args(i: Input) -> Res<Input, Vec<FunctionArg>> {
+fn function_args(i: Input<'_>) -> Res<Input<'_>, Vec<FunctionArg<'_>>> {
     separated_list0(token(tag(",")), function_arg)(i)
 }
 
-fn function_arg(i: Input) -> Res<Input, FunctionArg> {
+fn function_arg(i: Input<'_>) -> Res<Input<'_>, FunctionArg<'_>> {
     // IDENT [: TYPE_SIG]
 
     context(
@@ -85,10 +83,7 @@ fn function_arg(i: Input) -> Res<Input, FunctionArg> {
                     opt(preceded(token(tag(":")), type_signature)),
                 ),
             )),
-            |(name, type_sig)| FunctionArg {
-                name,
-                type_sig: Rc::new(RefCell::new(type_sig)),
-            },
+            |(name, type_sig)| FunctionArg { name, type_sig },
         ),
     )(i)
 }
@@ -127,14 +122,8 @@ mod tests {
         assert_eq!(func.args.len(), 2);
         assert_eq!(func.args[0].name, test_ident("a"));
         assert_eq!(func.args[1].name, test_ident("b"));
-        assert_eq!(
-            *func.args[0].type_sig.borrow(),
-            Some(test_type_sig("Number"))
-        );
-        assert_eq!(
-            *func.args[1].type_sig.borrow(),
-            Some(test_type_sig("Number"))
-        );
+        assert_eq!(func.args[0].type_sig, Some(test_type_sig("Number")));
+        assert_eq!(func.args[1].type_sig, Some(test_type_sig("Number")));
     }
 
     #[test]
@@ -147,15 +136,9 @@ mod tests {
             ExprValue::Function(func) => {
                 assert_eq!(func.args.len(), 2);
                 assert_eq!(func.args[0].name, test_ident("a"));
-                assert_eq!(
-                    *func.args[0].type_sig.borrow(),
-                    Some(test_type_sig("Number"))
-                );
+                assert_eq!(func.args[0].type_sig, Some(test_type_sig("Number")));
                 assert_eq!(func.args[1].name, test_ident("b"));
-                assert_eq!(
-                    *func.args[1].type_sig.borrow(),
-                    Some(test_type_sig("Number"))
-                );
+                assert_eq!(func.args[1].type_sig, Some(test_type_sig("Number")));
                 assert_eq!(func.return_type, None);
             }
             _ => assert!(false),

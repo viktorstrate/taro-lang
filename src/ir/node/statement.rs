@@ -13,21 +13,21 @@ pub enum Stmt<'a, 'ctx> {
     FunctionDecl(Function<'a, 'ctx>),
     StructDecl(Struct<'a, 'ctx>),
     EnumDecl(Enum<'a, 'ctx>),
-    Compound(Vec<Stmt<'a, 'ctx>>),
-    Expression(Expr<'a, 'ctx>),
-    Return(Expr<'a, 'ctx>),
+    Compound(Vec<&'ctx mut Stmt<'a, 'ctx>>),
+    Expression(&'ctx mut Expr<'a, 'ctx>),
+    Return(&'ctx mut Expr<'a, 'ctx>),
 }
 
 #[derive(Debug)]
 pub struct VarDecl<'a, 'ctx> {
-    pub name: &'ctx Ident<'a>,
+    pub name: Ident<'a, 'ctx>,
     pub mutability: Mutability,
-    pub type_sig: Option<&'ctx TypeSignature<'a, 'ctx>>,
-    pub value: Expr<'a, 'ctx>,
+    pub type_sig: Option<TypeSignature<'a, 'ctx>>,
+    pub value: &'ctx mut Expr<'a, 'ctx>,
 }
 
 impl<'a, 'ctx> Identifiable<'a, 'ctx> for VarDecl<'a, 'ctx> {
-    fn name(&self) -> &'ctx Ident<'a> {
+    fn name(&self) -> &Ident<'a, 'ctx> {
         &self.name
     }
 }

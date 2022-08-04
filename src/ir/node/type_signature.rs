@@ -1,21 +1,39 @@
-use std::fmt::Debug;
+use std::{cell::Cell, fmt::Debug};
 
 use super::{expression::Expr, identifier::Ident};
 
-#[derive(PartialEq, Eq, Debug, Clone, Hash)]
-pub enum TypeSignature<'a, 'ctx> {
+#[derive(Debug)]
+pub struct TypeSignature<'a, 'ctx>(pub &'ctx Cell<&'ctx TypeSignatureValue<'a, 'ctx>>);
+
+impl<'a, 'ctx> Copy for TypeSignature<'a, 'ctx> {}
+
+impl<'a, 'ctx> Clone for TypeSignature<'a, 'ctx> {
+    fn clone(&self) -> Self {
+        Self((&self.0).clone())
+    }
+}
+
+impl<'a, 'ctx> PartialEq for TypeSignature<'a, 'ctx> {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.0.get(), other.0.get())
+    }
+}
+
+#[derive(Debug)]
+pub enum TypeSignatureValue<'a, 'ctx> {
     Builtin(BuiltinType),
+    Unresolved(crate::ast::node::identifier::Ident<'a>),
     Function {
-        args: Vec<&'ctx TypeSignature<'a, 'ctx>>,
-        return_type: &'ctx TypeSignature<'a, 'ctx>,
+        args: Vec<TypeSignature<'a, 'ctx>>,
+        return_type: TypeSignature<'a, 'ctx>,
     },
     Struct {
-        name: &'ctx Ident<'a>,
+        name: Ident<'a, 'ctx>,
     },
     Enum {
-        name: &'ctx Ident<'a>,
+        name: Ident<'a, 'ctx>,
     },
-    Tuple(Vec<&'ctx TypeSignature<'a, 'ctx>>),
+    Tuple(Vec<TypeSignature<'a, 'ctx>>),
 }
 
 #[derive(Debug)]
@@ -29,8 +47,8 @@ pub enum TypeEvalError<'a, 'ctx> {
         tuple_len: usize,
         access_item: usize,
     },
-    UnknownIdentifier(Ident<'a>),
-    UndeterminableType(Ident<'a>),
+    UnknownIdentifier(Ident<'a, 'ctx>),
+    UndeterminableType(Ident<'a, 'ctx>),
 }
 
 // #[allow(unused_variables)]
@@ -49,27 +67,7 @@ pub enum TypeEvalError<'a, 'ctx> {
 //     }
 // }
 
-#[derive(PartialEq, Debug, Clone)]
-pub enum Mutability {
-    Mutable,
-    Immutable,
-}
-
-impl From<bool> for Mutability {
-    fn from(val: bool) -> Self {
-        if val {
-            Mutability::Mutable
-        } else {
-            Mutability::Immutable
-        }
-    }
-}
-
-impl Into<bool> for Mutability {
-    fn into(self) -> bool {
-        self == Mutability::Mutable
-    }
-}
+pub type Mutability = crate::ast::node::type_signature::Mutability;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum BuiltinType {
@@ -78,4 +76,24 @@ pub enum BuiltinType {
     Boolean,
     Void,
     Untyped,
+}
+
+pub const BUILTIN_TYPES: &'static [BuiltinType] = &[
+    BuiltinType::String,
+    BuiltinType::Number,
+    BuiltinType::Boolean,
+    BuiltinType::Void,
+    BuiltinType::Untyped,
+];
+
+impl BuiltinType {
+    pub const fn name(&self) -> &'static str {
+        match self {
+            BuiltinType::String => "String",
+            BuiltinType::Number => "Number",
+            BuiltinType::Boolean => "Boolean",
+            BuiltinType::Void => "Void",
+            BuiltinType::Untyped => "Untyped",
+        }
+    }
 }

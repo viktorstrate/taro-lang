@@ -14,7 +14,7 @@ pub enum Expr<'a, 'ctx> {
     BoolLiteral(bool),
     Function(&'ctx mut Function<'a, 'ctx>),
     FunctionCall(&'ctx mut FunctionCall<'a, 'ctx>),
-    Identifier(Ident<'a>),
+    Identifier(Ident<'a, 'ctx>),
     StructInit(&'ctx mut StructInit<'a, 'ctx>),
     StructAccess(&'ctx mut StructAccess<'a, 'ctx>),
     TupleAccess(&'ctx mut TupleAccess<'a, 'ctx>),

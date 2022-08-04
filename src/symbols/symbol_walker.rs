@@ -1,53 +1,58 @@
 use crate::ir::{
     ast_walker::{AstWalker, ScopeValue},
-    node::statement::Stmt::{self, VariableDecl},
+    context::IrCtx,
+    node::{
+        identifier::{Ident, ResolvedIdentValue},
+        statement::Stmt::{self, VariableDecl},
+        type_signature::BUILTIN_TYPES,
+    },
 };
 
-use super::{
-    builtin_types::BUILTIN_TYPES,
-    symbol_table::{SymbolTable, SymbolValue, SymbolsError},
-};
+use super::symbol_table::{SymbolTable, SymbolValue, SymbolsError};
 
-#[derive(Default)]
-pub struct SymbolCollector {}
+pub struct SymbolCollector<'a, 'ctx> {
+    ctx: IrCtx<'a, 'ctx>,
+}
 
-impl<'a> AstWalker<'a> for SymbolCollector {
-    type Scope = SymbolTable<'a>;
-    type Error = SymbolsError<'a>;
+impl<'a: 'ctx, 'ctx> AstWalker<'a, 'ctx> for SymbolCollector<'a, 'ctx> {
+    type Scope = SymbolTable<'a, 'ctx>;
+    type Error = SymbolsError<'a, 'ctx>;
 
-    fn visit_begin(&mut self, scope: &mut Self::Scope) -> Result<(), Self::Error> {
+    fn visit_begin(&'ctx mut self, scope: &mut Self::Scope) -> Result<(), Self::Error> {
         for builtin_type in BUILTIN_TYPES {
-            scope.insert(SymbolValue::BuiltinType(builtin_type.clone()))?;
+            scope.insert(SymbolValue::BuiltinType(
+                self.ctx.make_builtin_ident(*builtin_type),
+            ))?;
         }
 
         Ok(())
     }
 
     fn visit_scope_begin(
-        &mut self,
-        parent: &mut SymbolTable<'a>,
-        value: ScopeValue<'a, '_>,
-    ) -> Result<SymbolTable<'a>, Self::Error> {
+        &'ctx mut self,
+        parent: &mut SymbolTable<'a, 'ctx>,
+        value: ScopeValue<'a, 'ctx>,
+    ) -> Result<SymbolTable<'a, 'ctx>, Self::Error> {
         let mut new_scope = SymbolTable::default();
 
         match value {
             ScopeValue::Func(func) => {
-                parent.insert(SymbolValue::FuncDecl(func.clone()))?;
+                parent.insert(SymbolValue::FuncDecl(func))?;
                 for arg in &func.args {
-                    new_scope.insert(SymbolValue::FuncArg(arg.clone()))?;
+                    new_scope.insert(SymbolValue::FuncArg(arg))?;
                 }
             }
             ScopeValue::Struct(st) => {
-                parent.insert(SymbolValue::StructDecl(st.clone()))?;
-                for attr in &st.attrs {
-                    new_scope.insert(SymbolValue::StructAttr(attr.clone()))?;
+                parent.insert(SymbolValue::StructDecl(st))?;
+                for attr in st.attrs {
+                    new_scope.insert(SymbolValue::StructAttr(attr))?;
                 }
             }
             ScopeValue::StructInit(st_init) => {
-                new_scope.insert(SymbolValue::StructInit(st_init.clone()))?;
+                new_scope.insert(SymbolValue::StructInit(st_init))?;
             }
             ScopeValue::Enum(enm) => {
-                parent.insert(SymbolValue::EnumDecl(enm.clone()))?;
+                parent.insert(SymbolValue::EnumDecl(enm))?;
             }
         }
 
@@ -56,9 +61,9 @@ impl<'a> AstWalker<'a> for SymbolCollector {
 
     fn visit_scope_end(
         &mut self,
-        parent: &mut SymbolTable<'a>,
-        child: SymbolTable<'a>,
-        value: ScopeValue<'a, '_>,
+        parent: &'ctx mut SymbolTable<'a, 'ctx>,
+        child: SymbolTable<'a, 'ctx>,
+        value: ScopeValue<'a, 'ctx>,
     ) -> Result<(), Self::Error> {
         // save child scope in parent scope
         match value {
@@ -72,12 +77,12 @@ impl<'a> AstWalker<'a> for SymbolCollector {
     }
 
     fn visit_stmt(
-        &mut self,
-        scope: &mut SymbolTable<'a>,
-        stmt: &mut Stmt<'a>,
+        &'ctx mut self,
+        scope: &mut SymbolTable<'a, 'ctx>,
+        stmt: &'ctx mut Stmt<'a, 'ctx>,
     ) -> Result<(), Self::Error> {
         match stmt {
-            VariableDecl(var_decl) => scope.insert(var_decl.clone().into()).map(|_| ()),
+            VariableDecl(var_decl) => scope.insert(SymbolValue::VarDecl(var_decl)).map(|_| ()),
             // FunctionDecl(func) => scope.insert(func.clone().into()).map(|_| ()),
             _ => Ok(()),
         }

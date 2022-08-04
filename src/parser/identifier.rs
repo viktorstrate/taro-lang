@@ -13,7 +13,7 @@ use super::{span, Input, Res};
 const RESERVED_KEYWORDS: &'static [&str] =
     &["struct", "func", "return", "let", "mut", "true", "false"];
 
-pub fn identifier(i: Input) -> Res<Input, Ident> {
+pub fn identifier(i: Input<'_>) -> Res<Input<'_>, Ident<'_>> {
     let ident_base = preceded(
         multispace0,
         recognize(pair(
@@ -24,7 +24,7 @@ pub fn identifier(i: Input) -> Res<Input, Ident> {
 
     let not_keyword_ident = context(
         "identifier",
-        span(verify(ident_base, |s: &Input| {
+        span(verify(ident_base, |s: &Input<'_>| {
             !RESERVED_KEYWORDS.contains(s)
         })),
     );

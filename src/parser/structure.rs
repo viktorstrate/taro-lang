@@ -35,11 +35,11 @@ pub fn structure<'a>(i: Input<'a>) -> Res<Input<'a>, Struct<'a>> {
     )(i)
 }
 
-pub fn struct_attrs<'a>(i: Input<'a>) -> Res<Input, Vec<StructAttr<'a>>> {
+pub fn struct_attrs<'a>(i: Input<'a>) -> Res<Input<'a>, Vec<StructAttr<'a>>> {
     // ATTR <; ATTR>*
     // ATTR <\n ATTR>*
 
-    let struct_attr = move |i: Input<'a>| -> Res<Input, StructAttr<'a>> {
+    let struct_attr = move |i: Input<'a>| -> Res<Input<'a>, StructAttr<'a>> {
         // let [mut] IDENT [ : TYPE_SIG ] [ = EXPR ]
 
         map(
@@ -74,7 +74,7 @@ pub fn struct_attrs<'a>(i: Input<'a>) -> Res<Input, Vec<StructAttr<'a>>> {
     )(i)
 }
 
-pub fn struct_init_expr(i: Input) -> Res<Input, StructInit> {
+pub fn struct_init_expr(i: Input<'_>) -> Res<Input<'_>, StructInit<'_>> {
     // IDENT "{" <IDENT: EXPR> , ... "}"
 
     let (i, struct_name) = identifier(i)?;

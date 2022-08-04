@@ -10,7 +10,7 @@ use crate::ast::node::escape_block::EscapeBlock;
 
 use super::{surround_brackets, token, type_signature::type_signature, BracketType, Input, Res};
 
-pub fn escape_block(i: Input) -> Res<Input, EscapeBlock> {
+pub fn escape_block(i: Input<'_>) -> Res<Input<'_>, EscapeBlock<'_>> {
     // "@" [TYPE_SIG] "{" CONTENT "}"
 
     context(

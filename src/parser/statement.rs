@@ -46,7 +46,7 @@ pub fn statement<'a>(i: Input<'a>) -> Res<Input<'a>, Stmt<'a>> {
     Ok((i, stmt))
 }
 
-pub fn single_statement(i: Input) -> Res<Input, Stmt> {
+pub fn single_statement(i: Input<'_>) -> Res<Input<'_>, Stmt<'_>> {
     context(
         "statement",
         map(
@@ -63,7 +63,7 @@ pub fn single_statement(i: Input) -> Res<Input, Stmt> {
     )(i)
 }
 
-pub fn variable_decl(i: Input) -> Res<Input, VarDecl> {
+pub fn variable_decl(i: Input<'_>) -> Res<Input<'_>, VarDecl<'_>> {
     // let [mut] IDENTIFIER [: TYPE_SIGNATURE] = EXPRESSION
 
     context(
@@ -85,11 +85,11 @@ pub fn variable_decl(i: Input) -> Res<Input, VarDecl> {
     )(i)
 }
 
-pub fn let_specifier(i: Input) -> Res<Input, ()> {
+pub fn let_specifier(i: Input<'_>) -> Res<Input<'_>, ()> {
     map(token(tuple((tag("let"), ws))), |_| ())(i)
 }
 
-pub fn mut_specifier(i: Input) -> Res<Input, Mutability> {
+pub fn mut_specifier(i: Input<'_>) -> Res<Input<'_>, Mutability> {
     context(
         "mut specifier",
         map(opt(token(tuple((tag("mut"), ws)))), |val| {
@@ -98,7 +98,7 @@ pub fn mut_specifier(i: Input) -> Res<Input, Mutability> {
     )(i)
 }
 
-pub fn stmt_return(i: Input) -> Res<Input, StmtValue> {
+pub fn stmt_return(i: Input<'_>) -> Res<Input<'_>, StmtValue<'_>> {
     context(
         "return",
         map(

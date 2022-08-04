@@ -11,7 +11,7 @@ use crate::ast::node::type_signature::{TypeSignature, TypeSignatureValue};
 
 use super::{identifier::identifier, span, surround_brackets, token, BracketType, Input, Res};
 
-pub fn type_signature(i: Input) -> Res<Input, TypeSignature> {
+pub fn type_signature(i: Input<'_>) -> Res<Input<'_>, TypeSignature<'_>> {
     context(
         "type signature",
         map(
@@ -21,13 +21,13 @@ pub fn type_signature(i: Input) -> Res<Input, TypeSignature> {
     )(i)
 }
 
-fn type_sig_base(i: Input) -> Res<Input, TypeSignatureValue> {
+fn type_sig_base(i: Input<'_>) -> Res<Input<'_>, TypeSignatureValue<'_>> {
     // IDENT
 
     context("base type", map(identifier, TypeSignatureValue::Base))(i)
 }
 
-fn type_sig_func(i: Input) -> Res<Input, TypeSignatureValue> {
+fn type_sig_func(i: Input<'_>) -> Res<Input<'_>, TypeSignatureValue<'_>> {
     // "(" TYPE_SIG , ... ")" "->" TYPE_SIG
 
     context(
@@ -48,7 +48,7 @@ fn type_sig_func(i: Input) -> Res<Input, TypeSignatureValue> {
     )(i)
 }
 
-fn type_sig_tuple(i: Input) -> Res<Input, TypeSignatureValue> {
+fn type_sig_tuple(i: Input<'_>) -> Res<Input<'_>, TypeSignatureValue<'_>> {
     // "(" TYPE_SIG , ... ")"
 
     context(

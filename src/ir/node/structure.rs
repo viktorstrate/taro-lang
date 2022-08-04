@@ -6,13 +6,13 @@ use super::{
 
 #[derive(Debug)]
 pub struct Struct<'a, 'ctx> {
-    pub name: &'ctx Ident<'a>,
-    pub attrs: Vec<StructAttr<'a, 'ctx>>,
+    pub name: Ident<'a, 'ctx>,
+    pub attrs: Vec<&'ctx mut StructAttr<'a, 'ctx>>,
 }
 
 #[derive(Debug)]
 pub struct StructAttr<'a, 'ctx> {
-    pub name: &'ctx Ident<'a>,
+    pub name: Ident<'a, 'ctx>,
     pub mutability: Mutability,
     pub type_sig: Option<TypeSignature<'a, 'ctx>>,
     pub default_value: Option<&'ctx mut Expr<'a, 'ctx>>,
@@ -20,43 +20,43 @@ pub struct StructAttr<'a, 'ctx> {
 
 #[derive(Debug)]
 pub struct StructInit<'a, 'ctx> {
-    pub struct_name: &'ctx Ident<'a>,
-    pub scope_name: &'ctx Ident<'a>,
-    pub values: Vec<StructInitValue<'a, 'ctx>>,
+    pub struct_name: Ident<'a, 'ctx>,
+    pub scope_name: Ident<'a, 'ctx>,
+    pub values: Vec<&'ctx mut StructInitValue<'a, 'ctx>>,
 }
 
 #[derive(Debug)]
 pub struct StructInitValue<'a, 'ctx> {
-    pub name: &'ctx Ident<'a>,
+    pub name: Ident<'a, 'ctx>,
     pub value: &'ctx mut Expr<'a, 'ctx>,
 }
 
 #[derive(Debug)]
 pub struct StructAccess<'a, 'ctx> {
     pub struct_expr: &'ctx mut Expr<'a, 'ctx>,
-    pub attr_name: &'ctx Ident<'a>,
+    pub attr_name: Ident<'a, 'ctx>,
 }
 
-impl<'a, 'ctx> Struct<'a, 'ctx> {
-    fn lookup_attr(&self, ident: &'ctx Ident<'a>) -> Option<&StructAttr<'a, 'ctx>> {
-        self.attrs.iter().find(|attr| attr.name() == ident)
-    }
-}
+// impl<'a, 'ctx> Struct<'a, 'ctx> {
+//     fn lookup_attr(&self, ident: Ident<'a, 'ctx>) -> Option<&StructAttr<'a, 'ctx>> {
+//         self.attrs.iter().find(|attr| attr.name() == ident)
+//     }
+// }
 
 impl<'a, 'ctx> Identifiable<'a, 'ctx> for Struct<'a, 'ctx> {
-    fn name(&self) -> &'ctx Ident<'a> {
+    fn name(&self) -> &Ident<'a, 'ctx> {
         &self.name
     }
 }
 
 impl<'a, 'ctx> Identifiable<'a, 'ctx> for StructAttr<'a, 'ctx> {
-    fn name(&self) -> &'ctx Ident<'a> {
+    fn name(&self) -> &Ident<'a, 'ctx> {
         &self.name
     }
 }
 
 impl<'a, 'ctx> Identifiable<'a, 'ctx> for StructInit<'a, 'ctx> {
-    fn name(&self) -> &'ctx Ident<'a> {
+    fn name(&self) -> &Ident<'a, 'ctx> {
         &self.scope_name
     }
 }

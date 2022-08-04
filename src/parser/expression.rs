@@ -23,7 +23,7 @@ use super::{
     structure::struct_init_expr, surround_brackets, token, BracketType, Input, Res, Span,
 };
 
-pub fn expression(i: Input) -> Res<Input, Expr> {
+pub fn expression(i: Input<'_>) -> Res<Input<'_>, Expr<'_>> {
     let (i_next, expr) = context(
         "expression",
         map(
@@ -108,7 +108,7 @@ fn expr_tail_chain<'a>(
     )(i)
 }
 
-fn tail_func_call(i: Input) -> Res<Input, ExprTailChain> {
+fn tail_func_call(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
     let func_params = separated_list0(token(tag(",")), expression);
 
     map(
@@ -117,28 +117,28 @@ fn tail_func_call(i: Input) -> Res<Input, ExprTailChain> {
     )(i)
 }
 
-fn tail_struct_access(i: Input) -> Res<Input, ExprTailChain> {
+fn tail_struct_access(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
     map(
         preceded(token(tag(".")), identifier),
         ExprTailChain::StructAccess,
     )(i)
 }
 
-fn tail_tuple_access(i: Input) -> Res<Input, ExprTailChain> {
+fn tail_tuple_access(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
     let (i, digit) = preceded(token(tag(".")), digit1)(i)?;
     let num = digit.parse().unwrap();
 
     Ok((i, ExprTailChain::TupleAccess(num)))
 }
 
-pub fn expr_string_literal(i: Input) -> Res<Input, ExprValue> {
+pub fn expr_string_literal(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
     let string_value = take_until("\"");
 
     return delimited(char_parser('\"'), string_value, char_parser('\"'))(i)
         .map(|(i, str_val)| (i, ExprValue::StringLiteral(&str_val)));
 }
 
-pub fn expr_number_literal(i: Input) -> Res<Input, ExprValue> {
+pub fn expr_number_literal(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
     let (i, num) = digit1(i)?;
 
     let (i, maybe_decimal) = opt(tuple((tag("."), digit1)))(i)?;
@@ -151,7 +151,7 @@ pub fn expr_number_literal(i: Input) -> Res<Input, ExprValue> {
     Ok((i, ExprValue::NumberLiteral(result)))
 }
 
-pub fn expr_boolean_literal(i: Input) -> Res<Input, ExprValue> {
+pub fn expr_boolean_literal(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
     context(
         "boolean",
         map(
@@ -161,7 +161,7 @@ pub fn expr_boolean_literal(i: Input) -> Res<Input, ExprValue> {
     )(i)
 }
 
-pub fn expr_tuple(i: Input) -> Res<Input, ExprValue> {
+pub fn expr_tuple(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
     context(
         "tuple expression",
         map(

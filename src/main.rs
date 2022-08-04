@@ -4,6 +4,7 @@
 #![feature(assert_matches)]
 #![feature(let_else)]
 #![feature(hash_set_entry)]
+#![deny(rust_2018_idioms)]
 
 // use parser::ParserError;
 // use std::io::{BufRead, Write};
@@ -19,7 +20,7 @@ pub mod ast;
 // pub mod code_gen;
 pub mod ir;
 pub mod parser;
-// pub mod symbols;
+pub mod symbols;
 // pub mod type_checker;
 
 fn main() -> std::io::Result<()> {
