@@ -1,24 +1,10 @@
-use std::{fmt::Debug};
+use std::fmt::Debug;
 
 use id_arena::Id;
 
 use super::{expression::Expr, identifier::Ident};
 
 pub type TypeSignature<'a> = Id<TypeSignatureValue<'a>>;
-
-// impl<'a> Copy for TypeSignature<'a> {}
-
-// impl<'a> Clone for TypeSignature<'a> {
-//     fn clone(&self) -> Self {
-//         Self((&self.0).clone())
-//     }
-// }
-
-// impl<'a> PartialEq for TypeSignature<'a> {
-//     fn eq(&self, other: &Self) -> bool {
-//         std::ptr::eq(self.0.get(), other.0.get())
-//     }
-// }
 
 #[derive(Debug)]
 pub enum TypeSignatureValue<'a> {

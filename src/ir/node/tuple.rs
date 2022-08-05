@@ -4,7 +4,7 @@ use super::{expression::Expr, type_signature::TypeSignature};
 
 #[derive(Debug)]
 pub struct Tuple<'a> {
-    pub values: Vec<Expr<'a>>,
+    pub values: Vec<Id<Expr<'a>>>,
     pub type_sig: Option<TypeSignature<'a>>,
 }
 

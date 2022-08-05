@@ -1,4 +1,4 @@
-use id_arena::{Arena};
+use id_arena::{Arena, Id};
 
 use self::{
     assignment::Assignment,
@@ -11,7 +11,7 @@ use self::{
     tuple::{Tuple, TupleAccess},
 };
 
-
+use super::context::IrCtx;
 
 pub mod assignment;
 pub mod enumeration;
@@ -60,4 +60,113 @@ pub struct IrNodeArena<'a> {
     pub asgns: Arena<Assignment<'a>>,
     pub esc_blks: Arena<EscapeBlock<'a>>,
     pub var_decls: Arena<VarDecl<'a>>,
+}
+
+pub trait IrAlloc<'a>
+where
+    Self: Sized,
+{
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self>;
+}
+
+impl<'a> IrAlloc<'a> for Stmt<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.stmts.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for Expr<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.exprs.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for FunctionArg<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.func_args.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for StructAttr<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.st_attrs.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for Enum<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.enms.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for EnumValue<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.enm_vals.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for Function<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.funcs.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for FunctionCall<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.func_calls.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for Struct<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.st_decls.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for StructInitValue<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.st_init_vals.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for StructInit<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.st_inits.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for StructAccess<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.st_accs.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for Tuple<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.tups.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for TupleAccess<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.tup_accs.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for Assignment<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.asgns.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for EscapeBlock<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.esc_blks.alloc(self)
+    }
+}
+
+impl<'a> IrAlloc<'a> for VarDecl<'a> {
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
+        ctx.nodes.var_decls.alloc(self)
+    }
 }

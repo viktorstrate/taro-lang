@@ -1,3 +1,5 @@
+use id_arena::Id;
+
 use crate::ir::context::IrCtx;
 
 use super::{
@@ -9,7 +11,7 @@ use super::{
 #[derive(Debug, PartialEq)]
 pub struct Enum<'a> {
     pub name: Ident<'a>,
-    pub values: Vec<EnumValue<'a>>,
+    pub values: Vec<Id<EnumValue<'a>>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -21,7 +23,7 @@ pub struct EnumValue<'a> {
 pub struct EnumInit<'a> {
     pub enum_name: Option<Ident<'a>>,
     pub enum_value: Ident<'a>,
-    pub items: Vec<Expr<'a>>,
+    pub items: Vec<Id<Expr<'a>>>,
 }
 
 impl<'a> Identifiable<'a> for Enum<'a> {
