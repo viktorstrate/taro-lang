@@ -1,58 +1,62 @@
+use id_arena::Id;
+
 use crate::ir::{
     ast_walker::{AstWalker, ScopeValue},
     context::IrCtx,
-    node::{
-        identifier::{Ident, ResolvedIdentValue},
-        statement::Stmt::{self, VariableDecl},
-        type_signature::BUILTIN_TYPES,
-    },
+    node::{statement::Stmt, type_signature::BUILTIN_TYPES},
 };
 
-use super::symbol_table::{SymbolTable, SymbolValue, SymbolsError};
+use super::symbol_table::{SymbolTable, SymbolValueItem, SymbolsError};
 
-pub struct SymbolCollector<'a, 'ctx> {
-    ctx: IrCtx<'a, 'ctx>,
+pub struct SymbolCollector<'a> {
+    ctx: IrCtx<'a>,
 }
 
-impl<'a: 'ctx, 'ctx> AstWalker<'a, 'ctx> for SymbolCollector<'a, 'ctx> {
-    type Scope = SymbolTable<'a, 'ctx>;
-    type Error = SymbolsError<'a, 'ctx>;
+impl<'a: 'ctx, 'ctx> AstWalker<'a> for SymbolCollector<'a> {
+    type Scope = SymbolTable<'a>;
+    type Error = SymbolsError<'a>;
 
-    fn visit_begin(&'ctx mut self, scope: &mut Self::Scope) -> Result<(), Self::Error> {
+    fn visit_begin(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        scope: &mut Self::Scope,
+    ) -> Result<(), Self::Error> {
         for builtin_type in BUILTIN_TYPES {
-            scope.insert(SymbolValue::BuiltinType(
-                self.ctx.make_builtin_ident(*builtin_type),
-            ))?;
+            scope.insert(
+                ctx,
+                SymbolValueItem::BuiltinType(self.ctx.make_builtin_ident(*builtin_type)),
+            )?;
         }
 
         Ok(())
     }
 
     fn visit_scope_begin(
-        &'ctx mut self,
-        parent: &mut SymbolTable<'a, 'ctx>,
-        value: ScopeValue<'a, 'ctx>,
-    ) -> Result<SymbolTable<'a, 'ctx>, Self::Error> {
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        parent: &mut SymbolTable<'a>,
+        value: ScopeValue<'a>,
+    ) -> Result<SymbolTable<'a>, Self::Error> {
         let mut new_scope = SymbolTable::default();
 
         match value {
             ScopeValue::Func(func) => {
-                parent.insert(SymbolValue::FuncDecl(func))?;
-                for arg in &func.args {
-                    new_scope.insert(SymbolValue::FuncArg(arg))?;
+                parent.insert(ctx, SymbolValueItem::FuncDecl(func))?;
+                for arg in ctx.nodes.funcs[func].args.clone() {
+                    new_scope.insert(ctx, SymbolValueItem::FuncArg(arg))?;
                 }
             }
             ScopeValue::Struct(st) => {
-                parent.insert(SymbolValue::StructDecl(st))?;
-                for attr in st.attrs {
-                    new_scope.insert(SymbolValue::StructAttr(attr))?;
+                parent.insert(ctx, SymbolValueItem::StructDecl(st))?;
+                for attr in ctx.nodes.st_decls[st].attrs.clone() {
+                    new_scope.insert(ctx, SymbolValueItem::StructAttr(attr))?;
                 }
             }
             ScopeValue::StructInit(st_init) => {
-                new_scope.insert(SymbolValue::StructInit(st_init))?;
+                new_scope.insert(ctx, SymbolValueItem::StructInit(st_init))?;
             }
             ScopeValue::Enum(enm) => {
-                parent.insert(SymbolValue::EnumDecl(enm))?;
+                parent.insert(ctx, SymbolValueItem::EnumDecl(enm))?;
             }
         }
 
@@ -61,29 +65,45 @@ impl<'a: 'ctx, 'ctx> AstWalker<'a, 'ctx> for SymbolCollector<'a, 'ctx> {
 
     fn visit_scope_end(
         &mut self,
-        parent: &'ctx mut SymbolTable<'a, 'ctx>,
-        child: SymbolTable<'a, 'ctx>,
-        value: ScopeValue<'a, 'ctx>,
+        ctx: &mut IrCtx<'a>,
+        parent: &mut SymbolTable<'a>,
+        child: SymbolTable<'a>,
+        value: ScopeValue<'a>,
     ) -> Result<(), Self::Error> {
         // save child scope in parent scope
         match value {
-            ScopeValue::Func(func) => parent.insert_scope(func.name.clone(), child).map(|_| ()),
-            ScopeValue::Struct(st) => parent.insert_scope(st.name.clone(), child).map(|_| ()),
-            ScopeValue::StructInit(st_init) => parent
-                .insert_scope(st_init.scope_name.clone(), child)
+            ScopeValue::Func(func) => parent
+                .insert_scope(ctx.nodes.funcs[func].name, child)
                 .map(|_| ()),
-            ScopeValue::Enum(enm) => parent.insert_scope(enm.name.clone(), child).map(|_| ()),
+            ScopeValue::Struct(st) => parent
+                .insert_scope(ctx.nodes.st_decls[st].name, child)
+                .map(|_| ()),
+            ScopeValue::StructInit(st_init) => parent
+                .insert_scope(ctx.nodes.st_inits[st_init].scope_name, child)
+                .map(|_| ()),
+            ScopeValue::Enum(enm) => parent
+                .insert_scope(ctx.nodes.enms[enm].name, child)
+                .map(|_| ()),
         }
     }
 
     fn visit_stmt(
-        &'ctx mut self,
-        scope: &mut SymbolTable<'a, 'ctx>,
-        stmt: &'ctx mut Stmt<'a, 'ctx>,
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        scope: &mut SymbolTable<'a>,
+        stmt: Id<Stmt<'a>>,
     ) -> Result<(), Self::Error> {
-        match stmt {
-            VariableDecl(var_decl) => scope.insert(SymbolValue::VarDecl(var_decl)).map(|_| ()),
-            // FunctionDecl(func) => scope.insert(func.clone().into()).map(|_| ()),
+        match &ctx.nodes.stmts[stmt] {
+            Stmt::VariableDecl(var_decl) => {
+                let decl = *var_decl;
+                scope
+                    .insert(ctx, SymbolValueItem::VarDecl(decl))
+                    .map(|_| ())
+            }
+            Stmt::FunctionDecl(func) => {
+                let fnc = *func;
+                scope.insert(ctx, (fnc).into()).map(|_| ())
+            }
             _ => Ok(()),
         }
     }

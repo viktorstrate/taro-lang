@@ -1,3 +1,7 @@
+use id_arena::Id;
+
+use crate::ir::context::IrCtx;
+
 use super::{
     enumeration::Enum,
     expression::Expr,
@@ -8,27 +12,27 @@ use super::{
 };
 
 #[derive(Debug)]
-pub enum Stmt<'a, 'ctx> {
-    VariableDecl(VarDecl<'a, 'ctx>),
-    FunctionDecl(Function<'a, 'ctx>),
-    StructDecl(Struct<'a, 'ctx>),
-    EnumDecl(Enum<'a, 'ctx>),
-    Compound(Vec<&'ctx mut Stmt<'a, 'ctx>>),
-    Expression(&'ctx mut Expr<'a, 'ctx>),
-    Return(&'ctx mut Expr<'a, 'ctx>),
+pub enum Stmt<'a> {
+    VariableDecl(Id<VarDecl<'a>>),
+    FunctionDecl(Id<Function<'a>>),
+    StructDecl(Id<Struct<'a>>),
+    EnumDecl(Id<Enum<'a>>),
+    Compound(Vec<Id<Stmt<'a>>>),
+    Expression(Id<Expr<'a>>),
+    Return(Id<Expr<'a>>),
 }
 
 #[derive(Debug)]
-pub struct VarDecl<'a, 'ctx> {
-    pub name: Ident<'a, 'ctx>,
+pub struct VarDecl<'a> {
+    pub name: Ident<'a>,
     pub mutability: Mutability,
-    pub type_sig: Option<TypeSignature<'a, 'ctx>>,
-    pub value: &'ctx mut Expr<'a, 'ctx>,
+    pub type_sig: Option<TypeSignature<'a>>,
+    pub value: Id<Expr<'a>>,
 }
 
-impl<'a, 'ctx> Identifiable<'a, 'ctx> for VarDecl<'a, 'ctx> {
-    fn name(&self) -> &Ident<'a, 'ctx> {
-        &self.name
+impl<'a> Identifiable<'a> for VarDecl<'a> {
+    fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
+        self.name
     }
 }
 

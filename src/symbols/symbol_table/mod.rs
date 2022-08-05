@@ -1,84 +1,90 @@
 use std::collections::{HashMap, VecDeque};
 
-use crate::ir::node::{
-    enumeration::Enum,
-    function::{Function, FunctionArg},
-    identifier::{Ident, Identifiable},
-    statement::VarDecl,
-    structure::{Struct, StructAttr, StructInit},
-    type_signature::{BuiltinType, TypeEvalError, TypeSignature},
+use id_arena::{Id};
+
+use crate::ir::{
+    context::IrCtx,
+    node::{
+        enumeration::Enum,
+        function::{Function, FunctionArg},
+        identifier::{Ident, Identifiable},
+        statement::VarDecl,
+        structure::{Struct, StructAttr, StructInit},
+    },
 };
 
 pub mod symbol_table_zipper;
 
 #[derive(Debug)]
-pub enum SymbolsError<'a, 'ctx> {
-    SymbolAlreadyExistsInScope(Ident<'a, 'ctx>),
-    ScopeNotFound(Ident<'a, 'ctx>),
+pub enum SymbolsError<'a> {
+    SymbolAlreadyExistsInScope(Ident<'a>),
+    ScopeNotFound(Ident<'a>),
     MovePastGlobalScope,
 }
 
 #[derive(Default, Debug)]
-pub struct SymbolTable<'a, 'ctx> {
+pub struct SymbolTable<'a> {
     /// Symbols that are available from the entire scope
-    pub(super) scope_global_table: HashMap<Ident<'a, 'ctx>, SymbolValue<'a, 'ctx>>,
+    pub(super) scope_global_table: HashMap<Ident<'a>, SymbolValue<'a>>,
     /// An list for order dependent symbols such as variable declarations,
     /// where symbols are first available after they have been declared.
-    pub(super) ordered_symbols: VecDeque<SymbolValue<'a, 'ctx>>,
+    pub(super) ordered_symbols: VecDeque<SymbolValue<'a>>,
     /// Nested scopes such as function bodies and struct definitions.
-    pub(super) scopes: HashMap<Ident<'a, 'ctx>, SymbolTable<'a, 'ctx>>,
+    pub(super) scopes: HashMap<Ident<'a>, SymbolTable<'a>>,
 }
+
+pub type SymbolValue<'a> = Id<SymbolValueItem<'a>>;
 
 /// A value returned from a symbol lookup
 #[derive(Debug)]
-pub enum SymbolValue<'a, 'ctx> {
-    BuiltinType(Ident<'a, 'ctx>),
-    VarDecl(&'ctx VarDecl<'a, 'ctx>),
-    FuncDecl(&'ctx Function<'a, 'ctx>),
-    FuncArg(&'ctx FunctionArg<'a, 'ctx>),
-    StructDecl(&'ctx Struct<'a, 'ctx>),
-    StructAttr(&'ctx StructAttr<'a, 'ctx>),
-    StructInit(&'ctx StructInit<'a, 'ctx>),
-    EnumDecl(&'ctx Enum<'a, 'ctx>),
+pub enum SymbolValueItem<'a> {
+    BuiltinType(Ident<'a>),
+    VarDecl(Id<VarDecl<'a>>),
+    FuncDecl(Id<Function<'a>>),
+    FuncArg(Id<FunctionArg<'a>>),
+    StructDecl(Id<Struct<'a>>),
+    StructAttr(Id<StructAttr<'a>>),
+    StructInit(Id<StructInit<'a>>),
+    EnumDecl(Id<Enum<'a>>),
 }
 
-impl<'a, 'ctx> From<&'ctx mut Function<'a, 'ctx>> for SymbolValue<'a, 'ctx> {
-    fn from(func: &'ctx mut Function<'a, 'ctx>) -> Self {
+impl<'a> From<Id<Function<'a>>> for SymbolValueItem<'a> {
+    fn from(func: Id<Function<'a>>) -> Self {
         Self::FuncDecl(func)
     }
 }
 
-impl<'a, 'ctx> From<&'ctx mut VarDecl<'a, 'ctx>> for SymbolValue<'a, 'ctx> {
-    fn from(var: &'ctx mut VarDecl<'a, 'ctx>) -> Self {
+impl<'a> From<Id<VarDecl<'a>>> for SymbolValueItem<'a> {
+    fn from(var: Id<VarDecl<'a>>) -> Self {
         Self::VarDecl(var)
     }
 }
 
-impl<'a, 'ctx> Identifiable<'a, 'ctx> for SymbolValue<'a, 'ctx> {
-    fn name(&self) -> &Ident<'a, 'ctx> {
+impl<'a> Identifiable<'a> for SymbolValueItem<'a> {
+    fn name(&self, ctx: &IrCtx<'a>) -> Ident<'a> {
         match self {
-            SymbolValue::BuiltinType(builtin) => builtin,
-            SymbolValue::VarDecl(var) => var.name(),
-            SymbolValue::FuncDecl(func) => func.name(),
-            SymbolValue::FuncArg(arg) => arg.name(),
-            SymbolValue::StructDecl(st) => st.name(),
-            SymbolValue::StructAttr(attr) => attr.name(),
-            SymbolValue::StructInit(st_init) => st_init.name(),
-            SymbolValue::EnumDecl(enm) => enm.name(),
+            SymbolValueItem::BuiltinType(builtin) => *builtin,
+            SymbolValueItem::VarDecl(var) => ctx.nodes.var_decls[*var].name(ctx),
+            SymbolValueItem::FuncDecl(func) => ctx.nodes.funcs[*func].name(ctx),
+            SymbolValueItem::FuncArg(arg) => ctx.nodes.func_args[*arg].name(ctx),
+            SymbolValueItem::StructDecl(st) => ctx.nodes.st_decls[*st].name(ctx),
+            SymbolValueItem::StructAttr(attr) => ctx.nodes.st_attrs[*attr].name(ctx),
+            SymbolValueItem::StructInit(st_init) => ctx.nodes.st_inits[*st_init].name(ctx),
+            SymbolValueItem::EnumDecl(enm) => ctx.nodes.enms[*enm].name(ctx),
         }
     }
 }
 
-impl SymbolValue<'_, '_> {
+impl SymbolValueItem<'_> {
     fn is_order_dependent(&self) -> bool {
         match self {
-            SymbolValue::VarDecl(_) => true,
+            SymbolValueItem::VarDecl(_) => true,
             _ => false,
         }
     }
 }
 
-// impl<'a> Typed<'a> for SymbolValue<'a, 'ctx> {
+// impl<'a> Typed<'a> for SymbolValue<'a> {
 //     fn eval_type(
 //         &self,
 //         symbols: &mut symbol_table_zipper::SymbolTableZipper<'a>,
@@ -122,28 +128,30 @@ impl SymbolValue<'_, '_> {
 //     }
 // }
 
-impl<'a, 'ctx> SymbolTable<'a, 'ctx> {
+impl<'a> SymbolTable<'a> {
     pub fn insert(
         &mut self,
-        val: SymbolValue<'a, 'ctx>,
-    ) -> Result<&mut SymbolValue<'a, 'ctx>, SymbolsError<'a, 'ctx>> {
+        ctx: &mut IrCtx<'a>,
+        val: SymbolValueItem<'a>,
+    ) -> Result<SymbolValue<'a>, SymbolsError<'a>> {
+        let new_sym = ctx.make_symbol(val);
+        let val = &ctx.symbols[new_sym];
         if val.is_order_dependent() {
-            self.ordered_symbols.push_back(val);
-            Ok(self.ordered_symbols.back_mut().expect("was just added"))
+            self.ordered_symbols.push_back(new_sym);
         } else {
-            let key: Ident<'a, 'ctx> = val.name().clone();
-            let error_ident = key.clone();
+            let key: Ident<'a> = val.name(ctx);
             self.scope_global_table
-                .try_insert(key, val)
-                .map_err(move |_| SymbolsError::SymbolAlreadyExistsInScope(error_ident))
+                .try_insert(key, new_sym)
+                .map_err(move |_| SymbolsError::SymbolAlreadyExistsInScope(key))?;
         }
+        Ok(new_sym)
     }
 
     pub fn insert_scope(
         &mut self,
-        ident: Ident<'a, 'ctx>,
-        scope: SymbolTable<'a, 'ctx>,
-    ) -> Result<&'ctx mut SymbolTable<'a, 'ctx>, SymbolsError<'a, 'ctx>> {
+        ident: Ident<'a>,
+        scope: SymbolTable<'a>,
+    ) -> Result<&mut SymbolTable<'a>, SymbolsError<'a>> {
         let error_ident = ident.clone();
 
         self.scopes
@@ -151,12 +159,12 @@ impl<'a, 'ctx> SymbolTable<'a, 'ctx> {
             .map_err(move |_| SymbolsError::SymbolAlreadyExistsInScope(error_ident))
     }
 
-    pub fn remove_scope(&mut self, ident: &Ident<'a, 'ctx>) -> Option<SymbolTable<'a, 'ctx>> {
-        self.scopes.remove(ident)
+    pub fn remove_scope(&mut self, ident: Ident<'a>) -> Option<SymbolTable<'a>> {
+        self.scopes.remove(&ident)
     }
 
-    pub fn lookup_global_table(&self, ident: &Ident<'a, 'ctx>) -> Option<&SymbolValue<'a, 'ctx>> {
-        self.scope_global_table.get(ident)
+    pub fn lookup_global_table(&self, ident: Ident<'a>) -> Option<&SymbolValue<'a>> {
+        self.scope_global_table.get(&ident)
     }
 }
 

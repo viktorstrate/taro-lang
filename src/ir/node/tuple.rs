@@ -1,17 +1,16 @@
-use super::{
-    expression::Expr,
-    type_signature::{TypeSignature},
-};
+use id_arena::Id;
+
+use super::{expression::Expr, type_signature::TypeSignature};
 
 #[derive(Debug)]
-pub struct Tuple<'a, 'ctx> {
-    pub values: Vec<&'ctx mut Expr<'a, 'ctx>>,
-    pub type_sig: Option<TypeSignature<'a, 'ctx>>,
+pub struct Tuple<'a> {
+    pub values: Vec<Expr<'a>>,
+    pub type_sig: Option<TypeSignature<'a>>,
 }
 
 #[derive(Debug)]
-pub struct TupleAccess<'a, 'ctx> {
-    pub tuple_expr: &'ctx mut Expr<'a, 'ctx>,
+pub struct TupleAccess<'a> {
+    pub tuple_expr: Id<Expr<'a>>,
     pub attr: usize,
 }
 

@@ -1,38 +1,31 @@
-use std::{cell::Cell, collections::HashMap};
+use std::{collections::HashMap};
 
-use typed_arena::Arena;
+use id_arena::Arena;
 
-use crate::ast;
-
-use super::node::{
-    assignment::Assignment,
-    enumeration::EnumValue,
-    escape_block::EscapeBlock,
-    expression::Expr,
-    function::{Function, FunctionArg, FunctionCall},
-    identifier::{Ident, IdentValue, ResolvedIdentValue},
-    statement::Stmt,
-    structure::{StructAccess, StructAttr, StructInit, StructInitValue},
-    tuple::{Tuple, TupleAccess},
-    type_signature::{BuiltinType, TypeSignature, TypeSignatureValue},
-    IrNode,
+use crate::{
+    ast,
+    symbols::symbol_table::{SymbolValue, SymbolValueItem},
 };
 
-pub struct IrCtx<'a, 'ctx> {
-    types: Arena<Cell<&'ctx TypeSignatureValue<'a, 'ctx>>>,
-    type_vals: Arena<TypeSignatureValue<'a, 'ctx>>,
+use super::node::{
+    identifier::{Ident, IdentValue, ResolvedIdentValue},
+    type_signature::{BuiltinType, TypeSignature, TypeSignatureValue}, IrNodeArena,
+};
+
+pub struct IrCtx<'a> {
+    pub types: Arena<TypeSignatureValue<'a>>,
     types_lookup:
-        HashMap<crate::ast::node::type_signature::TypeSignatureValue<'a>, TypeSignature<'a, 'ctx>>,
-    idents: Arena<Cell<&'ctx IdentValue<'a>>>,
-    ident_vals: Arena<IdentValue<'a>>,
-    nodes: Arena<IrNode<'a, 'ctx>>,
+        HashMap<crate::ast::node::type_signature::TypeSignatureValue<'a>, TypeSignature<'a>>,
+    pub idents: Arena<IdentValue<'a>>,
+    pub nodes: IrNodeArena<'a>,
+    pub symbols: Arena<SymbolValueItem<'a>>,
 }
 
-impl<'a, 'ctx> IrCtx<'a, 'ctx> {
+impl<'a> IrCtx<'a> {
     pub fn get_type_sig(
-        &'ctx self,
+        &mut self,
         type_sig: crate::ast::node::type_signature::TypeSignature<'a>,
-    ) -> TypeSignature<'a, 'ctx> {
+    ) -> TypeSignature<'a> {
         if let Some(found_type) = self.types_lookup.get(&type_sig.value) {
             return *found_type;
         }
@@ -52,208 +45,192 @@ impl<'a, 'ctx> IrCtx<'a, 'ctx> {
             }
         };
 
-        let type_val = self.type_vals.alloc(ir_type);
-
-        TypeSignature(self.types.alloc(Cell::new(type_val)))
+        self.types.alloc(ir_type)
     }
 
-    pub fn make_ident(&'ctx self, ident: ast::node::identifier::Ident<'a>) -> Ident<'a, 'ctx> {
-        let value = self
-            .ident_vals
+    pub fn make_ident(&mut self, ident: ast::node::identifier::Ident<'a>) -> Ident<'a> {
+        self.idents
             .alloc(IdentValue::Resolved(ResolvedIdentValue::Named {
                 def_span: ident.span,
                 name: ident.value,
-            }));
-
-        let ident = self.idents.alloc(Cell::new(value));
-        Ident(ident)
+            }))
     }
 
-    pub fn make_builtin_ident(&'ctx self, builtin: BuiltinType) -> Ident<'a, 'ctx> {
-        let value = self
-            .ident_vals
+    pub fn make_builtin_ident(&mut self, builtin: BuiltinType) -> Ident<'a> {
+        self.idents
             .alloc(IdentValue::Resolved(ResolvedIdentValue::BuiltinType(
                 builtin,
-            )));
-
-        let ident = self.idents.alloc(Cell::new(value));
-        Ident(ident)
+            )))
     }
 
-    pub fn make_anon_ident(&'ctx self) -> Ident<'a, 'ctx> {
-        let value = self
-            .ident_vals
-            .alloc(IdentValue::Resolved(ResolvedIdentValue::Anonymous));
-
-        let ident = self.idents.alloc(Cell::new(value));
-        Ident(ident)
+    pub fn make_anon_ident(&mut self) -> Ident<'a> {
+        self.idents
+            .alloc(IdentValue::Resolved(ResolvedIdentValue::Anonymous))
     }
 
-    pub fn make_unresolved_ident(
-        &'ctx self,
-        ident: ast::node::identifier::Ident<'a>,
-    ) -> Ident<'a, 'ctx> {
-        let value = self.ident_vals.alloc(IdentValue::Unresolved(ident));
+    pub fn make_unresolved_ident(&mut self, ident: ast::node::identifier::Ident<'a>) -> Ident<'a> {
+        self.idents.alloc(IdentValue::Unresolved(ident))
+    }
 
-        let ident = self.idents.alloc(Cell::new(value));
-        Ident(ident)
+    pub fn make_symbol(&mut self, symbol: SymbolValueItem<'a>) -> SymbolValue<'a> {
+        self.symbols.alloc(symbol)
     }
 }
 
-pub trait IrAllocate<'a, 'ctx> {
-    fn allocate(self, ctx: &'ctx IrCtx<'a, 'ctx>) -> &'ctx mut Self;
-}
+// pub trait IrAllocate<'a> {
+//     fn allocate(self, ctx: &IrCtx<'a>) -> &mut Self;
+// }
 
-impl<'a, 'ctx> IrAllocate<'a, 'ctx> for Stmt<'a, 'ctx> {
-    fn allocate(self, ctx: &'ctx IrCtx<'a, 'ctx>) -> &'ctx mut Self {
-        let node = ctx.nodes.alloc(IrNode::Stmt(self));
+// impl<'a> IrAllocate<'a> for Stmt<'a> {
+//     fn allocate(self, ctx: &IrCtx<'a>) -> &mut Self {
+//         let node = ctx.nodes.alloc(IrNode::Stmt(self));
 
-        match node {
-            IrNode::Stmt(module) => module,
-            _ => unreachable!(),
-        }
-    }
-}
+//         match node {
+//             IrNode::Stmt(module) => module,
+//             _ => unreachable!(),
+//         }
+//     }
+// }
 
-impl<'a, 'ctx> IrAllocate<'a, 'ctx> for Expr<'a, 'ctx> {
-    fn allocate(self, ctx: &'ctx IrCtx<'a, 'ctx>) -> &'ctx mut Self {
-        let node = ctx.nodes.alloc(IrNode::Expr(self));
+// impl<'a> IrAllocate<'a> for Expr<'a> {
+//     fn allocate(self, ctx: &IrCtx<'a>) -> &mut Self {
+//         let node = ctx.nodes.alloc(IrNode::Expr(self));
 
-        match node {
-            IrNode::Expr(module) => module,
-            _ => unreachable!(),
-        }
-    }
-}
+//         match node {
+//             IrNode::Expr(module) => module,
+//             _ => unreachable!(),
+//         }
+//     }
+// }
 
-impl<'a, 'ctx> IrAllocate<'a, 'ctx> for FunctionArg<'a, 'ctx> {
-    fn allocate(self, ctx: &'ctx IrCtx<'a, 'ctx>) -> &'ctx mut Self {
-        let node = ctx.nodes.alloc(IrNode::FunctionArg(self));
+// impl<'a> IrAllocate<'a> for FunctionArg<'a> {
+//     fn allocate(self, ctx: &IrCtx<'a>) -> &mut Self {
+//         let node = ctx.nodes.alloc(IrNode::FunctionArg(self));
 
-        match node {
-            IrNode::FunctionArg(module) => module,
-            _ => unreachable!(),
-        }
-    }
-}
+//         match node {
+//             IrNode::FunctionArg(module) => module,
+//             _ => unreachable!(),
+//         }
+//     }
+// }
 
-impl<'a, 'ctx> IrAllocate<'a, 'ctx> for StructAttr<'a, 'ctx> {
-    fn allocate(self, ctx: &'ctx IrCtx<'a, 'ctx>) -> &'ctx mut Self {
-        let node = ctx.nodes.alloc(IrNode::StructAttr(self));
+// impl<'a> IrAllocate<'a> for StructAttr<'a> {
+//     fn allocate(self, ctx: &IrCtx<'a>) -> &mut Self {
+//         let node = ctx.nodes.alloc(IrNode::StructAttr(self));
 
-        match node {
-            IrNode::StructAttr(module) => module,
-            _ => unreachable!(),
-        }
-    }
-}
+//         match node {
+//             IrNode::StructAttr(module) => module,
+//             _ => unreachable!(),
+//         }
+//     }
+// }
 
-impl<'a, 'ctx> IrAllocate<'a, 'ctx> for EnumValue<'a, 'ctx> {
-    fn allocate(self, ctx: &'ctx IrCtx<'a, 'ctx>) -> &'ctx mut Self {
-        let node = ctx.nodes.alloc(IrNode::EnumValue(self));
+// impl<'a> IrAllocate<'a> for EnumValue<'a> {
+//     fn allocate(self, ctx: &IrCtx<'a>) -> &mut Self {
+//         let node = ctx.nodes.alloc(IrNode::EnumValue(self));
 
-        match node {
-            IrNode::EnumValue(module) => module,
-            _ => unreachable!(),
-        }
-    }
-}
+//         match node {
+//             IrNode::EnumValue(module) => module,
+//             _ => unreachable!(),
+//         }
+//     }
+// }
 
-impl<'a, 'ctx> IrAllocate<'a, 'ctx> for Function<'a, 'ctx> {
-    fn allocate(self, ctx: &'ctx IrCtx<'a, 'ctx>) -> &'ctx mut Self {
-        let node = ctx.nodes.alloc(IrNode::Function(self));
+// impl<'a> IrAllocate<'a> for Function<'a> {
+//     fn allocate(self, ctx: &IrCtx<'a>) -> &mut Self {
+//         let node = ctx.nodes.alloc(IrNode::Function(self));
 
-        match node {
-            IrNode::Function(module) => module,
-            _ => unreachable!(),
-        }
-    }
-}
+//         match node {
+//             IrNode::Function(module) => module,
+//             _ => unreachable!(),
+//         }
+//     }
+// }
 
-impl<'a, 'ctx> IrAllocate<'a, 'ctx> for FunctionCall<'a, 'ctx> {
-    fn allocate(self, ctx: &'ctx IrCtx<'a, 'ctx>) -> &'ctx mut Self {
-        let node = ctx.nodes.alloc(IrNode::FunctionCall(self));
+// impl<'a> IrAllocate<'a> for FunctionCall<'a> {
+//     fn allocate(self, ctx: &IrCtx<'a>) -> &mut Self {
+//         let node = ctx.nodes.alloc(IrNode::FunctionCall(self));
 
-        match node {
-            IrNode::FunctionCall(module) => module,
-            _ => unreachable!(),
-        }
-    }
-}
+//         match node {
+//             IrNode::FunctionCall(module) => module,
+//             _ => unreachable!(),
+//         }
+//     }
+// }
 
-impl<'a, 'ctx> IrAllocate<'a, 'ctx> for StructInitValue<'a, 'ctx> {
-    fn allocate(self, ctx: &'ctx IrCtx<'a, 'ctx>) -> &'ctx mut Self {
-        let node = ctx.nodes.alloc(IrNode::StructInitValue(self));
+// impl<'a> IrAllocate<'a> for StructInitValue<'a> {
+//     fn allocate(self, ctx: &IrCtx<'a>) -> &mut Self {
+//         let node = ctx.nodes.alloc(IrNode::StructInitValue(self));
 
-        match node {
-            IrNode::StructInitValue(module) => module,
-            _ => unreachable!(),
-        }
-    }
-}
+//         match node {
+//             IrNode::StructInitValue(module) => module,
+//             _ => unreachable!(),
+//         }
+//     }
+// }
 
-impl<'a, 'ctx> IrAllocate<'a, 'ctx> for StructInit<'a, 'ctx> {
-    fn allocate(self, ctx: &'ctx IrCtx<'a, 'ctx>) -> &'ctx mut Self {
-        let node = ctx.nodes.alloc(IrNode::StructInit(self));
+// impl<'a> IrAllocate<'a> for StructInit<'a> {
+//     fn allocate(self, ctx: &IrCtx<'a>) -> &mut Self {
+//         let node = ctx.nodes.alloc(IrNode::StructInit(self));
 
-        match node {
-            IrNode::StructInit(module) => module,
-            _ => unreachable!(),
-        }
-    }
-}
+//         match node {
+//             IrNode::StructInit(module) => module,
+//             _ => unreachable!(),
+//         }
+//     }
+// }
 
-impl<'a, 'ctx> IrAllocate<'a, 'ctx> for StructAccess<'a, 'ctx> {
-    fn allocate(self, ctx: &'ctx IrCtx<'a, 'ctx>) -> &'ctx mut Self {
-        let node = ctx.nodes.alloc(IrNode::StructAccess(self));
+// impl<'a> IrAllocate<'a> for StructAccess<'a> {
+//     fn allocate(self, ctx: &IrCtx<'a>) -> &mut Self {
+//         let node = ctx.nodes.alloc(IrNode::StructAccess(self));
 
-        match node {
-            IrNode::StructAccess(module) => module,
-            _ => unreachable!(),
-        }
-    }
-}
+//         match node {
+//             IrNode::StructAccess(module) => module,
+//             _ => unreachable!(),
+//         }
+//     }
+// }
 
-impl<'a, 'ctx> IrAllocate<'a, 'ctx> for TupleAccess<'a, 'ctx> {
-    fn allocate(self, ctx: &'ctx IrCtx<'a, 'ctx>) -> &'ctx mut Self {
-        let node = ctx.nodes.alloc(IrNode::TupleAccess(self));
+// impl<'a> IrAllocate<'a> for TupleAccess<'a> {
+//     fn allocate(self, ctx: &IrCtx<'a>) -> &mut Self {
+//         let node = ctx.nodes.alloc(IrNode::TupleAccess(self));
 
-        match node {
-            IrNode::TupleAccess(module) => module,
-            _ => unreachable!(),
-        }
-    }
-}
+//         match node {
+//             IrNode::TupleAccess(module) => module,
+//             _ => unreachable!(),
+//         }
+//     }
+// }
 
-impl<'a, 'ctx> IrAllocate<'a, 'ctx> for Tuple<'a, 'ctx> {
-    fn allocate(self, ctx: &'ctx IrCtx<'a, 'ctx>) -> &'ctx mut Self {
-        let node = ctx.nodes.alloc(IrNode::Tuple(self));
+// impl<'a> IrAllocate<'a> for Tuple<'a> {
+//     fn allocate(self, ctx: &IrCtx<'a>) -> &mut Self {
+//         let node = ctx.nodes.alloc(IrNode::Tuple(self));
 
-        match node {
-            IrNode::Tuple(module) => module,
-            _ => unreachable!(),
-        }
-    }
-}
+//         match node {
+//             IrNode::Tuple(module) => module,
+//             _ => unreachable!(),
+//         }
+//     }
+// }
 
-impl<'a, 'ctx> IrAllocate<'a, 'ctx> for Assignment<'a, 'ctx> {
-    fn allocate(self, ctx: &'ctx IrCtx<'a, 'ctx>) -> &'ctx mut Self {
-        let node = ctx.nodes.alloc(IrNode::Assignment(self));
+// impl<'a> IrAllocate<'a> for Assignment<'a> {
+//     fn allocate(self, ctx: &IrCtx<'a>) -> &mut Self {
+//         let node = ctx.nodes.alloc(IrNode::Assignment(self));
 
-        match node {
-            IrNode::Assignment(module) => module,
-            _ => unreachable!(),
-        }
-    }
-}
+//         match node {
+//             IrNode::Assignment(module) => module,
+//             _ => unreachable!(),
+//         }
+//     }
+// }
 
-impl<'a, 'ctx> IrAllocate<'a, 'ctx> for EscapeBlock<'a, 'ctx> {
-    fn allocate(self, ctx: &'ctx IrCtx<'a, 'ctx>) -> &'ctx mut Self {
-        let node = ctx.nodes.alloc(IrNode::EscapeBlock(self));
+// impl<'a> IrAllocate<'a> for EscapeBlock<'a> {
+//     fn allocate(self, ctx: &IrCtx<'a>) -> &mut Self {
+//         let node = ctx.nodes.alloc(IrNode::EscapeBlock(self));
 
-        match node {
-            IrNode::EscapeBlock(module) => module,
-            _ => unreachable!(),
-        }
-    }
-}
+//         match node {
+//             IrNode::EscapeBlock(module) => module,
+//             _ => unreachable!(),
+//         }
+//     }
+// }

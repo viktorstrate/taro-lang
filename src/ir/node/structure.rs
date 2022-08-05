@@ -1,3 +1,7 @@
+use id_arena::Id;
+
+use crate::ir::context::IrCtx;
+
 use super::{
     expression::Expr,
     identifier::{Ident, Identifiable},
@@ -5,59 +9,59 @@ use super::{
 };
 
 #[derive(Debug)]
-pub struct Struct<'a, 'ctx> {
-    pub name: Ident<'a, 'ctx>,
-    pub attrs: Vec<&'ctx mut StructAttr<'a, 'ctx>>,
+pub struct Struct<'a> {
+    pub name: Ident<'a>,
+    pub attrs: Vec<Id<StructAttr<'a>>>,
 }
 
 #[derive(Debug)]
-pub struct StructAttr<'a, 'ctx> {
-    pub name: Ident<'a, 'ctx>,
+pub struct StructAttr<'a> {
+    pub name: Ident<'a>,
     pub mutability: Mutability,
-    pub type_sig: Option<TypeSignature<'a, 'ctx>>,
-    pub default_value: Option<&'ctx mut Expr<'a, 'ctx>>,
+    pub type_sig: Option<TypeSignature<'a>>,
+    pub default_value: Option<Id<Expr<'a>>>,
 }
 
 #[derive(Debug)]
-pub struct StructInit<'a, 'ctx> {
-    pub struct_name: Ident<'a, 'ctx>,
-    pub scope_name: Ident<'a, 'ctx>,
-    pub values: Vec<&'ctx mut StructInitValue<'a, 'ctx>>,
+pub struct StructInit<'a> {
+    pub struct_name: Ident<'a>,
+    pub scope_name: Ident<'a>,
+    pub values: Vec<Id<StructInitValue<'a>>>,
 }
 
 #[derive(Debug)]
-pub struct StructInitValue<'a, 'ctx> {
-    pub name: Ident<'a, 'ctx>,
-    pub value: &'ctx mut Expr<'a, 'ctx>,
+pub struct StructInitValue<'a> {
+    pub name: Ident<'a>,
+    pub value: Id<Expr<'a>>,
 }
 
 #[derive(Debug)]
-pub struct StructAccess<'a, 'ctx> {
-    pub struct_expr: &'ctx mut Expr<'a, 'ctx>,
-    pub attr_name: Ident<'a, 'ctx>,
+pub struct StructAccess<'a> {
+    pub struct_expr: Id<Expr<'a>>,
+    pub attr_name: Ident<'a>,
 }
 
-// impl<'a, 'ctx> Struct<'a, 'ctx> {
-//     fn lookup_attr(&self, ident: Ident<'a, 'ctx>) -> Option<&StructAttr<'a, 'ctx>> {
+// impl<'a> Struct<'a> {
+//     fn lookup_attr(&self, ident: Ident<'a>) -> Option<&StructAttr<'a>> {
 //         self.attrs.iter().find(|attr| attr.name() == ident)
 //     }
 // }
 
-impl<'a, 'ctx> Identifiable<'a, 'ctx> for Struct<'a, 'ctx> {
-    fn name(&self) -> &Ident<'a, 'ctx> {
-        &self.name
+impl<'a> Identifiable<'a> for Struct<'a> {
+    fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
+        self.name
     }
 }
 
-impl<'a, 'ctx> Identifiable<'a, 'ctx> for StructAttr<'a, 'ctx> {
-    fn name(&self) -> &Ident<'a, 'ctx> {
-        &self.name
+impl<'a> Identifiable<'a> for StructAttr<'a> {
+    fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
+        self.name
     }
 }
 
-impl<'a, 'ctx> Identifiable<'a, 'ctx> for StructInit<'a, 'ctx> {
-    fn name(&self) -> &Ident<'a, 'ctx> {
-        &self.scope_name
+impl<'a> Identifiable<'a> for StructInit<'a> {
+    fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
+        self.scope_name
     }
 }
 

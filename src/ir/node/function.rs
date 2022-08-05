@@ -1,3 +1,7 @@
+use id_arena::Id;
+
+use crate::ir::context::IrCtx;
+
 use super::{
     expression::Expr,
     identifier::{Ident, Identifiable},
@@ -6,11 +10,11 @@ use super::{
 };
 
 #[derive(Debug)]
-pub struct Function<'a, 'ctx> {
-    pub name: Ident<'a, 'ctx>,
-    pub args: Vec<&'ctx mut FunctionArg<'a, 'ctx>>,
-    pub return_type: Option<TypeSignature<'a, 'ctx>>,
-    pub body: &'ctx mut Stmt<'a, 'ctx>,
+pub struct Function<'a> {
+    pub name: Ident<'a>,
+    pub args: Vec<Id<FunctionArg<'a>>>,
+    pub return_type: Option<TypeSignature<'a>>,
+    pub body: Id<Stmt<'a>>,
 }
 
 // impl<'a> Function<'a> {
@@ -34,26 +38,26 @@ pub struct Function<'a, 'ctx> {
 // }
 
 #[derive(Debug)]
-pub struct FunctionArg<'a, 'ctx> {
-    pub name: Ident<'a, 'ctx>,
-    pub type_sig: Option<TypeSignature<'a, 'ctx>>,
+pub struct FunctionArg<'a> {
+    pub name: Ident<'a>,
+    pub type_sig: Option<TypeSignature<'a>>,
 }
 
 #[derive(Debug)]
-pub struct FunctionCall<'a, 'ctx> {
-    pub func: &'ctx mut Expr<'a, 'ctx>,
-    pub params: Vec<&'ctx mut Expr<'a, 'ctx>>,
+pub struct FunctionCall<'a> {
+    pub func: Id<Expr<'a>>,
+    pub params: Vec<Id<Expr<'a>>>,
 }
 
-impl<'a, 'ctx> Identifiable<'a, 'ctx> for Function<'a, 'ctx> {
-    fn name(&self) -> &Ident<'a, 'ctx> {
-        &self.name
+impl<'a> Identifiable<'a> for Function<'a> {
+    fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
+        self.name
     }
 }
 
-impl<'a, 'ctx> Identifiable<'a, 'ctx> for FunctionArg<'a, 'ctx> {
-    fn name(&self) -> &Ident<'a, 'ctx> {
-        &self.name
+impl<'a> Identifiable<'a> for FunctionArg<'a> {
+    fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
+        self.name
     }
 }
 

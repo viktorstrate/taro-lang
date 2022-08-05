@@ -7,10 +7,10 @@ pub mod node;
 // pub mod test_utils;
 
 #[derive(Debug)]
-pub struct IR<'a, 'ctx>(pub Module<'a, 'ctx>);
+pub struct IR<'a>(pub Module<'a>);
 
-impl<'a, 'ctx> From<Module<'a, 'ctx>> for IR<'a, 'ctx> {
-    fn from(module: Module<'a, 'ctx>) -> Self {
+impl<'a> From<Module<'a>> for IR<'a> {
+    fn from(module: Module<'a>) -> Self {
         IR(module)
     }
 }

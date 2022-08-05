@@ -1,6 +1,8 @@
+use id_arena::Id;
+
 use super::statement::Stmt;
 
 #[derive(Debug)]
-pub struct Module<'a, 'ctx> {
-    pub stmts: Vec<&'ctx mut Stmt<'a, 'ctx>>,
+pub struct Module<'a> {
+    pub stmts: Vec<Id<Stmt<'a>>>,
 }

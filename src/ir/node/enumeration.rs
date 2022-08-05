@@ -1,3 +1,5 @@
+use crate::ir::context::IrCtx;
+
 use super::{
     expression::Expr,
     identifier::{Ident, Identifiable},
@@ -5,32 +7,32 @@ use super::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct Enum<'a, 'ctx> {
-    pub name: Ident<'a, 'ctx>,
-    pub values: Vec<&'ctx mut EnumValue<'a, 'ctx>>,
+pub struct Enum<'a> {
+    pub name: Ident<'a>,
+    pub values: Vec<EnumValue<'a>>,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct EnumValue<'a, 'ctx> {
-    pub name: Ident<'a, 'ctx>,
-    pub items: Vec<TypeSignature<'a, 'ctx>>,
+pub struct EnumValue<'a> {
+    pub name: Ident<'a>,
+    pub items: Vec<TypeSignature<'a>>,
 }
 
-pub struct EnumInit<'a, 'ctx> {
-    pub enum_name: Option<Ident<'a, 'ctx>>,
-    pub enum_value: Ident<'a, 'ctx>,
-    pub items: Vec<Expr<'a, 'ctx>>,
+pub struct EnumInit<'a> {
+    pub enum_name: Option<Ident<'a>>,
+    pub enum_value: Ident<'a>,
+    pub items: Vec<Expr<'a>>,
 }
 
-impl<'a, 'ctx> Identifiable<'a, 'ctx> for Enum<'a, 'ctx> {
-    fn name(&self) -> &Ident<'a, 'ctx> {
-        &self.name
+impl<'a> Identifiable<'a> for Enum<'a> {
+    fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
+        self.name
     }
 }
 
-impl<'a, 'ctx> Identifiable<'a, 'ctx> for EnumValue<'a, 'ctx> {
-    fn name(&self) -> &Ident<'a, 'ctx> {
-        &self.name
+impl<'a> Identifiable<'a> for EnumValue<'a> {
+    fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
+        self.name
     }
 }
 

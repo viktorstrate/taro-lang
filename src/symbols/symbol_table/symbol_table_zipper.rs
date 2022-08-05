@@ -1,24 +1,27 @@
-use crate::ir::node::identifier::{Ident, Identifiable};
+use crate::ir::{
+    context::IrCtx,
+    node::identifier::{Ident, Identifiable},
+};
 
 use super::{SymbolTable, SymbolValue, SymbolsError};
 
 #[derive(Debug)]
-struct SymbolTableZipperBreadcrumb<'a, 'ctx> {
-    scope_name: Ident<'a, 'ctx>,
-    sym_table: SymbolTable<'a, 'ctx>,
+struct SymbolTableZipperBreadcrumb<'a> {
+    scope_name: Ident<'a>,
+    sym_table: SymbolTable<'a>,
     visited_symbols: usize,
 }
 
 /// Structure used to keep track of the current position in a symbol table.
 #[derive(Debug)]
-pub struct SymbolTableZipper<'a, 'ctx> {
-    cursor: SymbolTable<'a, 'ctx>,
+pub struct SymbolTableZipper<'a> {
+    cursor: SymbolTable<'a>,
     visited_symbols: usize,
-    breadcrumb: Vec<SymbolTableZipperBreadcrumb<'a, 'ctx>>,
+    breadcrumb: Vec<SymbolTableZipperBreadcrumb<'a>>,
 }
 
-impl<'a, 'ctx> Into<SymbolTableZipper<'a, 'ctx>> for SymbolTable<'a, 'ctx> {
-    fn into(self) -> SymbolTableZipper<'a, 'ctx> {
+impl<'a> Into<SymbolTableZipper<'a>> for SymbolTable<'a> {
+    fn into(self) -> SymbolTableZipper<'a> {
         SymbolTableZipper {
             cursor: self,
             visited_symbols: 0,
@@ -27,11 +30,11 @@ impl<'a, 'ctx> Into<SymbolTableZipper<'a, 'ctx>> for SymbolTable<'a, 'ctx> {
     }
 }
 
-impl<'a, 'ctx> SymbolTableZipper<'a, 'ctx> {
-    pub fn enter_scope(&mut self, ident: Ident<'a, 'ctx>) -> Result<(), SymbolsError<'a, 'ctx>> {
+impl<'a> SymbolTableZipper<'a> {
+    pub fn enter_scope(&mut self, ident: Ident<'a>) -> Result<(), SymbolsError<'a>> {
         let mut temp_cursor = self
             .cursor
-            .remove_scope(&ident)
+            .remove_scope(ident)
             .ok_or(SymbolsError::ScopeNotFound(ident))?;
 
         std::mem::swap(&mut self.cursor, &mut temp_cursor);
@@ -44,7 +47,7 @@ impl<'a, 'ctx> SymbolTableZipper<'a, 'ctx> {
         Ok(())
     }
 
-    pub fn exit_scope(&mut self) -> Result<(), SymbolsError<'a, 'ctx>> {
+    pub fn exit_scope(&mut self) -> Result<(), SymbolsError<'a>> {
         let mut breadcrumb = self
             .breadcrumb
             .pop()
@@ -59,8 +62,8 @@ impl<'a, 'ctx> SymbolTableZipper<'a, 'ctx> {
         Ok(())
     }
 
-    pub fn lookup(&self, ident: &Ident<'a, 'ctx>) -> Option<&SymbolValue<'a, 'ctx>> {
-        if let Some(value) = self.lookup_current_scope(ident) {
+    pub fn lookup(&self, ctx: &IrCtx<'a>, ident: Ident<'a>) -> Option<&SymbolValue<'a>> {
+        if let Some(value) = self.lookup_current_scope(ctx, ident) {
             return Some(value);
         }
 
@@ -70,6 +73,7 @@ impl<'a, 'ctx> SymbolTableZipper<'a, 'ctx> {
             }
 
             if let Some(value) = SymbolTableZipper::locate_visited_symbol(
+                ctx,
                 &scope.sym_table,
                 scope.visited_symbols,
                 ident,
@@ -82,24 +86,29 @@ impl<'a, 'ctx> SymbolTableZipper<'a, 'ctx> {
     }
 
     fn locate_visited_symbol<'b>(
-        sym_table: &'b SymbolTable<'a, 'ctx>,
+        ctx: &IrCtx<'a>,
+        sym_table: &'b SymbolTable<'a>,
         visited_symbols: usize,
-        ident: &Ident<'a, 'ctx>,
-    ) -> Option<&'b SymbolValue<'a, 'ctx>> {
+        ident: Ident<'a>,
+    ) -> Option<&'b SymbolValue<'a>> {
         sym_table
             .ordered_symbols
             .iter()
             .take(visited_symbols)
             .rev()
-            .find(|sym| *sym.name() == *ident)
+            .find(|sym| ctx.symbols[**sym].name(ctx) == ident)
     }
 
-    pub fn lookup_current_scope(&self, ident: &Ident<'a, 'ctx>) -> Option<&SymbolValue<'a, 'ctx>> {
+    pub fn lookup_current_scope(
+        &self,
+        ctx: &IrCtx<'a>,
+        ident: Ident<'a>,
+    ) -> Option<&SymbolValue<'a>> {
         if let Some(sym) = self.cursor.lookup_global_table(ident) {
             return Some(sym);
         }
 
-        SymbolTableZipper::locate_visited_symbol(&self.cursor, self.visited_symbols, ident)
+        SymbolTableZipper::locate_visited_symbol(ctx, &self.cursor, self.visited_symbols, ident)
     }
 
     pub fn visit_next_symbol(&mut self) {

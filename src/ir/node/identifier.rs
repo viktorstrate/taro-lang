@@ -1,14 +1,15 @@
-use crate::parser::Span;
-use std::{cell::Cell, fmt::Debug, hash::Hash};
+use id_arena::Id;
+
+use crate::{ir::context::IrCtx, parser::Span};
+use std::{fmt::Debug};
 
 use super::type_signature::BuiltinType;
 
-pub trait Identifiable<'a, 'ctx> {
-    fn name(&self) -> &Ident<'a, 'ctx>;
+pub trait Identifiable<'a> {
+    fn name(&self, ctx: &IrCtx<'a>) -> Ident<'a>;
 }
 
-#[derive(Debug)]
-pub struct Ident<'a, 'ctx>(pub &'ctx Cell<&'ctx IdentValue<'a>>);
+pub type Ident<'a> = Id<IdentValue<'a>>;
 
 #[derive(Debug)]
 pub enum IdentValue<'a> {
@@ -23,41 +24,19 @@ pub enum ResolvedIdentValue<'a> {
     BuiltinType(BuiltinType),
 }
 
-impl<'a, 'ctx> Copy for Ident<'a, 'ctx> {}
+// impl Eq for &ResolvedIdentValue<'_> {}
 
-impl<'a, 'ctx> Clone for Ident<'a, 'ctx> {
-    fn clone(&self) -> Self {
-        Self((&self.0).clone())
-    }
-}
+// impl PartialEq for &ResolvedIdentValue<'_> {
+//     fn eq(&self, other: &Self) -> bool {
+//         std::ptr::eq(*self, *other)
+//     }
+// }
 
-impl<'a, 'ctx> PartialEq for Ident<'a, 'ctx> {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.0.get(), other.0.get())
-    }
-}
-
-impl<'a, 'ctx> Hash for Ident<'a, 'ctx> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::ptr::hash(self.0.get(), state)
-    }
-}
-
-impl<'a, 'ctx> Eq for Ident<'a, 'ctx> {}
-
-impl Eq for &ResolvedIdentValue<'_> {}
-
-impl PartialEq for &ResolvedIdentValue<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(*self, *other)
-    }
-}
-
-impl Hash for &ResolvedIdentValue<'_> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::ptr::hash(*self, state)
-    }
-}
+// impl Hash for &ResolvedIdentValue<'_> {
+//     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+//         std::ptr::hash(*self, state)
+//     }
+// }
 
 // impl<'a> Ident<'a> {
 //     pub fn write<W: Write>(

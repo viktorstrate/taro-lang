@@ -1,7 +1,9 @@
+use id_arena::Id;
+
 use super::expression::Expr;
 
 #[derive(Debug)]
-pub struct Assignment<'a, 'ctx> {
-    pub lhs: &'ctx mut Expr<'a, 'ctx>,
-    pub rhs: &'ctx mut Expr<'a, 'ctx>,
+pub struct Assignment<'a> {
+    pub lhs: Id<Expr<'a>>,
+    pub rhs: Id<Expr<'a>>,
 }

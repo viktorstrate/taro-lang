@@ -1,54 +1,55 @@
-use std::{cell::Cell, fmt::Debug};
+use std::{fmt::Debug};
+
+use id_arena::Id;
 
 use super::{expression::Expr, identifier::Ident};
 
+pub type TypeSignature<'a> = Id<TypeSignatureValue<'a>>;
+
+// impl<'a> Copy for TypeSignature<'a> {}
+
+// impl<'a> Clone for TypeSignature<'a> {
+//     fn clone(&self) -> Self {
+//         Self((&self.0).clone())
+//     }
+// }
+
+// impl<'a> PartialEq for TypeSignature<'a> {
+//     fn eq(&self, other: &Self) -> bool {
+//         std::ptr::eq(self.0.get(), other.0.get())
+//     }
+// }
+
 #[derive(Debug)]
-pub struct TypeSignature<'a, 'ctx>(pub &'ctx Cell<&'ctx TypeSignatureValue<'a, 'ctx>>);
-
-impl<'a, 'ctx> Copy for TypeSignature<'a, 'ctx> {}
-
-impl<'a, 'ctx> Clone for TypeSignature<'a, 'ctx> {
-    fn clone(&self) -> Self {
-        Self((&self.0).clone())
-    }
-}
-
-impl<'a, 'ctx> PartialEq for TypeSignature<'a, 'ctx> {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.0.get(), other.0.get())
-    }
-}
-
-#[derive(Debug)]
-pub enum TypeSignatureValue<'a, 'ctx> {
+pub enum TypeSignatureValue<'a> {
     Builtin(BuiltinType),
     Unresolved(crate::ast::node::identifier::Ident<'a>),
     Function {
-        args: Vec<TypeSignature<'a, 'ctx>>,
-        return_type: TypeSignature<'a, 'ctx>,
+        args: Vec<TypeSignature<'a>>,
+        return_type: TypeSignature<'a>,
     },
     Struct {
-        name: Ident<'a, 'ctx>,
+        name: Ident<'a>,
     },
     Enum {
-        name: Ident<'a, 'ctx>,
+        name: Ident<'a>,
     },
-    Tuple(Vec<TypeSignature<'a, 'ctx>>),
+    Tuple(Vec<TypeSignature<'a>>),
 }
 
 #[derive(Debug)]
-pub enum TypeEvalError<'a, 'ctx> {
-    Expression(Expr<'a, 'ctx>),
+pub enum TypeEvalError<'a> {
+    Expression(Expr<'a>),
     // FunctionType(FunctionTypeError<'a>),
-    CallNonFunction(TypeSignature<'a, 'ctx>),
-    AccessNonStruct(TypeSignature<'a, 'ctx>),
-    AccessNonTuple(TypeSignature<'a, 'ctx>),
+    CallNonFunction(TypeSignature<'a>),
+    AccessNonStruct(TypeSignature<'a>),
+    AccessNonTuple(TypeSignature<'a>),
     TupleAccessOutOfBounds {
         tuple_len: usize,
         access_item: usize,
     },
-    UnknownIdentifier(Ident<'a, 'ctx>),
-    UndeterminableType(Ident<'a, 'ctx>),
+    UnknownIdentifier(Ident<'a>),
+    UndeterminableType(Ident<'a>),
 }
 
 // #[allow(unused_variables)]

@@ -1,3 +1,5 @@
+use id_arena::Id;
+
 use super::{
     assignment::Assignment,
     escape_block::EscapeBlock,
@@ -8,19 +10,19 @@ use super::{
 };
 
 #[derive(Debug)]
-pub enum Expr<'a, 'ctx> {
+pub enum Expr<'a> {
     StringLiteral(&'a str),
     NumberLiteral(f64),
     BoolLiteral(bool),
-    Function(&'ctx mut Function<'a, 'ctx>),
-    FunctionCall(&'ctx mut FunctionCall<'a, 'ctx>),
-    Identifier(Ident<'a, 'ctx>),
-    StructInit(&'ctx mut StructInit<'a, 'ctx>),
-    StructAccess(&'ctx mut StructAccess<'a, 'ctx>),
-    TupleAccess(&'ctx mut TupleAccess<'a, 'ctx>),
-    EscapeBlock(&'ctx mut EscapeBlock<'a, 'ctx>),
-    Assignment(&'ctx mut Assignment<'a, 'ctx>),
-    Tuple(&'ctx mut Tuple<'a, 'ctx>),
+    Function(Id<Function<'a>>),
+    FunctionCall(Id<FunctionCall<'a>>),
+    Identifier(Ident<'a>),
+    StructInit(Id<StructInit<'a>>),
+    StructAccess(Id<StructAccess<'a>>),
+    TupleAccess(Id<TupleAccess<'a>>),
+    EscapeBlock(Id<EscapeBlock<'a>>),
+    Assignment(Id<Assignment<'a>>),
+    Tuple(Id<Tuple<'a>>),
 }
 
 // impl<'a> Typed<'a> for Expr<'a> {
