@@ -1,17 +1,18 @@
 use id_arena::Id;
 
-use crate::ir::context::IrCtx;
+use crate::{ir::context::IrCtx};
 
 use super::{
     expression::Expr,
     identifier::{Ident, Identifiable},
-    type_signature::TypeSignature,
+    type_signature::{TypeSignature},
 };
 
 #[derive(Debug, PartialEq)]
 pub struct Enum<'a> {
     pub name: Ident<'a>,
     pub values: Vec<Id<EnumValue<'a>>>,
+    pub type_sig: TypeSignature<'a>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -41,12 +42,10 @@ impl<'a> Identifiable<'a> for EnumValue<'a> {
 // impl<'a> Typed<'a> for Enum<'a> {
 //     fn eval_type(
 //         &self,
-//         _symbols: &mut SymbolTableZipper<'a>,
+//         symbols: &mut SymbolTableZipper<'a>,
+//         ctx: &mut IrCtx<'a>,
 //     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-//         Ok(TypeSignature::Enum {
-//             name: self.name.clone(),
-//             ref_id: self.ref_id,
-//         })
+//         Ok(ctx.get_resolved_type_sig(self.name))
 //     }
 // }
 
@@ -54,11 +53,12 @@ impl<'a> Identifiable<'a> for EnumValue<'a> {
 //     fn eval_type(
 //         &self,
 //         _symbols: &mut SymbolTableZipper<'a>,
+//         ctx: &mut IrCtx<'a>,
 //     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-//         Ok(self.specified_type().unwrap())
+//         Ok(self.specified_type(ctx).unwrap())
 //     }
 
-//     fn specified_type(&self) -> Option<TypeSignature<'a>> {
+//     fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
 //         Some(TypeSignature::Tuple(self.items.clone()))
 //     }
 

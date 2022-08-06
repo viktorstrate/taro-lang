@@ -1,5 +1,7 @@
 use id_arena::Id;
 
+
+
 use super::{
     assignment::Assignment,
     escape_block::EscapeBlock,
@@ -29,60 +31,71 @@ pub enum Expr<'a> {
 //     fn eval_type(
 //         &self,
 //         symbols: &mut SymbolTableZipper<'a>,
+//         ctx: &mut IrCtx<'a>,
 //     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
 //         match self {
-//             Expr::StringLiteral(_) => Ok(BuiltinType::String.type_sig()),
-//             Expr::NumberLiteral(_) => Ok(BuiltinType::Number.type_sig()),
-//             Expr::BoolLiteral(_) => Ok(BuiltinType::Boolean.type_sig()),
-//             Expr::Function(func) => func.eval_type(symbols),
-//             Expr::FunctionCall(call) => call.eval_type(symbols),
+//             Expr::StringLiteral(_) => Ok(ctx.get_builtin_type_sig(BuiltinType::String)),
+//             Expr::NumberLiteral(_) => Ok(ctx.get_builtin_type_sig(BuiltinType::Number)),
+//             Expr::BoolLiteral(_) => Ok(ctx.get_builtin_type_sig(BuiltinType::Boolean)),
+//             Expr::Function(func) => ctx.nodes.funcs[*func].eval_type(symbols, ctx),
+//             Expr::FunctionCall(call) => ctx.nodes.func_calls[*call].eval_type(symbols, ctx),
 //             Expr::Identifier(ident) => {
 //                 let sym_val = symbols
-//                     .lookup(ident)
-//                     .ok_or(TypeEvalError::UnknownIdentifier(ident.clone()))?;
+//                     .lookup(ctx, *ident)
+//                     .ok_or(TypeEvalError::UnknownIdentifier(*ident))?;
 
-//                 sym_val.clone().eval_type(symbols)
+//                 ctx.symbols[*sym_val].eval_type(symbol, ctxs)
 //             }
-//             Expr::StructInit(struct_init) => struct_init.eval_type(symbols),
-//             Expr::StructAccess(struct_access) => struct_access.eval_type(symbols),
-//             Expr::EscapeBlock(block) => block.eval_type(symbols),
-//             Expr::Assignment(asg) => asg.rhs.eval_type(symbols),
-//             Expr::Tuple(tup) => tup.eval_type(symbols),
-//             Expr::TupleAccess(tup_acc) => tup_acc.eval_type(symbols),
+//             Expr::StructInit(struct_init) => {
+//                 ctx.nodes.st_inits[*struct_init].eval_type(symbols, ctx)
+//             }
+//             Expr::StructAccess(struct_access) => {
+//                 ctx.nodes.st_accs[*struct_access].eval_type(symbol, ctxs)
+//             }
+//             Expr::EscapeBlock(block) => ctx.nodes.esc_blks[*block].eval_type(symbols, ctx),
+//             Expr::Assignment(asg) => {
+//                 ctx.nodes.exprs[ctx.nodes.asgns[*asg].rhs].eval_type(symbols, ctx)
+//             }
+//             Expr::Tuple(tup) => ctx.nodes.tups[*tup].eval_type(symbols, ctx),
+//             Expr::TupleAccess(tup_acc) => ctx.nodes.tup_accs[*tup_acc].eval_type(symbols, ctx),
 //         }
 //     }
 
-//     fn specified_type(&self) -> Option<TypeSignature<'a>> {
+//     fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
 //         match self {
 //             Expr::StringLiteral(_) => None,
 //             Expr::NumberLiteral(_) => None,
 //             Expr::BoolLiteral(_) => None,
-//             Expr::Function(func) => func.specified_type(),
-//             Expr::FunctionCall(call) => call.specified_type(),
+//             Expr::Function(func) => ctx.nodes.funcs[*func].specified_type(ctx),
+//             Expr::FunctionCall(call) => ctx.nodes.func_calls[*call].specified_type(ctx),
 //             Expr::Identifier(_) => None,
-//             Expr::StructInit(st_init) => st_init.specified_type(),
+//             Expr::StructInit(st_init) => ctx.nodes.st_inits[*st_init].specified_type(ctx),
 //             Expr::StructAccess(_) => None,
-//             Expr::EscapeBlock(block) => block.specified_type(),
+//             Expr::EscapeBlock(block) => ctx.nodes.esc_blks[*block].specified_type(ctx),
 //             Expr::Assignment(_) => None,
-//             Expr::Tuple(tup) => tup.specified_type(),
-//             Expr::TupleAccess(tup_acc) => tup_acc.specified_type(),
+//             Expr::Tuple(tup) => ctx.nodes.tups[*tup].specified_type(ctx),
+//             Expr::TupleAccess(tup_acc) => ctx.nodes.tup_accs[*tup_acc].specified_type(ctx),
 //         }
 //     }
 
-//     fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
+//     fn specify_type(
+//         &mut self,
+//         ctx: &mut IrCtx<'a>,
+//         new_type: TypeSignature<'a>,
+//     ) -> Result<(), TypeEvalError<'a>> {
 //         match self {
 //             Expr::StringLiteral(_) => Ok(()),
 //             Expr::NumberLiteral(_) => Ok(()),
 //             Expr::BoolLiteral(_) => Ok(()),
-//             Expr::Function(func) => func.specify_type(new_type),
-//             Expr::FunctionCall(call) => call.specify_type(new_type),
+//             Expr::Function(func) => ctx.nodes.funcs[*func].specify_type(new_type, ctx),
+//             Expr::FunctionCall(call) => ctx.nodes.func_calls[*call].specify_type(new_type, ctx),
 //             Expr::Identifier(_) => Ok(()),
-//             Expr::StructInit(st_init) => st_init.specify_type(new_type),
+//             Expr::StructInit(st_init) => ctx.nodes.st_inits[*st_init].specify_type(new_type, ctx),
 //             Expr::StructAccess(_) => Ok(()),
-//             Expr::EscapeBlock(block) => block.specify_type(new_type),
+//             Expr::EscapeBlock(block) => ctx.nodes.esc_blks[*block].specify_type(new_type, ctx),
 //             Expr::Assignment(_) => Ok(()),
-//             Expr::Tuple(tup) => tup.specify_type(new_type),
-//             Expr::TupleAccess(tup_acc) => tup_acc.specify_type(new_type),
+//             Expr::Tuple(tup) => ctx.nodes.tups[*tup].specify_type(new_type, ctx),
+//             Expr::TupleAccess(tup_acc) => ctx.nodes.tup_accs[*tup_acc].specify_type(new_type, ctx),
 //         }
 //     }
 // }

@@ -14,6 +14,7 @@ use super::{
         statement::{Stmt, VarDecl},
         structure::{Struct, StructAccess, StructAttr, StructInit, StructInitValue},
         tuple::{Tuple, TupleAccess},
+        type_signature::TypeSignatureValue,
         IrAlloc,
     },
     IR,
@@ -106,10 +107,12 @@ impl<'a> IrCtx<'a> {
                         .allocate(self),
                     )
                 }
+                let enm_name = self.make_ident(enm.name);
                 Stmt::EnumDecl(
                     Enum {
-                        name: self.make_ident(enm.name),
+                        name: enm_name,
                         values,
+                        type_sig: self.make_type_sig(TypeSignatureValue::Enum { name: enm_name }),
                     }
                     .allocate(self),
                 )

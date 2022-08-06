@@ -62,6 +62,12 @@ pub struct IrNodeArena<'a> {
     pub var_decls: Arena<VarDecl<'a>>,
 }
 
+impl<'a> IrNodeArena<'a> {
+    pub fn new() -> Self {
+        todo!()
+    }
+}
+
 pub trait IrAlloc<'a>
 where
     Self: Sized,

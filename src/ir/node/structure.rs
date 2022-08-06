@@ -41,11 +41,14 @@ pub struct StructAccess<'a> {
     pub attr_name: Ident<'a>,
 }
 
-// impl<'a> Struct<'a> {
-//     fn lookup_attr(&self, ident: Ident<'a>) -> Option<&StructAttr<'a>> {
-//         self.attrs.iter().find(|attr| attr.name() == ident)
-//     }
-// }
+impl<'a> Struct<'a> {
+    pub fn lookup_attr(&self, ident: Ident<'a>, ctx: IrCtx<'a>) -> Option<Id<StructAttr<'a>>> {
+        self.attrs
+            .iter()
+            .find(|attr| *&ctx.nodes.st_attrs[**attr].name == ident)
+            .cloned()
+    }
+}
 
 impl<'a> Identifiable<'a> for Struct<'a> {
     fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {

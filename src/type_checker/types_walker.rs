@@ -1,16 +1,16 @@
+use id_arena::Id;
+
 use crate::{
     ir::{
         ast_walker::{AstWalker, ScopeValue},
+        context::IrCtx,
         node::{
             expression::Expr,
             statement::Stmt,
-            type_signature::{TypeSignature, Typed},
+            type_signature::{BuiltinType, TypeSignature, Typed},
         },
     },
-    symbols::{
-        builtin_types::BuiltinType, symbol_table::symbol_table_zipper::SymbolTableZipper,
-        symbol_table::SymbolTable,
-    },
+    symbols::{symbol_table::symbol_table_zipper::SymbolTableZipper, symbol_table::SymbolTable},
 };
 
 use super::{
@@ -37,8 +37,9 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
 
     fn visit_scope_begin(
         &mut self,
-        _parent: &mut (),
-        value: ScopeValue<'a, '_>,
+        ctx: &mut IrCtx<'a>,
+        _parent: &mut Self::Scope,
+        value: ScopeValue<'a>,
     ) -> Result<(), TypeCheckerError<'a>> {
         match value {
             ScopeValue::Func(func) => {
@@ -66,9 +67,10 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
 
     fn visit_scope_end(
         &mut self,
-        _parent: &mut (),
-        _child: (),
-        _value: ScopeValue<'a, '_>,
+        ctx: &mut IrCtx<'a>,
+        _parent: &mut Self::Scope,
+        child: Self::Scope,
+        value: ScopeValue<'a>,
     ) -> Result<(), TypeCheckerError<'a>> {
         self.symbols
             .exit_scope()
@@ -79,10 +81,11 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
 
     fn pre_visit_stmt(
         &mut self,
+        ctx: &mut IrCtx<'a>,
         _scope: &mut Self::Scope,
-        stmt: &mut Stmt<'a>,
+        stmt: Id<Stmt<'a>>,
     ) -> Result<(), Self::Error> {
-        match stmt {
+        match ctx.nodes.stmts[stmt] {
             Stmt::VariableDecl(var_decl) => match &mut var_decl.value {
                 Expr::Function(func) => match &var_decl.type_sig {
                     Some(
@@ -91,14 +94,14 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
                             return_type: _,
                         },
                     ) => {
-                        fill_type_signature(&mut self.symbols, func, Some(type_sig.clone()))?;
+                        fill_type_signature(ctx, &mut self.symbols, func, Some(type_sig.clone()))?;
                     }
                     Some(type_sig) => {
                         return Err(TypeCheckerError::TypeSignatureMismatch {
-                            type_sig: type_sig.clone(),
+                            type_sig,
                             expr_type: TypeSignature::Function {
                                 args: vec![],
-                                return_type: Box::new(BuiltinType::Void.type_sig()),
+                                return_type: ctx.get_builtin_type_sig(BuiltinType::Void),
                             },
                         })
                     }
@@ -114,23 +117,24 @@ impl<'a> AstWalker<'a> for TypeChecker<'a> {
 
     fn visit_stmt(
         &mut self,
-        _scope: &mut (),
-        stmt: &mut Stmt<'a>,
+        ctx: &mut IrCtx<'a>,
+        _scope: &mut Self::Scope,
+        stmt: Id<Stmt<'a>>,
     ) -> Result<(), TypeCheckerError<'a>> {
         match stmt {
             Stmt::VariableDecl(var_decl) => {
                 self.symbols.visit_next_symbol();
-                type_check(&mut self.symbols, var_decl)
+                type_check(ctx, &mut self.symbols, var_decl)
             }
-            Stmt::FunctionDecl(func_decl) => type_check(&mut self.symbols, func_decl),
+            Stmt::FunctionDecl(func_decl) => type_check(ctx, &mut self.symbols, func_decl),
             Stmt::StructDecl(st) => {
                 for attr in &mut st.attrs {
-                    type_check(&mut self.symbols, attr)?;
+                    type_check(ctx, &mut self.symbols, attr)?;
                 }
                 Ok(())
             }
             Stmt::EnumDecl(enm) => {
-                type_check(&mut self.symbols, enm)?;
+                type_check(ctx, &mut self.symbols, enm)?;
                 Ok(())
             }
             _ => Ok(()),
