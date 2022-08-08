@@ -40,7 +40,7 @@ where
     type Output = T;
 
     fn index(&self, index: NodeRef<'a, T>) -> &Self::Output {
-        &self.nodes[index.into()]
+        &T::arena(self)[index.into()]
     }
 }
 
@@ -49,7 +49,7 @@ where
     T: IrArenaType<'a>,
 {
     fn index_mut(&mut self, index: NodeRef<'a, T>) -> &mut Self::Output {
-        &mut self.nodes[index.into()]
+        &mut T::arena_mut(self)[index.into()]
     }
 }
 
@@ -84,14 +84,14 @@ impl<'a> IndexMut<Ident<'a>> for IrCtx<'a> {
 impl<'a> Index<SymbolValue<'a>> for IrCtx<'a> {
     type Output = SymbolValueItem<'a>;
 
-    fn index(&self, index: SymbolValue<'a>) -> &Self::Output {
+    fn index(&self, _index: SymbolValue<'a>) -> &Self::Output {
         // &mut self.symbols[index.into()]
         todo!()
     }
 }
 
 impl<'a> IndexMut<SymbolValue<'a>> for IrCtx<'a> {
-    fn index_mut(&mut self, index: SymbolValue<'a>) -> &mut Self::Output {
+    fn index_mut(&mut self, _index: SymbolValue<'a>) -> &mut Self::Output {
         // &mut self.symbols[index.into()]
         todo!()
     }

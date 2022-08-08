@@ -10,11 +10,7 @@ use self::{
     structure::{Struct, StructAccess, StructAttr, StructInit, StructInitValue},
     tuple::{Tuple, TupleAccess},
 };
-use std::{
-    convert::Into,
-    marker::PhantomData,
-    ops::{Index, IndexMut},
-};
+use std::{convert::Into, marker::PhantomData};
 
 use super::context::{IrArenaType, IrCtx};
 
@@ -114,26 +110,6 @@ pub struct IrNodeArena<'a> {
 impl<'a> IrNodeArena<'a> {
     pub fn new() -> Self {
         todo!()
-    }
-}
-
-impl<'a, T> Index<NodeRef<'a, T>> for IrNodeArena<'a>
-where
-    T: IrArenaType<'a>,
-{
-    type Output = T;
-
-    fn index(&self, index: NodeRef<'a, T>) -> &Self::Output {
-        &self[index]
-    }
-}
-
-impl<'a, T> IndexMut<NodeRef<'a, T>> for IrNodeArena<'a>
-where
-    T: IrArenaType<'a>,
-{
-    fn index_mut(&mut self, index: NodeRef<'a, T>) -> &mut Self::Output {
-        &mut self[index]
     }
 }
 

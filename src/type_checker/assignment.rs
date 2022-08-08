@@ -1,4 +1,4 @@
-use id_arena::Id;
+
 
 use crate::{
     ir::{
@@ -11,7 +11,7 @@ use crate::{
             NodeRef,
         },
     },
-    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolValue, SymbolValueItem},
+    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolValueItem},
 };
 
 use super::{coercion::can_coerce_to, TypeCheckerError};
@@ -29,33 +29,30 @@ pub enum AssignmentError<'a> {
 pub fn check_assignment<'a>(
     ctx: &mut IrCtx<'a>,
     symbols: &mut SymbolTableZipper<'a>,
-    asg_id: NodeRef<'a, Assignment<'a>>,
+    asg: NodeRef<'a, Assignment<'a>>,
 ) -> Result<(), TypeCheckerError<'a>> {
     // only assign to:
     // - variable
     // - (nested) struct attribute
     // with properties: mutable, same type
 
-    let asg = &ctx[asg_id];
-    let lhs = &ctx[asg.lhs];
-
-    match lhs {
+    match ctx[ctx[asg].lhs].clone() {
         Expr::Identifier(ident) => {
             let sym = symbols
-                .lookup(ctx, *ident)
+                .lookup(ctx, ident)
                 .ok_or(TypeCheckerError::LookupError(ident.clone()))?;
 
             match &ctx[*sym] {
                 SymbolValueItem::VarDecl(var_decl) => {
                     if ctx[*var_decl].mutability == Mutability::Immutable {
                         return Err(TypeCheckerError::AssignmentError(
-                            AssignmentError::ImmutableAssignment(*ident),
+                            AssignmentError::ImmutableAssignment(ident),
                         ));
                     }
                 }
                 _ => {
                     return Err(TypeCheckerError::AssignmentError(
-                        AssignmentError::NotLValue(asg.lhs),
+                        AssignmentError::NotLValue(ctx[asg].lhs),
                     ));
                 }
             }
@@ -70,23 +67,24 @@ pub fn check_assignment<'a>(
                 .all(|a| ctx[*a].mutability == Mutability::Mutable)
             {
                 return Err(TypeCheckerError::AssignmentError(
-                    AssignmentError::ImmutableAssignment(ctx[*st_access].attr_name),
+                    AssignmentError::ImmutableAssignment(ctx[st_access].attr_name),
                 ));
             }
         }
         _ => {
             return Err(TypeCheckerError::AssignmentError(
-                AssignmentError::NotLValue(asg.lhs),
+                AssignmentError::NotLValue(ctx[asg].lhs),
             ));
         }
     }
 
-    let lhs_type = asg
-        .lhs
+    let lhs = ctx[asg].lhs;
+    let rhs = ctx[asg].rhs;
+
+    let lhs_type = lhs
         .eval_type(symbols, ctx)
         .map_err(TypeCheckerError::TypeEvalError)?;
-    let rhs_type = asg
-        .rhs
+    let rhs_type = rhs
         .eval_type(symbols, ctx)
         .map_err(TypeCheckerError::TypeEvalError)?;
 

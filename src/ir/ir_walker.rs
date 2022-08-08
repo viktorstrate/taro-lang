@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use id_arena::Id;
+
 
 use crate::symbols::symbol_table::symbol_table_zipper::SymbolTableZipper;
 
@@ -19,6 +19,7 @@ use super::{
     IR,
 };
 
+#[derive(Debug, Clone)]
 pub enum ScopeValue<'a> {
     Func(NodeRef<'a, Function<'a>>),
     Struct(NodeRef<'a, Struct<'a>>),
@@ -150,7 +151,7 @@ fn walk_struct<'a, W: IrWalker<'a>>(
 ) -> Result<(), W::Error> {
     let mut st_scope = walker.visit_scope_begin(ctx, scope, ScopeValue::Struct(st))?;
 
-    for attr_id in ctx[st].attrs {
+    for attr_id in ctx[st].attrs.clone() {
         let attr_name = ctx[attr_id].name;
         ctx[attr_id].name = walker.visit_ident(ctx, scope, attr_name)?;
 
@@ -180,7 +181,7 @@ fn walk_enum<'a, W: IrWalker<'a>>(
     let enm_scope = walker.visit_scope_begin(ctx, scope, ScopeValue::Enum(enm))?;
     ctx[enm].name = walker.visit_ident(ctx, scope, ctx[enm].name)?;
 
-    for val in ctx[enm].values {
+    for val in ctx[enm].values.clone() {
         let ident = ctx[val].name;
         ctx[val].name = walker.visit_ident(ctx, scope, ident)?;
     }
@@ -214,7 +215,7 @@ fn walk_stmt<'a, W: IrWalker<'a>>(
             walk_func_decl(walker, ctx, scope, func)?
         }
         Stmt::Compound(stmts) => {
-            for stmt in *stmts {
+            for stmt in stmts.clone() {
                 walk_stmt(walker, ctx, scope, stmt)?;
             }
         }
@@ -243,7 +244,7 @@ fn walk_func_decl<'a, 'ctx, W: IrWalker<'a>>(
 ) -> Result<(), W::Error> {
     let mut func_scope = walker.visit_scope_begin(ctx, scope, ScopeValue::Func(func))?;
 
-    for arg in ctx[func].args {
+    for arg in ctx[func].args.clone() {
         let arg_name = ctx[arg].name;
         ctx[arg].name = walker.visit_ident(ctx, scope, arg_name)?;
     }
@@ -264,25 +265,28 @@ fn walk_expr<'a, 'ctx, W: IrWalker<'a>>(
     scope: &mut W::Scope,
     expr: NodeRef<'a, Expr<'a>>,
 ) -> Result<(), W::Error> {
-    match &mut ctx[expr] {
-        Expr::Function(func) => walk_func_decl(walker, ctx, scope, *func),
+    match ctx[expr].clone() {
+        Expr::Function(func) => walk_func_decl(walker, ctx, scope, func),
         Expr::Assignment(asg_id) => {
-            let asg = &ctx[*asg_id];
-            let lhs = asg.lhs;
-            let rhs = asg.rhs;
+            let lhs = ctx[asg_id].lhs;
+            let rhs = ctx[asg_id].rhs;
             walk_expr(walker, ctx, scope, lhs)?;
             walk_expr(walker, ctx, scope, rhs)
         }
-        Expr::StructAccess(st_access) => walk_expr(walker, ctx, scope, ctx[*st_access].struct_expr),
-        Expr::StructInit(st_init) => walk_struct_init(walker, ctx, scope, *st_init),
+        Expr::StructAccess(st_access) => walk_expr(walker, ctx, scope, ctx[st_access].struct_expr),
+        Expr::StructInit(st_init) => walk_struct_init(walker, ctx, scope, st_init),
         Expr::Identifier(ident) => {
-            *ident = walker.visit_ident(ctx, scope, *ident)?;
+            let new_ident = walker.visit_ident(ctx, scope, ident)?;
+            match &mut ctx[expr] {
+                Expr::Identifier(ident) => *ident = new_ident,
+                _ => unreachable!(),
+            }
             Ok(())
         }
         Expr::StringLiteral(_) => Ok(()),
         Expr::NumberLiteral(_) => Ok(()),
         Expr::BoolLiteral(_) => Ok(()),
-        Expr::FunctionCall(func_call) => Ok(()),
+        Expr::FunctionCall(_) => Ok(()),
         Expr::TupleAccess(_) => Ok(()),
         Expr::EscapeBlock(_) => Ok(()),
         Expr::Tuple(_) => Ok(()),
@@ -305,7 +309,7 @@ fn walk_struct_init<'a, 'ctx, W: IrWalker<'a>>(
     ctx[st_init].struct_name = walker.visit_ident(ctx, scope, st_name)?;
     ctx[st_init].scope_name = walker.visit_ident(ctx, scope, scp_name)?;
 
-    for value in ctx[st_init].values {
+    for value in ctx[st_init].values.clone() {
         let expr = ctx[value].value;
         walk_expr(walker, ctx, &mut child_scope, expr)?;
     }

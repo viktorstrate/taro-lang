@@ -1,5 +1,3 @@
-use id_arena::Id;
-
 use crate::{
     ir::{
         context::IrCtx,
@@ -70,7 +68,7 @@ fn stmt_type<'a>(
     func: NodeRef<'a, Function<'a>>,
     stmt: NodeRef<'a, Stmt<'a>>,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {
-    match &ctx[stmt] {
+    match ctx[stmt].clone() {
         Stmt::VariableDecl(_) => {
             symbols.visit_next_symbol(ctx);
             Ok(ctx.get_builtin_type_sig(BuiltinType::Void))
@@ -78,8 +76,8 @@ fn stmt_type<'a>(
         Stmt::FunctionDecl(_) => Ok(ctx.get_builtin_type_sig(BuiltinType::Void)),
         Stmt::StructDecl(_) => Ok(ctx.get_builtin_type_sig(BuiltinType::Void)),
         Stmt::EnumDecl(_) => Ok(ctx.get_builtin_type_sig(BuiltinType::Void)),
-        Stmt::Expression(expr) => expr_type(ctx, symbols, func, *expr),
-        Stmt::Return(expr) => expr_type(ctx, symbols, func, *expr),
+        Stmt::Expression(expr) => expr_type(ctx, symbols, func, expr),
+        Stmt::Return(expr) => expr_type(ctx, symbols, func, expr),
         Stmt::Compound(stmts) => stmt_compound_type(ctx, symbols, func, stmts.clone()),
     }
 }

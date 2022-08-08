@@ -1,4 +1,4 @@
-use id_arena::Id;
+
 
 use crate::{
     ir::context::IrCtx,
@@ -80,7 +80,7 @@ impl<'a> Identifiable<'a> for StructInit<'a> {
 impl<'a> Typed<'a> for NodeRef<'a, Struct<'a>> {
     fn eval_type(
         &self,
-        symbols: &mut SymbolTableZipper<'a>,
+        _symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let name = ctx[*self].name;
@@ -94,7 +94,7 @@ impl<'a> Typed<'a> for NodeRef<'a, StructAttr<'a>> {
         symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        match &ctx[*self].default_value {
+        match ctx[*self].default_value {
             Some(value) => value.eval_type(symbols, ctx),
             None => {
                 let type_sig = ctx[*self]
@@ -123,7 +123,7 @@ impl<'a> Typed<'a> for NodeRef<'a, StructAttr<'a>> {
     }
 
     fn specify_type(
-        &mut self,
+        &self,
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
@@ -177,7 +177,7 @@ impl<'a> NodeRef<'a, StructAccess<'a>> {
         ctx: &mut IrCtx<'a>,
         symbols: &mut SymbolTableZipper<'a>,
     ) -> Result<NodeRef<'a, StructAttr<'a>>, TypeEvalError<'a>> {
-        let st_type = ctx[*self].struct_expr.eval_type(symbols, ctx)?;
+        let st_type = ctx[*self].struct_expr.clone().eval_type(symbols, ctx)?;
         let struct_name = match &ctx[st_type] {
             TypeSignatureValue::Struct { name } => *name,
             _ => return Err(TypeEvalError::AccessNonStruct(st_type)),

@@ -1,5 +1,3 @@
-use id_arena::Id;
-
 use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
 
 use super::{
@@ -12,7 +10,7 @@ use super::{
     NodeRef,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Stmt<'a> {
     VariableDecl(NodeRef<'a, VarDecl<'a>>),
     FunctionDecl(NodeRef<'a, Function<'a>>),
@@ -43,15 +41,15 @@ impl<'a> Typed<'a> for NodeRef<'a, VarDecl<'a>> {
         symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        ctx[*self].value.eval_type(symbols, ctx)
+        ctx[*self].value.clone().eval_type(symbols, ctx)
     }
 
     fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
-        ctx[*self].type_sig.clone()
+        ctx[*self].type_sig
     }
 
     fn specify_type(
-        &mut self,
+        &self,
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {

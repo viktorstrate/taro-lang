@@ -61,19 +61,31 @@ where
     Ok(())
 }
 
-fn fill_tuple_type_signature<'a>(
+fn fill_tuple_type_signature<'a, T: IrArenaType<'a>>(
     ctx: &mut IrCtx<'a>,
     symbols: &mut SymbolTableZipper<'a>,
+    elem: NodeRef<'a, T>,
     specified_type: TypeSignature<'a>,
-) -> Result<TypeSignature<'a>, TypeCheckerError<'a>> {
+) -> Result<TypeSignature<'a>, TypeCheckerError<'a>>
+where
+    NodeRef<'a, T>: Typed<'a>,
+{
     // If specified type is `Tuple` then fill types recursiveley instead
-    if let TypeSignatureValue::Tuple(type_sigs) = ctx[specified_type] {
-        let new_types = type_sigs
-            .iter()
-            .map(|t| fill_tuple_type_signature(ctx, symbols, *t))
-            .collect::<Result<Vec<_>, _>>()?;
+    match &ctx[specified_type] {
+        TypeSignatureValue::Tuple(type_sigs) => {
+            let new_types = type_sigs
+                .clone()
+                .into_iter()
+                .map(|t| fill_tuple_type_signature(ctx, symbols, elem, t))
+                .collect::<Result<Vec<_>, _>>()?;
 
-        return Ok(ctx.get_type_sig(TypeSignatureValue::Tuple(new_types)));
+            let new_type = ctx.get_type_sig(TypeSignatureValue::Tuple(new_types));
+            elem.specify_type(ctx, new_type)
+                .map_err(TypeCheckerError::TypeEvalError)?;
+
+            return Ok(new_type);
+        }
+        _ => {}
     }
 
     // If specified type is `Unresolved` then locate the actual type from the symbol table
@@ -91,6 +103,9 @@ fn fill_tuple_type_signature<'a>(
 
         let new_type = val
             .eval_type(symbols, ctx)
+            .map_err(TypeCheckerError::TypeEvalError)?;
+
+        elem.specify_type(ctx, new_type)
             .map_err(TypeCheckerError::TypeEvalError)?;
 
         Ok(new_type)
@@ -113,9 +128,7 @@ where
     match specified_type_id {
         Some(type_id) => match &ctx[type_id] {
             TypeSignatureValue::Tuple(_) => {
-                let mut new_type = fill_tuple_type_signature(ctx, symbols, type_id)?;
-                elem.specify_type(ctx, new_type)
-                    .map_err(TypeCheckerError::TypeEvalError)?;
+                fill_tuple_type_signature(ctx, symbols, elem, type_id)?;
             }
             _ => {}
         },

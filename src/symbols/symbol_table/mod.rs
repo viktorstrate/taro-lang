@@ -119,8 +119,8 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
         symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        match &ctx[*self] {
-            SymbolValueItem::BuiltinType(builtin) => match &ctx[*builtin] {
+        match ctx[*self].clone() {
+            SymbolValueItem::BuiltinType(builtin) => match &ctx[builtin] {
                 crate::ir::node::identifier::IdentValue::Resolved(
                     ResolvedIdentValue::BuiltinType(builtin_type),
                 ) => Ok(ctx.get_builtin_type_sig(*builtin_type)),
@@ -137,7 +137,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
     }
 
     fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
-        match &ctx[*self] {
+        match ctx[*self].clone() {
             SymbolValueItem::BuiltinType(_) => None,
             SymbolValueItem::VarDecl(var) => var.specified_type(ctx),
             SymbolValueItem::FuncDecl(decl) => decl.specified_type(ctx),
@@ -150,11 +150,11 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
     }
 
     fn specify_type(
-        &mut self,
+        &self,
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
-        match &ctx[*self] {
+        match ctx[*self].clone() {
             SymbolValueItem::BuiltinType(_) => Ok(()),
             SymbolValueItem::VarDecl(var) => var.specify_type(ctx, new_type),
             SymbolValueItem::FuncDecl(decl) => decl.specify_type(ctx, new_type),

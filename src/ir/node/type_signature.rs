@@ -59,30 +59,27 @@ pub enum TypeEvalError<'a> {
 }
 
 impl<'a> crate::ast::node::type_signature::TypeSignature<'a> {
-    pub fn into_ir_type(self, ctx: &mut IrCtx<'a>) -> TypeSignatureValue<'a> {
-        match self.value {
+    pub fn into_ir_type(self, ctx: &mut IrCtx<'a>) -> TypeSignature<'a> {
+        let val = match self.value {
             crate::ast::node::type_signature::TypeSignatureValue::Base(base) => {
                 TypeSignatureValue::Unresolved(ctx.make_unresolved_ident(base))
             }
             crate::ast::node::type_signature::TypeSignatureValue::Function {
                 args,
                 return_type,
-            } => TypeSignatureValue::Function {
-                args: args
-                    .into_iter()
-                    .map(|arg| ctx.get_type_sig(arg.into_ir_type(ctx)))
-                    .collect(),
-                return_type: ctx.get_type_sig(return_type.into_ir_type(ctx)),
-            },
-            crate::ast::node::type_signature::TypeSignatureValue::Tuple(types) => {
-                TypeSignatureValue::Tuple(
-                    types
-                        .into_iter()
-                        .map(|t| ctx.get_type_sig(t.into_ir_type(ctx)))
-                        .collect(),
-                )
+            } => {
+                let args = args.into_iter().map(|arg| arg.into_ir_type(ctx)).collect();
+                let return_type = return_type.into_ir_type(ctx);
+
+                TypeSignatureValue::Function { args, return_type }
             }
-        }
+            crate::ast::node::type_signature::TypeSignatureValue::Tuple(types) => {
+                let type_sigs = types.into_iter().map(|t| t.into_ir_type(ctx)).collect();
+                TypeSignatureValue::Tuple(type_sigs)
+            }
+        };
+
+        ctx.get_type_sig(val)
     }
 }
 
@@ -99,7 +96,7 @@ pub trait Typed<'a>: Debug {
     }
 
     fn specify_type(
-        &mut self,
+        &self,
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {

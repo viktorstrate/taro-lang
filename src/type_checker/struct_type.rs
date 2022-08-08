@@ -61,22 +61,24 @@ pub fn check_struct_init<'a>(
         .enter_scope(ctx, ctx[st_init].scope_name)
         .expect("struct init scope should exist");
     for id in ctx[st_init].values.clone() {
-        let attr = &ctx[id];
-        let attr_type = attr
-            .value
+        let attr_name = ctx[id].name;
+        let attr_value = ctx[id].value;
+
+        let attr_type = attr_value
             .eval_type(symbols, ctx)
             .map_err(TypeCheckerError::TypeEvalError)?;
 
         let st_attr_type = ctx[st]
             .attrs
-            .iter()
-            .find(|val| ctx[**val].name == attr.name)
+            .clone()
+            .into_iter()
+            .find(|val| ctx[*val].name == attr_name)
             .expect("checked earlier")
             .eval_type(symbols, ctx)
             .map_err(TypeCheckerError::TypeEvalError)?;
 
         let coerced_type = types_match(ctx, st_attr_type, attr_type)?;
-        attr.value
+        attr_value
             .specify_type(ctx, coerced_type)
             .map_err(TypeCheckerError::TypeEvalError)?;
     }

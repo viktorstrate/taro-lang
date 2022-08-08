@@ -1,14 +1,11 @@
-use id_arena::Id;
-
 use crate::{
-    ast::node::statement::StmtValue,
     ir::{
         context::IrCtx,
         ir_walker::{IrWalker, ScopeValue},
         node::{
             expression::Expr,
             statement::Stmt,
-            type_signature::{BuiltinType, TypeSignature, TypeSignatureValue, Typed},
+            type_signature::{BuiltinType, TypeSignatureValue, Typed},
             NodeRef,
         },
     },
@@ -77,8 +74,8 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
         &mut self,
         ctx: &mut IrCtx<'a>,
         _parent: &mut Self::Scope,
-        child: Self::Scope,
-        value: ScopeValue<'a>,
+        _child: Self::Scope,
+        _value: ScopeValue<'a>,
     ) -> Result<(), TypeCheckerError<'a>> {
         self.symbols
             .exit_scope(ctx)
@@ -129,20 +126,20 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
         _scope: &mut Self::Scope,
         stmt: NodeRef<'a, Stmt<'a>>,
     ) -> Result<(), TypeCheckerError<'a>> {
-        match &ctx[stmt] {
+        match ctx[stmt].clone() {
             Stmt::VariableDecl(var_decl) => {
                 self.symbols.visit_next_symbol(ctx);
-                type_check(ctx, &mut self.symbols, *var_decl)
+                type_check(ctx, &mut self.symbols, var_decl)
             }
-            Stmt::FunctionDecl(func_decl) => type_check(ctx, &mut self.symbols, *func_decl),
+            Stmt::FunctionDecl(func_decl) => type_check(ctx, &mut self.symbols, func_decl),
             Stmt::StructDecl(st) => {
-                for attr in ctx[*st].attrs {
+                for attr in ctx[st].attrs.clone() {
                     type_check(ctx, &mut self.symbols, attr)?;
                 }
                 Ok(())
             }
             Stmt::EnumDecl(enm) => {
-                type_check(ctx, &mut self.symbols, *enm)?;
+                type_check(ctx, &mut self.symbols, enm)?;
                 Ok(())
             }
             _ => Ok(()),
@@ -155,46 +152,49 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
         _scope: &mut (),
         expr: NodeRef<'a, Expr<'a>>,
     ) -> Result<(), TypeCheckerError<'a>> {
-        match &ctx[expr] {
+        match ctx[expr].clone() {
             Expr::FunctionCall(call) => {
-                let type_sig = ctx[*call]
+                let type_sig = ctx[call]
                     .func
+                    .clone()
                     .eval_type(&mut self.symbols, ctx)
                     .map_err(TypeCheckerError::TypeEvalError)?;
-                match &ctx[type_sig] {
+
+                let (args, return_type) = match &ctx[type_sig] {
                     TypeSignatureValue::Function { args, return_type } => {
-                        let param_types = ctx[*call]
-                            .params
-                            .iter()
-                            .map(|param| param.eval_type(&mut self.symbols, ctx).unwrap())
-                            .collect::<Vec<_>>();
-
-                        let arg_count_match = ctx[*call].params.len() == args.len();
-                        let args_match = param_types.iter().zip(args.iter()).all(|(a, b)| *a == *b);
-
-                        if !arg_count_match || !args_match {
-                            return Err(TypeCheckerError::TypeSignatureMismatch {
-                                type_sig: ctx.get_type_sig(TypeSignatureValue::Function {
-                                    args: args.clone(),
-                                    return_type: *return_type,
-                                }),
-                                expr_type: ctx.get_type_sig(TypeSignatureValue::Function {
-                                    args: param_types,
-                                    return_type: *return_type,
-                                }),
-                            });
-                        }
-
-                        Ok(())
+                        Ok((args.clone(), *return_type))
                     }
                     _ => Err(TypeCheckerError::CallNonFunction {
                         ident_type: type_sig,
                     }),
+                }?;
+
+                let param_types = ctx[call]
+                    .params
+                    .clone()
+                    .into_iter()
+                    .map(|param| param.eval_type(&mut self.symbols, ctx).unwrap())
+                    .collect::<Vec<_>>();
+
+                let arg_count_match = ctx[call].params.len() == args.len();
+                let args_match = param_types.iter().zip(args.iter()).all(|(a, b)| *a == *b);
+
+                if !arg_count_match || !args_match {
+                    return Err(TypeCheckerError::TypeSignatureMismatch {
+                        type_sig: ctx
+                            .get_type_sig(TypeSignatureValue::Function { args, return_type }),
+                        expr_type: ctx.get_type_sig(TypeSignatureValue::Function {
+                            args: param_types,
+                            return_type,
+                        }),
+                    });
                 }
+
+                Ok(())
             }
-            Expr::Function(func) => type_check(ctx, &mut self.symbols, *func),
-            Expr::Assignment(asg) => check_assignment(ctx, &mut self.symbols, *asg),
-            Expr::StructInit(st_init) => check_struct_init(ctx, &mut self.symbols, *st_init),
+            Expr::Function(func) => type_check(ctx, &mut self.symbols, func),
+            Expr::Assignment(asg) => check_assignment(ctx, &mut self.symbols, asg),
+            Expr::StructInit(st_init) => check_struct_init(ctx, &mut self.symbols, st_init),
             _ => Ok(()),
         }
     }

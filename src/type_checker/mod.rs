@@ -1,7 +1,6 @@
 use crate::ir::node::{
     identifier::Ident,
-    type_signature::{TypeEvalError, TypeSignature, Typed},
-    NodeRef,
+    type_signature::{TypeEvalError, TypeSignature},
 };
 
 use self::{

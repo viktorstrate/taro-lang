@@ -1,4 +1,4 @@
-use id_arena::Id;
+
 
 use crate::ir::{
     context::IrCtx,
@@ -44,7 +44,7 @@ impl<'a> IrWalker<'a> for SymbolCollector {
             }
             ScopeValue::Struct(st) => {
                 parent.insert(ctx, SymbolValueItem::StructDecl(st))?;
-                for attr in ctx[st].attrs {
+                for attr in ctx[st].attrs.clone() {
                     new_scope.insert(ctx, SymbolValueItem::StructAttr(attr))?;
                 }
             }

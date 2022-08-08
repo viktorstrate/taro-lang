@@ -14,7 +14,7 @@ pub struct EscapeBlock<'a> {
 impl<'a> Typed<'a> for NodeRef<'a, EscapeBlock<'a>> {
     fn eval_type(
         &self,
-        symbols: &mut SymbolTableZipper<'a>,
+        _symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         if let Some(sig) = ctx[*self].type_sig {
@@ -29,7 +29,7 @@ impl<'a> Typed<'a> for NodeRef<'a, EscapeBlock<'a>> {
     }
 
     fn specify_type(
-        &mut self,
+        &self,
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {

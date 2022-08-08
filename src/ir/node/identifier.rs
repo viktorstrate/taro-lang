@@ -32,15 +32,6 @@ pub enum IdentValue<'a> {
     Unresolved(crate::ast::node::identifier::Ident<'a>),
 }
 
-impl<'a> IdentValue<'a> {
-    fn resolved(&self) -> &ResolvedIdentValue<'a> {
-        match self {
-            IdentValue::Resolved(val) => val,
-            IdentValue::Unresolved(_) => panic!("unresolved identifier"),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum ResolvedIdentValue<'a> {
     Named { def_span: Span<'a>, name: &'a str },
@@ -58,7 +49,7 @@ impl<'a> IdentKey<'a> {
     pub fn from_ident(ctx: &IrCtx<'a>, ident: Ident<'a>) -> IdentKey<'a> {
         match &ctx[ident] {
             IdentValue::Resolved(val) => match val {
-                ResolvedIdentValue::Named { def_span, name } => IdentKey::Named(name),
+                ResolvedIdentValue::Named { def_span: _, name } => IdentKey::Named(name),
                 ResolvedIdentValue::Anonymous => IdentKey::Unnamed(ident),
                 ResolvedIdentValue::BuiltinType(_) => IdentKey::Unnamed(ident),
             },

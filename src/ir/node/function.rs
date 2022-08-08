@@ -1,4 +1,4 @@
-use id_arena::Id;
+
 
 use crate::{
     ir::context::IrCtx,
@@ -76,7 +76,8 @@ impl<'a> Typed<'a> for NodeRef<'a, Function<'a>> {
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let args = ctx.nodes.funcs[self.id]
             .args
-            .iter()
+            .clone()
+            .into_iter()
             .map(|arg| arg.eval_type(symbols, ctx))
             .collect::<Result<Vec<_>, _>>()?;
 
@@ -100,12 +101,16 @@ impl<'a> Typed<'a> for NodeRef<'a, Function<'a>> {
     }
 
     fn specify_type(
-        &mut self,
+        &self,
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
-        let TypeSignatureValue::Function { args, return_type: _ } = &ctx[new_type] else {
-            unreachable!("specified type expected to be function");
+        let args = match &ctx[new_type] {
+            TypeSignatureValue::Function {
+                args,
+                return_type: _,
+            } => args.clone(),
+            _ => unreachable!("specified type expected to be function"),
         };
 
         let func_args_len = ctx[*self].args.len();
@@ -119,7 +124,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Function<'a>> {
             ));
         }
 
-        for (arg_type, arg) in args.iter().zip(ctx[*self].args.into_iter()) {
+        for (arg_type, arg) in args.iter().zip(ctx[*self].args.clone().into_iter()) {
             ctx[arg].type_sig = Some(*arg_type);
         }
 
@@ -130,7 +135,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Function<'a>> {
 impl<'a> Typed<'a> for NodeRef<'a, FunctionArg<'a>> {
     fn eval_type(
         &self,
-        symbols: &mut SymbolTableZipper<'a>,
+        _symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let arg = &ctx[*self];
@@ -143,7 +148,7 @@ impl<'a> Typed<'a> for NodeRef<'a, FunctionArg<'a>> {
     }
 
     fn specify_type(
-        &mut self,
+        &self,
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
@@ -158,7 +163,7 @@ impl<'a> Typed<'a> for NodeRef<'a, FunctionCall<'a>> {
         symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        let type_sig = ctx[*self].func.eval_type(symbols, ctx)?;
+        let type_sig = ctx[*self].func.clone().eval_type(symbols, ctx)?;
         match &ctx[type_sig] {
             TypeSignatureValue::Function {
                 args: _,

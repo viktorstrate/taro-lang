@@ -1,4 +1,4 @@
-use id_arena::Id;
+
 
 use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
 
@@ -28,7 +28,8 @@ impl<'a> Typed<'a> for NodeRef<'a, Tuple<'a>> {
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let types = ctx[*self]
             .values
-            .iter()
+            .clone()
+            .into_iter()
             .map(|val| val.eval_type(symbols, ctx))
             .collect::<Result<Vec<_>, _>>()?;
 
@@ -40,7 +41,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Tuple<'a>> {
     }
 
     fn specify_type(
-        &mut self,
+        &self,
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
@@ -60,7 +61,7 @@ impl<'a> Typed<'a> for NodeRef<'a, TupleAccess<'a>> {
         symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        let tuple_type = ctx[*self].tuple_expr.eval_type(symbols, ctx)?;
+        let tuple_type = ctx[*self].tuple_expr.clone().eval_type(symbols, ctx)?;
         let attr = ctx[*self].attr;
         match &ctx[tuple_type] {
             TypeSignatureValue::Tuple(tuple) => {
@@ -72,7 +73,7 @@ impl<'a> Typed<'a> for NodeRef<'a, TupleAccess<'a>> {
                         access_item: attr,
                     })
             }
-            val => Err(TypeEvalError::AccessNonTuple(tuple_type)),
+            _val => Err(TypeEvalError::AccessNonTuple(tuple_type)),
         }
     }
 }

@@ -41,7 +41,7 @@ impl<'a> Identifiable<'a> for EnumValue<'a> {
 impl<'a> Typed<'a> for NodeRef<'a, Enum<'a>> {
     fn eval_type(
         &self,
-        symbols: &mut SymbolTableZipper<'a>,
+        _symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         Ok(ctx.nodes.enms[self.id].type_sig)
@@ -58,12 +58,12 @@ impl<'a> Typed<'a> for NodeRef<'a, EnumValue<'a>> {
     }
 
     fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
-        let items = ctx.nodes[*self].items.clone();
+        let items = ctx[*self].items.clone();
         Some(ctx.get_type_sig(TypeSignatureValue::Tuple(items)))
     }
 
     fn specify_type(
-        &mut self,
+        &self,
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
