@@ -15,7 +15,7 @@ use super::{
         structure::{Struct, StructAccess, StructAttr, StructInit, StructInitValue},
         tuple::{Tuple, TupleAccess},
         type_signature::TypeSignatureValue,
-        IrAlloc,
+        IrAlloc, NodeRef,
     },
     IR,
 };
@@ -24,7 +24,7 @@ impl<'a> IrCtx<'a> {
     pub fn lower_ast(&mut self, ast: AST<'a>) -> IR<'a> {
         let module = ast.0;
 
-        let stmts: Vec<Id<Stmt<'a>>> = module
+        let stmts = module
             .stmts
             .into_iter()
             .map(|stmt| self.lower_stmt(stmt))
@@ -33,7 +33,7 @@ impl<'a> IrCtx<'a> {
         IR(Module { stmts })
     }
 
-    fn lower_stmt(&mut self, stmt: crate::ast::node::statement::Stmt<'a>) -> Id<Stmt<'a>> {
+    fn lower_stmt(&mut self, stmt: crate::ast::node::statement::Stmt<'a>) -> NodeRef<'a, Stmt<'a>> {
         let ir_stmt = match stmt.value {
             crate::ast::node::statement::StmtValue::VariableDecl(var_decl) => Stmt::VariableDecl(
                 VarDecl {
@@ -41,44 +41,58 @@ impl<'a> IrCtx<'a> {
                     mutability: var_decl.mutability,
                     type_sig: var_decl
                         .type_sig
-                        .map(|type_sig| self.get_type_sig(type_sig)),
+                        .map(|type_sig| self.get_type_sig(type_sig.into_ir_type(self))),
                     value: self.lower_expr(var_decl.value),
                 }
                 .allocate(self),
             ),
             crate::ast::node::statement::StmtValue::FunctionDecl(func_decl) => {
-                let mut ir_args: Vec<Id<FunctionArg<'a>>> =
+                let mut ir_args: Vec<NodeRef<'a, FunctionArg<'a>>> =
                     Vec::with_capacity(func_decl.args.len());
                 for arg in func_decl.args {
                     ir_args.push(
                         FunctionArg {
                             name: self.make_ident(arg.name),
-                            type_sig: arg.type_sig.map(|t| self.get_type_sig(t)),
+                            type_sig: arg
+                                .type_sig
+                                .map(|t| self.get_type_sig(t.into_ir_type(self))),
                         }
                         .allocate(self),
                     )
                 }
+
+                let name = func_decl
+                    .name
+                    .map(|name| self.make_ident(name))
+                    .unwrap_or_else(|| self.make_anon_ident());
+
+                let return_type = func_decl
+                    .return_type
+                    .map(|t| self.get_type_sig(t.into_ir_type(self)));
+
+                let body = self.lower_stmt(*func_decl.body);
+
                 Stmt::FunctionDecl(
                     Function {
-                        name: func_decl
-                            .name
-                            .map(|name| self.make_ident(name))
-                            .unwrap_or_else(|| self.make_anon_ident()),
+                        name,
                         args: ir_args,
-                        return_type: func_decl.return_type.map(|t| self.get_type_sig(t)),
-                        body: self.lower_stmt(*func_decl.body),
+                        return_type,
+                        body,
                     }
                     .allocate(self),
                 )
             }
             crate::ast::node::statement::StmtValue::StructDecl(st_decl) => {
-                let mut ir_attrs: Vec<Id<StructAttr<'a>>> = Vec::with_capacity(st_decl.attrs.len());
+                let mut ir_attrs: Vec<NodeRef<'a, StructAttr<'a>>> =
+                    Vec::with_capacity(st_decl.attrs.len());
                 for attr in st_decl.attrs {
                     ir_attrs.push(
                         StructAttr {
                             name: self.make_ident(attr.name),
                             mutability: attr.mutability,
-                            type_sig: attr.type_sig.map(|t| self.get_type_sig(t)),
+                            type_sig: attr
+                                .type_sig
+                                .map(|t| self.get_type_sig(t.into_ir_type(self))),
                             default_value: attr.default_value.map(|val| self.lower_expr(val)),
                         }
                         .allocate(self),
@@ -101,7 +115,7 @@ impl<'a> IrCtx<'a> {
                             items: val
                                 .items
                                 .into_iter()
-                                .map(|t| self.get_type_sig(t))
+                                .map(|t| self.get_type_sig(t.into_ir_type(self)))
                                 .collect(),
                         }
                         .allocate(self),
@@ -134,33 +148,50 @@ impl<'a> IrCtx<'a> {
         ir_stmt.allocate(self)
     }
 
-    fn lower_expr(&mut self, expr: crate::ast::node::expression::Expr<'a>) -> Id<Expr<'a>> {
+    fn lower_expr(
+        &mut self,
+        expr: crate::ast::node::expression::Expr<'a>,
+    ) -> NodeRef<'a, Expr<'a>> {
         let ir_expr: Expr<'a> = match expr.value {
             crate::ast::node::expression::ExprValue::StringLiteral(str) => Expr::StringLiteral(str),
             crate::ast::node::expression::ExprValue::NumberLiteral(num) => Expr::NumberLiteral(num),
             crate::ast::node::expression::ExprValue::BoolLiteral(bool) => Expr::BoolLiteral(bool),
-            crate::ast::node::expression::ExprValue::Function(func) => Expr::Function(
-                Function {
-                    name: func
-                        .name
-                        .map(|name| self.make_ident(name))
-                        .unwrap_or_else(|| self.make_anon_ident()),
-                    args: func
-                        .args
-                        .into_iter()
-                        .map(|arg| {
-                            FunctionArg {
-                                name: self.make_ident(arg.name),
-                                type_sig: arg.type_sig.map(|t| self.get_type_sig(t)),
-                            }
-                            .allocate(self)
-                        })
-                        .collect(),
-                    return_type: func.return_type.map(|t| self.get_type_sig(t)),
-                    body: self.lower_stmt(*func.body),
-                }
-                .allocate(self),
-            ),
+            crate::ast::node::expression::ExprValue::Function(func) => {
+                let name = func
+                    .name
+                    .map(|name| self.make_ident(name))
+                    .unwrap_or_else(|| self.make_anon_ident());
+
+                let args = func
+                    .args
+                    .into_iter()
+                    .map(|arg| {
+                        FunctionArg {
+                            name: self.make_ident(arg.name),
+                            type_sig: arg
+                                .type_sig
+                                .map(|t| self.get_type_sig(t.into_ir_type(self))),
+                        }
+                        .allocate(self)
+                    })
+                    .collect();
+
+                let return_type = func
+                    .return_type
+                    .map(|t| self.get_type_sig(t.into_ir_type(self)));
+
+                let body = self.lower_stmt(*func.body);
+
+                Expr::Function(
+                    Function {
+                        name,
+                        args,
+                        return_type,
+                        body,
+                    }
+                    .allocate(self),
+                )
+            }
             crate::ast::node::expression::ExprValue::FunctionCall(func_call) => Expr::FunctionCall(
                 FunctionCall {
                     func: self.lower_expr(func_call.func),
@@ -210,7 +241,9 @@ impl<'a> IrCtx<'a> {
             crate::ast::node::expression::ExprValue::EscapeBlock(esc) => Expr::EscapeBlock(
                 EscapeBlock {
                     content: esc.content,
-                    type_sig: esc.type_sig.map(|t| self.get_type_sig(t)),
+                    type_sig: esc
+                        .type_sig
+                        .map(|t| self.get_type_sig(t.into_ir_type(self))),
                 }
                 .allocate(self),
             ),
@@ -228,7 +261,9 @@ impl<'a> IrCtx<'a> {
                         .into_iter()
                         .map(|val| self.lower_expr(val))
                         .collect(),
-                    type_sig: tup.type_sig.map(|t| self.get_type_sig(t)),
+                    type_sig: tup
+                        .type_sig
+                        .map(|t| self.get_type_sig(t.into_ir_type(self))),
                 }
                 .allocate(self),
             ),

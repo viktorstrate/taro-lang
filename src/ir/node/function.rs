@@ -1,41 +1,48 @@
 use id_arena::Id;
 
-use crate::ir::context::IrCtx;
+use crate::{
+    ir::context::IrCtx,
+    ir::node::type_signature::TypeSignatureValue,
+    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
+    type_checker::function_body_type_eval::{eval_func_body_type_sig, FunctionTypeError},
+};
 
 use super::{
     expression::Expr,
     identifier::{Ident, Identifiable},
     statement::Stmt,
-    type_signature::TypeSignature,
+    type_signature::{TypeEvalError, TypeSignature, Typed},
+    NodeRef,
 };
 
 #[derive(Debug)]
 pub struct Function<'a> {
     pub name: Ident<'a>,
-    pub args: Vec<Id<FunctionArg<'a>>>,
+    pub args: Vec<NodeRef<'a, FunctionArg<'a>>>,
     pub return_type: Option<TypeSignature<'a>>,
-    pub body: Id<Stmt<'a>>,
+    pub body: NodeRef<'a, Stmt<'a>>,
 }
 
-// impl<'a> Function<'a> {
-//     pub fn calculate_type_sig(
-//         args: &Vec<FunctionArg<'a>>,
-//         return_type: &Option<TypeSignature<'a>>,
-//     ) -> Option<TypeSignature<'a>> {
-//         let arg_types = args
-//             .iter()
-//             .map(|arg| arg.type_sig.borrow().clone())
-//             .collect::<Option<Vec<_>>>();
+impl<'a> Function<'a> {
+    pub fn calculate_type_sig(
+        ctx: &mut IrCtx<'a>,
+        args: Vec<NodeRef<'a, FunctionArg<'a>>>,
+        return_type: Option<TypeSignature<'a>>,
+    ) -> Option<TypeSignature<'a>> {
+        let arg_types = args
+            .into_iter()
+            .map(|arg| &ctx[arg])
+            .map(|arg| arg.type_sig)
+            .collect::<Option<Vec<_>>>();
 
-//         match (arg_types, return_type) {
-//             (Some(args), Some(return_type)) => Some(TypeSignature::Function {
-//                 args,
-//                 return_type: Box::new(return_type.clone()),
-//             }),
-//             _ => None,
-//         }
-//     }
-// }
+        match (arg_types, return_type) {
+            (Some(args), Some(return_type)) => {
+                Some(ctx.get_type_sig(TypeSignatureValue::Function { args, return_type }))
+            }
+            _ => None,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct FunctionArg<'a> {
@@ -45,8 +52,8 @@ pub struct FunctionArg<'a> {
 
 #[derive(Debug)]
 pub struct FunctionCall<'a> {
-    pub func: Id<Expr<'a>>,
-    pub params: Vec<Id<Expr<'a>>>,
+    pub func: NodeRef<'a, Expr<'a>>,
+    pub params: Vec<NodeRef<'a, Expr<'a>>>,
 }
 
 impl<'a> Identifiable<'a> for Function<'a> {
@@ -61,91 +68,103 @@ impl<'a> Identifiable<'a> for FunctionArg<'a> {
     }
 }
 
-// impl<'a> Typed<'a> for Function<'a> {
-//     fn eval_type(
-//         &self,
-//         symbols: &mut SymbolTableZipper<'a>,
-//     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-//         let args = self
-//             .args
-//             .iter()
-//             .map(|arg| arg.eval_type(symbols))
-//             .collect::<Result<Vec<_>, _>>()?;
+impl<'a> Typed<'a> for NodeRef<'a, Function<'a>> {
+    fn eval_type(
+        &self,
+        symbols: &mut SymbolTableZipper<'a>,
+        ctx: &mut IrCtx<'a>,
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
+        let args = ctx.nodes.funcs[self.id]
+            .args
+            .iter()
+            .map(|arg| arg.eval_type(symbols, ctx))
+            .collect::<Result<Vec<_>, _>>()?;
 
-//         symbols
-//             .enter_scope(self.name.clone())
-//             .expect("function should be located in current scope");
+        symbols
+            .enter_scope(ctx, ctx[*self].name)
+            .expect("function should be located in current scope");
 
-//         let return_type =
-//             eval_func_body_type_sig(symbols, self).map_err(TypeEvalError::FunctionType)?;
+        let return_type =
+            eval_func_body_type_sig(ctx, symbols, *self).map_err(TypeEvalError::FunctionType)?;
 
-//         symbols.exit_scope().unwrap();
+        symbols.exit_scope(ctx).unwrap();
 
-//         Ok(TypeSignature::Function {
-//             args,
-//             return_type: Box::new(return_type),
-//         })
-//     }
+        Ok(ctx.get_type_sig(TypeSignatureValue::Function {
+            args,
+            return_type: return_type,
+        }))
+    }
 
-//     fn specified_type(&self) -> Option<TypeSignature<'a>> {
-//         Self::calculate_type_sig(&self.args, &self.return_type)
-//     }
+    fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
+        Function::calculate_type_sig(ctx, ctx[*self].args.clone(), ctx[*self].return_type)
+    }
 
-//     fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
-//         let TypeSignature::Function { args, return_type: _ } = &new_type else {
-//             unreachable!("specified type expected to be function");
-//         };
+    fn specify_type(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        new_type: TypeSignature<'a>,
+    ) -> Result<(), TypeEvalError<'a>> {
+        let TypeSignatureValue::Function { args, return_type: _ } = &ctx[new_type] else {
+            unreachable!("specified type expected to be function");
+        };
 
-//         if args.len() != self.args.len() {
-//             return Err(TypeEvalError::FunctionType(
-//                 FunctionTypeError::WrongNumberOfArgs {
-//                     func: self.clone(),
-//                     expected: args.len(),
-//                     actual: self.args.len(),
-//                 },
-//             ));
-//         }
+        let func_args_len = ctx[*self].args.len();
+        if args.len() != func_args_len {
+            return Err(TypeEvalError::FunctionType(
+                FunctionTypeError::WrongNumberOfArgs {
+                    func: *self,
+                    expected: args.len(),
+                    actual: func_args_len,
+                },
+            ));
+        }
 
-//         for (arg_type, arg) in args.iter().zip(self.args.iter_mut()) {
-//             *arg.type_sig.borrow_mut() = Some(arg_type.clone());
-//         }
+        for (arg_type, arg) in args.iter().zip(ctx[*self].args.into_iter()) {
+            ctx[arg].type_sig = Some(*arg_type);
+        }
 
-//         Ok(())
-//     }
-// }
+        Ok(())
+    }
+}
 
-// impl<'a> Typed<'a> for FunctionArg<'a> {
-//     fn eval_type(
-//         &self,
-//         _symbols: &mut SymbolTableZipper<'a>,
-//     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-//         self.type_sig
-//             .borrow()
-//             .clone()
-//             .ok_or(TypeEvalError::UndeterminableType(self.name.clone()))
-//     }
+impl<'a> Typed<'a> for NodeRef<'a, FunctionArg<'a>> {
+    fn eval_type(
+        &self,
+        symbols: &mut SymbolTableZipper<'a>,
+        ctx: &mut IrCtx<'a>,
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
+        let arg = &ctx[*self];
+        arg.type_sig
+            .ok_or(TypeEvalError::UndeterminableType(arg.name))
+    }
 
-//     fn specified_type(&self) -> Option<TypeSignature<'a>> {
-//         self.type_sig.borrow().clone()
-//     }
+    fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
+        ctx[*self].type_sig
+    }
 
-//     fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
-//         *self.type_sig.borrow_mut() = Some(new_type);
-//         Ok(())
-//     }
-// }
+    fn specify_type(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        new_type: TypeSignature<'a>,
+    ) -> Result<(), TypeEvalError<'a>> {
+        ctx[*self].type_sig = Some(new_type);
+        Ok(())
+    }
+}
 
-// impl<'a> Typed<'a> for FunctionCall<'a> {
-//     fn eval_type(
-//         &self,
-//         symbols: &mut SymbolTableZipper<'a>,
-//     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-//         match self.func.eval_type(symbols)? {
-//             TypeSignature::Function {
-//                 args: _,
-//                 return_type,
-//             } => Ok(*return_type),
-//             wrong_type => Err(TypeEvalError::CallNonFunction(wrong_type)),
-//         }
-//     }
-// }
+impl<'a> Typed<'a> for NodeRef<'a, FunctionCall<'a>> {
+    fn eval_type(
+        &self,
+        symbols: &mut SymbolTableZipper<'a>,
+        ctx: &mut IrCtx<'a>,
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
+        let type_sig = ctx[*self].func.eval_type(symbols, ctx)?;
+        match &ctx[type_sig] {
+            TypeSignatureValue::Function {
+                args: _,
+                return_type,
+            } => Ok(*return_type),
+            _wrong_type => Err(TypeEvalError::CallNonFunction(type_sig)),
+        }
+    }
+}

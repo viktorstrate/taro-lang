@@ -8,17 +8,18 @@ use crate::{
             expression::Expr,
             identifier::Ident,
             type_signature::{Mutability, TypeSignature, Typed},
+            NodeRef,
         },
     },
     symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolValue, SymbolValueItem},
 };
 
-use super::TypeCheckerError;
+use super::{coercion::can_coerce_to, TypeCheckerError};
 
 #[derive(Debug)]
 pub enum AssignmentError<'a> {
     ImmutableAssignment(Ident<'a>),
-    NotLValue(Id<Expr<'a>>),
+    NotLValue(NodeRef<'a, Expr<'a>>),
     TypesMismatch {
         lhs: TypeSignature<'a>,
         rhs: TypeSignature<'a>,
@@ -28,15 +29,15 @@ pub enum AssignmentError<'a> {
 pub fn check_assignment<'a>(
     ctx: &mut IrCtx<'a>,
     symbols: &mut SymbolTableZipper<'a>,
-    asg_id: Id<Assignment<'a>>,
+    asg_id: NodeRef<'a, Assignment<'a>>,
 ) -> Result<(), TypeCheckerError<'a>> {
     // only assign to:
     // - variable
     // - (nested) struct attribute
     // with properties: mutable, same type
 
-    let asg = &ctx.nodes.asgns[asg_id];
-    let lhs = &ctx.nodes.exprs[asg.lhs];
+    let asg = &ctx[asg_id];
+    let lhs = &ctx[asg.lhs];
 
     match lhs {
         Expr::Identifier(ident) => {
@@ -44,9 +45,9 @@ pub fn check_assignment<'a>(
                 .lookup(ctx, *ident)
                 .ok_or(TypeCheckerError::LookupError(ident.clone()))?;
 
-            match &ctx.symbols[*sym] {
+            match &ctx[*sym] {
                 SymbolValueItem::VarDecl(var_decl) => {
-                    if ctx.nodes.var_decls[*var_decl].mutability == Mutability::Immutable {
+                    if ctx[*var_decl].mutability == Mutability::Immutable {
                         return Err(TypeCheckerError::AssignmentError(
                             AssignmentError::ImmutableAssignment(*ident),
                         ));
@@ -60,33 +61,36 @@ pub fn check_assignment<'a>(
             }
         }
         Expr::StructAccess(st_access) => {
-            let attrs = &ctx.nodes.st_accs[*st_access]
-                .lookup_attr_chain(symbols)
+            let attrs = st_access
+                .lookup_attr_chain(ctx, symbols)
                 .map_err(TypeCheckerError::TypeEvalError)?;
 
-            if !attrs.iter().all(|a| a.mutability == Mutability::Mutable) {
+            if !attrs
+                .iter()
+                .all(|a| ctx[*a].mutability == Mutability::Mutable)
+            {
                 return Err(TypeCheckerError::AssignmentError(
-                    AssignmentError::ImmutableAssignment(st_access.attr_name.clone()),
+                    AssignmentError::ImmutableAssignment(ctx[*st_access].attr_name),
                 ));
             }
         }
         _ => {
             return Err(TypeCheckerError::AssignmentError(
-                AssignmentError::NotLValue(asg.lhs.clone()),
+                AssignmentError::NotLValue(asg.lhs),
             ));
         }
     }
 
     let lhs_type = asg
         .lhs
-        .eval_type(symbols)
+        .eval_type(symbols, ctx)
         .map_err(TypeCheckerError::TypeEvalError)?;
     let rhs_type = asg
         .rhs
-        .eval_type(symbols)
+        .eval_type(symbols, ctx)
         .map_err(TypeCheckerError::TypeEvalError)?;
 
-    if !rhs_type.can_coerce_to(&lhs_type) {
+    if !can_coerce_to(rhs_type, lhs_type, ctx) {
         return Err(TypeCheckerError::AssignmentError(
             AssignmentError::TypesMismatch {
                 lhs: lhs_type,

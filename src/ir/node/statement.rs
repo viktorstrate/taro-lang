@@ -1,6 +1,6 @@
 use id_arena::Id;
 
-use crate::ir::context::IrCtx;
+use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
 
 use super::{
     enumeration::Enum,
@@ -8,18 +8,19 @@ use super::{
     function::Function,
     identifier::{Ident, Identifiable},
     structure::Struct,
-    type_signature::{Mutability, TypeSignature},
+    type_signature::{Mutability, TypeEvalError, TypeSignature, Typed},
+    NodeRef,
 };
 
 #[derive(Debug)]
 pub enum Stmt<'a> {
-    VariableDecl(Id<VarDecl<'a>>),
-    FunctionDecl(Id<Function<'a>>),
-    StructDecl(Id<Struct<'a>>),
-    EnumDecl(Id<Enum<'a>>),
-    Compound(Vec<Id<Stmt<'a>>>),
-    Expression(Id<Expr<'a>>),
-    Return(Id<Expr<'a>>),
+    VariableDecl(NodeRef<'a, VarDecl<'a>>),
+    FunctionDecl(NodeRef<'a, Function<'a>>),
+    StructDecl(NodeRef<'a, Struct<'a>>),
+    EnumDecl(NodeRef<'a, Enum<'a>>),
+    Compound(Vec<NodeRef<'a, Stmt<'a>>>),
+    Expression(NodeRef<'a, Expr<'a>>),
+    Return(NodeRef<'a, Expr<'a>>),
 }
 
 #[derive(Debug)]
@@ -27,7 +28,7 @@ pub struct VarDecl<'a> {
     pub name: Ident<'a>,
     pub mutability: Mutability,
     pub type_sig: Option<TypeSignature<'a>>,
-    pub value: Id<Expr<'a>>,
+    pub value: NodeRef<'a, Expr<'a>>,
 }
 
 impl<'a> Identifiable<'a> for VarDecl<'a> {
@@ -36,20 +37,25 @@ impl<'a> Identifiable<'a> for VarDecl<'a> {
     }
 }
 
-// impl<'a> Typed<'a> for VarDecl<'a> {
-//     fn eval_type(
-//         &self,
-//         symbols: &mut crate::symbols::symbol_table::symbol_table_zipper::SymbolTableZipper<'a>,
-//     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-//         self.value.eval_type(symbols)
-//     }
+impl<'a> Typed<'a> for NodeRef<'a, VarDecl<'a>> {
+    fn eval_type(
+        &self,
+        symbols: &mut SymbolTableZipper<'a>,
+        ctx: &mut IrCtx<'a>,
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
+        ctx[*self].value.eval_type(symbols, ctx)
+    }
 
-//     fn specified_type(&self) -> Option<TypeSignature<'a>> {
-//         self.type_sig.clone()
-//     }
+    fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
+        ctx[*self].type_sig.clone()
+    }
 
-//     fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
-//         self.type_sig = Some(new_type);
-//         Ok(())
-//     }
-// }
+    fn specify_type(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        new_type: TypeSignature<'a>,
+    ) -> Result<(), TypeEvalError<'a>> {
+        ctx[*self].type_sig = Some(new_type);
+        Ok(())
+    }
+}

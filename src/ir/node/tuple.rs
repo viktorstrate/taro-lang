@@ -1,64 +1,78 @@
 use id_arena::Id;
 
-use super::{expression::Expr, type_signature::TypeSignature};
+use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
+
+use super::{
+    expression::Expr,
+    type_signature::{TypeEvalError, TypeSignature, TypeSignatureValue, Typed},
+    NodeRef,
+};
 
 #[derive(Debug)]
 pub struct Tuple<'a> {
-    pub values: Vec<Id<Expr<'a>>>,
+    pub values: Vec<NodeRef<'a, Expr<'a>>>,
     pub type_sig: Option<TypeSignature<'a>>,
 }
 
 #[derive(Debug)]
 pub struct TupleAccess<'a> {
-    pub tuple_expr: Id<Expr<'a>>,
+    pub tuple_expr: NodeRef<'a, Expr<'a>>,
     pub attr: usize,
 }
 
-// impl<'a> Typed<'a> for Tuple<'a> {
-//     fn eval_type(
-//         &self,
-//         symbols: &mut SymbolTableZipper<'a>,
-//     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-//         let types = self
-//             .values
-//             .iter()
-//             .map(|val| val.eval_type(symbols))
-//             .collect::<Result<Vec<_>, _>>()?;
+impl<'a> Typed<'a> for NodeRef<'a, Tuple<'a>> {
+    fn eval_type(
+        &self,
+        symbols: &mut SymbolTableZipper<'a>,
+        ctx: &mut IrCtx<'a>,
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
+        let types = ctx[*self]
+            .values
+            .iter()
+            .map(|val| val.eval_type(symbols, ctx))
+            .collect::<Result<Vec<_>, _>>()?;
 
-//         Ok(TypeSignature::Tuple(types))
-//     }
+        Ok(ctx.get_type_sig(TypeSignatureValue::Tuple(types)))
+    }
 
-//     fn specified_type(&self) -> Option<TypeSignature<'a>> {
-//         self.type_sig.clone()
-//     }
+    fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
+        ctx[*self].type_sig
+    }
 
-//     fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
-//         match &new_type {
-//             TypeSignature::Tuple(vals) => assert_eq!(vals.len(), self.values.len()),
-//             _ => assert!(false),
-//         }
+    fn specify_type(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        new_type: TypeSignature<'a>,
+    ) -> Result<(), TypeEvalError<'a>> {
+        match &ctx[new_type] {
+            TypeSignatureValue::Tuple(vals) => assert_eq!(vals.len(), ctx[*self].values.len()),
+            _ => assert!(false),
+        }
 
-//         self.type_sig = Some(new_type);
-//         Ok(())
-//     }
-// }
+        ctx[*self].type_sig = Some(new_type);
+        Ok(())
+    }
+}
 
-// impl<'a> Typed<'a> for TupleAccess<'a> {
-//     fn eval_type(
-//         &self,
-//         symbols: &mut SymbolTableZipper<'a>,
-//     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-//         match self.tuple_expr.eval_type(symbols)? {
-//             TypeSignature::Tuple(tuple) => {
-//                 tuple
-//                     .get(self.attr)
-//                     .cloned()
-//                     .ok_or(TypeEvalError::TupleAccessOutOfBounds {
-//                         tuple_len: tuple.len(),
-//                         access_item: self.attr,
-//                     })
-//             }
-//             val => Err(TypeEvalError::AccessNonTuple(val)),
-//         }
-//     }
-// }
+impl<'a> Typed<'a> for NodeRef<'a, TupleAccess<'a>> {
+    fn eval_type(
+        &self,
+        symbols: &mut SymbolTableZipper<'a>,
+        ctx: &mut IrCtx<'a>,
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
+        let tuple_type = ctx[*self].tuple_expr.eval_type(symbols, ctx)?;
+        let attr = ctx[*self].attr;
+        match &ctx[tuple_type] {
+            TypeSignatureValue::Tuple(tuple) => {
+                tuple
+                    .get(attr)
+                    .cloned()
+                    .ok_or(TypeEvalError::TupleAccessOutOfBounds {
+                        tuple_len: tuple.len(),
+                        access_item: attr,
+                    })
+            }
+            val => Err(TypeEvalError::AccessNonTuple(tuple_type)),
+        }
+    }
+}

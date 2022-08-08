@@ -21,7 +21,7 @@ pub mod ast;
 pub mod ir;
 pub mod parser;
 pub mod symbols;
-// pub mod type_checker;
+pub mod type_checker;
 
 fn main() -> std::io::Result<()> {
     // let mut input = std::io::stdin()

@@ -2,28 +2,55 @@ use std::fmt::Debug;
 
 use id_arena::Id;
 
+use crate::symbols::symbol_table::symbol_table_zipper::SymbolTableZipper;
+
 use super::{
     context::IrCtx,
     node::{
         enumeration::Enum,
         expression::Expr,
         function::Function,
+        identifier::Ident,
         module::Module,
         statement::Stmt,
         structure::{Struct, StructInit},
+        NodeRef,
     },
     IR,
 };
 
 pub enum ScopeValue<'a> {
-    Func(Id<Function<'a>>),
-    Struct(Id<Struct<'a>>),
-    StructInit(Id<StructInit<'a>>),
-    Enum(Id<Enum<'a>>),
+    Func(NodeRef<'a, Function<'a>>),
+    Struct(NodeRef<'a, Struct<'a>>),
+    StructInit(NodeRef<'a, StructInit<'a>>),
+    Enum(NodeRef<'a, Enum<'a>>),
+}
+
+impl<'a> ScopeValue<'a> {
+    pub fn visit_scope_begin(&self, ctx: &IrCtx<'a>, symbols: &mut SymbolTableZipper<'a>) {
+        match self {
+            ScopeValue::Func(func) => {
+                symbols
+                    .enter_scope(ctx, ctx[*func].name)
+                    .expect("scope should exist");
+            }
+            ScopeValue::Struct(st) => {
+                symbols
+                    .enter_scope(ctx, ctx[*st].name)
+                    .expect("scope should exist");
+            }
+            ScopeValue::StructInit(st_init) => symbols
+                .enter_scope(ctx, ctx[*st_init].scope_name)
+                .expect("scope should exist"),
+            ScopeValue::Enum(enm) => symbols
+                .enter_scope(ctx, ctx[*enm].name)
+                .expect("scope should exist"),
+        }
+    }
 }
 
 #[allow(unused_variables)]
-pub trait AstWalker<'a> {
+pub trait IrWalker<'a> {
     type Scope: Default = ();
     type Error: Debug = ();
 
@@ -39,7 +66,7 @@ pub trait AstWalker<'a> {
         &mut self,
         ctx: &mut IrCtx<'a>,
         scope: &mut Self::Scope,
-        stmt: Id<Stmt<'a>>,
+        stmt: NodeRef<'a, Stmt<'a>>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -48,7 +75,7 @@ pub trait AstWalker<'a> {
         &mut self,
         ctx: &mut IrCtx<'a>,
         scope: &mut Self::Scope,
-        stmt: Id<Stmt<'a>>,
+        stmt: NodeRef<'a, Stmt<'a>>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -76,13 +103,22 @@ pub trait AstWalker<'a> {
         &mut self,
         ctx: &mut IrCtx<'a>,
         scope: &mut Self::Scope,
-        expr: Id<Expr<'a>>,
+        expr: NodeRef<'a, Expr<'a>>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
+
+    fn visit_ident(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        scope: &mut Self::Scope,
+        ident: Ident<'a>,
+    ) -> Result<Ident<'a>, Self::Error> {
+        Ok(ident)
+    }
 }
 
-pub fn walk_ast<'a, 'ctx, W: AstWalker<'a>>(
+pub fn walk_ast<'a, 'ctx, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     ast: &mut IR<'a>,
@@ -93,7 +129,7 @@ pub fn walk_ast<'a, 'ctx, W: AstWalker<'a>>(
     Ok(global_scope)
 }
 
-fn walk_module<'a, W: AstWalker<'a>>(
+fn walk_module<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
@@ -106,16 +142,19 @@ fn walk_module<'a, W: AstWalker<'a>>(
     Ok(())
 }
 
-fn walk_struct<'a, W: AstWalker<'a>>(
+fn walk_struct<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
-    st: Id<Struct<'a>>,
+    st: NodeRef<'a, Struct<'a>>,
 ) -> Result<(), W::Error> {
     let mut st_scope = walker.visit_scope_begin(ctx, scope, ScopeValue::Struct(st))?;
 
-    for attr_id in ctx.nodes.st_decls[st].attrs.clone() {
-        let attr = &mut ctx.nodes.st_attrs[attr_id];
+    for attr_id in ctx[st].attrs {
+        let attr_name = ctx[attr_id].name;
+        ctx[attr_id].name = walker.visit_ident(ctx, scope, attr_name)?;
+
+        let attr = &mut ctx[attr_id];
         match attr.default_value {
             Some(value) => {
                 walk_expr(walker, ctx, &mut st_scope, value)?;
@@ -124,35 +163,47 @@ fn walk_struct<'a, W: AstWalker<'a>>(
         }
     }
 
+    let st_name = ctx[st].name;
+    ctx[st].name = walker.visit_ident(ctx, scope, st_name)?;
+
     walker.visit_scope_end(ctx, scope, st_scope, ScopeValue::Struct(st))?;
 
     Ok(())
 }
 
-fn walk_enum<'a, W: AstWalker<'a>>(
+fn walk_enum<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
-    enm: Id<Enum<'a>>,
+    enm: NodeRef<'a, Enum<'a>>,
 ) -> Result<(), W::Error> {
     let enm_scope = walker.visit_scope_begin(ctx, scope, ScopeValue::Enum(enm))?;
+    ctx[enm].name = walker.visit_ident(ctx, scope, ctx[enm].name)?;
+
+    for val in ctx[enm].values {
+        let ident = ctx[val].name;
+        ctx[val].name = walker.visit_ident(ctx, scope, ident)?;
+    }
+
     walker.visit_scope_end(ctx, scope, enm_scope, ScopeValue::Enum(enm))?;
 
     Ok(())
 }
 
-fn walk_stmt<'a, W: AstWalker<'a>>(
+fn walk_stmt<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
-    stmt: Id<Stmt<'a>>,
+    stmt: NodeRef<'a, Stmt<'a>>,
 ) -> Result<(), W::Error> {
     walker.pre_visit_stmt(ctx, scope, stmt)?;
-    let stmt_val = &ctx.nodes.stmts[stmt];
+    let stmt_val = &ctx[stmt];
     match stmt_val {
         Stmt::VariableDecl(decl) => {
             let decl = *decl;
-            walk_expr(walker, ctx, scope, ctx.nodes.var_decls[decl].value)?
+            let decl_name = ctx[decl].name;
+            ctx[decl].name = walker.visit_ident(ctx, scope, decl_name)?;
+            walk_expr(walker, ctx, scope, ctx[decl].value)?
         }
         Stmt::Expression(expr) => {
             let expr = *expr;
@@ -163,7 +214,7 @@ fn walk_stmt<'a, W: AstWalker<'a>>(
             walk_func_decl(walker, ctx, scope, func)?
         }
         Stmt::Compound(stmts) => {
-            for stmt in stmts.clone() {
+            for stmt in *stmts {
                 walk_stmt(walker, ctx, scope, stmt)?;
             }
         }
@@ -184,53 +235,78 @@ fn walk_stmt<'a, W: AstWalker<'a>>(
     Ok(())
 }
 
-fn walk_func_decl<'a, 'ctx, W: AstWalker<'a>>(
+fn walk_func_decl<'a, 'ctx, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
-    func: Id<Function<'a>>,
+    func: NodeRef<'a, Function<'a>>,
 ) -> Result<(), W::Error> {
     let mut func_scope = walker.visit_scope_begin(ctx, scope, ScopeValue::Func(func))?;
-    walk_stmt(walker, ctx, &mut func_scope, ctx.nodes.funcs[func].body)?;
+
+    for arg in ctx[func].args {
+        let arg_name = ctx[arg].name;
+        ctx[arg].name = walker.visit_ident(ctx, scope, arg_name)?;
+    }
+
+    let func_name = ctx[func].name;
+    ctx[func].name = walker.visit_ident(ctx, scope, func_name)?;
+
+    walk_stmt(walker, ctx, &mut func_scope, ctx[func].body)?;
+
     walker.visit_scope_end(ctx, scope, func_scope, ScopeValue::Func(func))?;
 
     Ok(())
 }
 
-fn walk_expr<'a, 'ctx, W: AstWalker<'a>>(
+fn walk_expr<'a, 'ctx, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
-    expr: Id<Expr<'a>>,
+    expr: NodeRef<'a, Expr<'a>>,
 ) -> Result<(), W::Error> {
-    match &ctx.nodes.exprs[expr] {
-        &Expr::Function(func) => walk_func_decl(walker, ctx, scope, func),
-        &Expr::Assignment(asg_id) => {
-            let asg = &ctx.nodes.asgns[asg_id];
+    match &mut ctx[expr] {
+        Expr::Function(func) => walk_func_decl(walker, ctx, scope, *func),
+        Expr::Assignment(asg_id) => {
+            let asg = &ctx[*asg_id];
             let lhs = asg.lhs;
             let rhs = asg.rhs;
             walk_expr(walker, ctx, scope, lhs)?;
             walk_expr(walker, ctx, scope, rhs)
         }
-        &Expr::StructAccess(st_access) => {
-            walk_expr(walker, ctx, scope, ctx.nodes.st_accs[st_access].struct_expr)
+        Expr::StructAccess(st_access) => walk_expr(walker, ctx, scope, ctx[*st_access].struct_expr),
+        Expr::StructInit(st_init) => walk_struct_init(walker, ctx, scope, *st_init),
+        Expr::Identifier(ident) => {
+            *ident = walker.visit_ident(ctx, scope, *ident)?;
+            Ok(())
         }
-        &Expr::StructInit(st_init) => walk_struct_init(walker, ctx, scope, st_init),
-        _ => Ok(()),
+        Expr::StringLiteral(_) => Ok(()),
+        Expr::NumberLiteral(_) => Ok(()),
+        Expr::BoolLiteral(_) => Ok(()),
+        Expr::FunctionCall(func_call) => Ok(()),
+        Expr::TupleAccess(_) => Ok(()),
+        Expr::EscapeBlock(_) => Ok(()),
+        Expr::Tuple(_) => Ok(()),
     }?;
 
     walker.visit_expr(ctx, scope, expr)
 }
 
-fn walk_struct_init<'a, 'ctx, W: AstWalker<'a>>(
+fn walk_struct_init<'a, 'ctx, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
-    st_init: Id<StructInit<'a>>,
+    st_init: NodeRef<'a, StructInit<'a>>,
 ) -> Result<(), W::Error> {
     let mut child_scope = walker.visit_scope_begin(ctx, scope, ScopeValue::StructInit(st_init))?;
-    for value in ctx.nodes.st_inits[st_init].values.clone() {
-        let expr = ctx.nodes.st_init_vals[value].value;
+
+    let st_name = ctx[st_init].struct_name;
+    let scp_name = ctx[st_init].scope_name;
+
+    ctx[st_init].struct_name = walker.visit_ident(ctx, scope, st_name)?;
+    ctx[st_init].scope_name = walker.visit_ident(ctx, scope, scp_name)?;
+
+    for value in ctx[st_init].values {
+        let expr = ctx[value].value;
         walk_expr(walker, ctx, &mut child_scope, expr)?;
     }
     walker.visit_scope_end(ctx, scope, child_scope, ScopeValue::StructInit(st_init))?;

@@ -2,16 +2,34 @@ use std::fmt::Debug;
 
 use id_arena::Id;
 
-use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
+use crate::{
+    ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
+    type_checker::function_body_type_eval::FunctionTypeError,
+};
 
 use super::{expression::Expr, identifier::Ident};
 
-pub type TypeSignature<'a> = Id<TypeSignatureValue<'a>>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TypeSignature<'a> {
+    id: Id<TypeSignatureValue<'a>>,
+}
 
-#[derive(Debug)]
+impl<'a> Into<Id<TypeSignatureValue<'a>>> for TypeSignature<'a> {
+    fn into(self) -> Id<TypeSignatureValue<'a>> {
+        self.id
+    }
+}
+
+impl<'a> From<Id<TypeSignatureValue<'a>>> for TypeSignature<'a> {
+    fn from(id: Id<TypeSignatureValue<'a>>) -> Self {
+        Self { id }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum TypeSignatureValue<'a> {
     Builtin(BuiltinType),
-    Unresolved(crate::ast::node::identifier::Ident<'a>),
+    Unresolved(Ident<'a>),
     Function {
         args: Vec<TypeSignature<'a>>,
         return_type: TypeSignature<'a>,
@@ -28,7 +46,7 @@ pub enum TypeSignatureValue<'a> {
 #[derive(Debug)]
 pub enum TypeEvalError<'a> {
     Expression(Expr<'a>),
-    // FunctionType(FunctionTypeError<'a>),
+    FunctionType(FunctionTypeError<'a>),
     CallNonFunction(TypeSignature<'a>),
     AccessNonStruct(TypeSignature<'a>),
     AccessNonTuple(TypeSignature<'a>),
@@ -38,6 +56,34 @@ pub enum TypeEvalError<'a> {
     },
     UnknownIdentifier(Ident<'a>),
     UndeterminableType(Ident<'a>),
+}
+
+impl<'a> crate::ast::node::type_signature::TypeSignature<'a> {
+    pub fn into_ir_type(self, ctx: &mut IrCtx<'a>) -> TypeSignatureValue<'a> {
+        match self.value {
+            crate::ast::node::type_signature::TypeSignatureValue::Base(base) => {
+                TypeSignatureValue::Unresolved(ctx.make_unresolved_ident(base))
+            }
+            crate::ast::node::type_signature::TypeSignatureValue::Function {
+                args,
+                return_type,
+            } => TypeSignatureValue::Function {
+                args: args
+                    .into_iter()
+                    .map(|arg| ctx.get_type_sig(arg.into_ir_type(ctx)))
+                    .collect(),
+                return_type: ctx.get_type_sig(return_type.into_ir_type(ctx)),
+            },
+            crate::ast::node::type_signature::TypeSignatureValue::Tuple(types) => {
+                TypeSignatureValue::Tuple(
+                    types
+                        .into_iter()
+                        .map(|t| ctx.get_type_sig(t.into_ir_type(ctx)))
+                        .collect(),
+                )
+            }
+        }
+    }
 }
 
 #[allow(unused_variables)]

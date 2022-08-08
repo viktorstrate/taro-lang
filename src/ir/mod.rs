@@ -1,8 +1,8 @@
 use self::node::module::Module;
 
 pub mod ast_lowering;
-pub mod ast_walker;
 pub mod context;
+pub mod ir_walker;
 pub mod node;
 // pub mod test_utils;
 

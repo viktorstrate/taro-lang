@@ -1,9 +1,7 @@
-use id_arena::Id;
-
-use super::expression::Expr;
+use super::{expression::Expr, NodeRef};
 
 #[derive(Debug)]
 pub struct Assignment<'a> {
-    pub lhs: Id<Expr<'a>>,
-    pub rhs: Id<Expr<'a>>,
+    pub lhs: NodeRef<'a, Expr<'a>>,
+    pub rhs: NodeRef<'a, Expr<'a>>,
 }

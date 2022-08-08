@@ -31,10 +31,14 @@ impl<'a> Into<SymbolTableZipper<'a>> for SymbolTable<'a> {
 }
 
 impl<'a> SymbolTableZipper<'a> {
-    pub fn enter_scope(&mut self, ident: Ident<'a>) -> Result<(), SymbolsError<'a>> {
+    pub fn enter_scope(
+        &mut self,
+        ctx: &IrCtx<'a>,
+        ident: Ident<'a>,
+    ) -> Result<(), SymbolsError<'a>> {
         let mut temp_cursor = self
             .cursor
-            .remove_scope(ident)
+            .remove_scope(ctx, ident)
             .ok_or(SymbolsError::ScopeNotFound(ident))?;
 
         std::mem::swap(&mut self.cursor, &mut temp_cursor);
@@ -47,7 +51,7 @@ impl<'a> SymbolTableZipper<'a> {
         Ok(())
     }
 
-    pub fn exit_scope(&mut self) -> Result<(), SymbolsError<'a>> {
+    pub fn exit_scope(&mut self, ctx: &IrCtx<'a>) -> Result<(), SymbolsError<'a>> {
         let mut breadcrumb = self
             .breadcrumb
             .pop()
@@ -55,7 +59,7 @@ impl<'a> SymbolTableZipper<'a> {
 
         std::mem::swap(&mut self.cursor, &mut breadcrumb.sym_table);
         self.cursor
-            .insert_scope(breadcrumb.scope_name, breadcrumb.sym_table)?;
+            .insert_scope(ctx, breadcrumb.scope_name, breadcrumb.sym_table)?;
 
         self.visited_symbols = breadcrumb.visited_symbols;
 
@@ -68,7 +72,7 @@ impl<'a> SymbolTableZipper<'a> {
         }
 
         for scope in self.breadcrumb.iter().rev() {
-            if let Some(value) = scope.sym_table.lookup_global_table(ident) {
+            if let Some(value) = scope.sym_table.lookup_global_table(ctx, ident) {
                 return Some(value);
             }
 
@@ -96,7 +100,7 @@ impl<'a> SymbolTableZipper<'a> {
             .iter()
             .take(visited_symbols)
             .rev()
-            .find(|sym| ctx.symbols[**sym].name(ctx) == ident)
+            .find(|sym| ctx[**sym].name(ctx) == ident)
     }
 
     pub fn lookup_current_scope(
@@ -104,21 +108,21 @@ impl<'a> SymbolTableZipper<'a> {
         ctx: &IrCtx<'a>,
         ident: Ident<'a>,
     ) -> Option<&SymbolValue<'a>> {
-        if let Some(sym) = self.cursor.lookup_global_table(ident) {
+        if let Some(sym) = self.cursor.lookup_global_table(ctx, ident) {
             return Some(sym);
         }
 
         SymbolTableZipper::locate_visited_symbol(ctx, &self.cursor, self.visited_symbols, ident)
     }
 
-    pub fn visit_next_symbol(&mut self) {
+    pub fn visit_next_symbol(&mut self, ctx: &IrCtx<'a>) {
         debug_assert!(self.visited_symbols <= self.cursor.ordered_symbols.len());
         self.visited_symbols += 1;
     }
 
-    pub fn reset(&mut self) {
+    pub fn reset(&mut self, ctx: &IrCtx<'a>) {
         while !self.breadcrumb.is_empty() {
-            self.exit_scope().expect("while guard ensures");
+            self.exit_scope(ctx).expect("while guard ensures");
         }
 
         self.visited_symbols = 0;

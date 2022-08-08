@@ -1,6 +1,7 @@
 use crate::ir::node::{
     identifier::Ident,
     type_signature::{TypeEvalError, TypeSignature, Typed},
+    NodeRef,
 };
 
 use self::{
@@ -26,7 +27,7 @@ pub enum TypeCheckerError<'a> {
     },
     TypeEvalError(TypeEvalError<'a>),
     FunctionError(FunctionTypeError<'a>),
-    UntypedValue(Box<dyn 'a + Typed<'a>>),
+    UntypedValue(),
     LookupError(Ident<'a>),
     AssignmentError(AssignmentError<'a>),
     StructError(StructTypeError<'a>),

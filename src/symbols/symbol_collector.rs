@@ -1,18 +1,16 @@
 use id_arena::Id;
 
 use crate::ir::{
-    ast_walker::{AstWalker, ScopeValue},
     context::IrCtx,
-    node::{statement::Stmt, type_signature::BUILTIN_TYPES},
+    ir_walker::{IrWalker, ScopeValue},
+    node::{statement::Stmt, type_signature::BUILTIN_TYPES, NodeRef},
 };
 
 use super::symbol_table::{SymbolTable, SymbolValueItem, SymbolsError};
 
-pub struct SymbolCollector<'a> {
-    ctx: IrCtx<'a>,
-}
+pub struct SymbolCollector {}
 
-impl<'a: 'ctx, 'ctx> AstWalker<'a> for SymbolCollector<'a> {
+impl<'a> IrWalker<'a> for SymbolCollector {
     type Scope = SymbolTable<'a>;
     type Error = SymbolsError<'a>;
 
@@ -22,10 +20,8 @@ impl<'a: 'ctx, 'ctx> AstWalker<'a> for SymbolCollector<'a> {
         scope: &mut Self::Scope,
     ) -> Result<(), Self::Error> {
         for builtin_type in BUILTIN_TYPES {
-            scope.insert(
-                ctx,
-                SymbolValueItem::BuiltinType(self.ctx.make_builtin_ident(*builtin_type)),
-            )?;
+            let type_sig = SymbolValueItem::BuiltinType(ctx.make_builtin_ident(*builtin_type));
+            scope.insert(ctx, type_sig)?;
         }
 
         Ok(())
@@ -42,13 +38,13 @@ impl<'a: 'ctx, 'ctx> AstWalker<'a> for SymbolCollector<'a> {
         match value {
             ScopeValue::Func(func) => {
                 parent.insert(ctx, SymbolValueItem::FuncDecl(func))?;
-                for arg in ctx.nodes.funcs[func].args.clone() {
+                for arg in ctx[func].args.clone() {
                     new_scope.insert(ctx, SymbolValueItem::FuncArg(arg))?;
                 }
             }
             ScopeValue::Struct(st) => {
                 parent.insert(ctx, SymbolValueItem::StructDecl(st))?;
-                for attr in ctx.nodes.st_decls[st].attrs.clone() {
+                for attr in ctx[st].attrs {
                     new_scope.insert(ctx, SymbolValueItem::StructAttr(attr))?;
                 }
             }
@@ -72,18 +68,12 @@ impl<'a: 'ctx, 'ctx> AstWalker<'a> for SymbolCollector<'a> {
     ) -> Result<(), Self::Error> {
         // save child scope in parent scope
         match value {
-            ScopeValue::Func(func) => parent
-                .insert_scope(ctx.nodes.funcs[func].name, child)
-                .map(|_| ()),
-            ScopeValue::Struct(st) => parent
-                .insert_scope(ctx.nodes.st_decls[st].name, child)
-                .map(|_| ()),
+            ScopeValue::Func(func) => parent.insert_scope(ctx, ctx[func].name, child).map(|_| ()),
+            ScopeValue::Struct(st) => parent.insert_scope(ctx, ctx[st].name, child).map(|_| ()),
             ScopeValue::StructInit(st_init) => parent
-                .insert_scope(ctx.nodes.st_inits[st_init].scope_name, child)
+                .insert_scope(ctx, ctx[st_init].scope_name, child)
                 .map(|_| ()),
-            ScopeValue::Enum(enm) => parent
-                .insert_scope(ctx.nodes.enms[enm].name, child)
-                .map(|_| ()),
+            ScopeValue::Enum(enm) => parent.insert_scope(ctx, ctx[enm].name, child).map(|_| ()),
         }
     }
 
@@ -91,9 +81,9 @@ impl<'a: 'ctx, 'ctx> AstWalker<'a> for SymbolCollector<'a> {
         &mut self,
         ctx: &mut IrCtx<'a>,
         scope: &mut SymbolTable<'a>,
-        stmt: Id<Stmt<'a>>,
+        stmt: NodeRef<'a, Stmt<'a>>,
     ) -> Result<(), Self::Error> {
-        match &ctx.nodes.stmts[stmt] {
+        match &ctx[stmt] {
             Stmt::VariableDecl(var_decl) => {
                 let decl = *var_decl;
                 scope

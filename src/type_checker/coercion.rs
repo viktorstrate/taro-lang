@@ -8,8 +8,8 @@ pub fn can_coerce_to<'a>(
     other: TypeSignature<'a>,
     ctx: &IrCtx<'a>,
 ) -> bool {
-    let self_t = &ctx.types[type_sig];
-    let other_t = &ctx.types[other];
+    let self_t = &ctx[type_sig];
+    let other_t = &ctx[other];
 
     if let (TypeSignatureValue::Tuple(selves), TypeSignatureValue::Tuple(others)) =
         (self_t, other_t)

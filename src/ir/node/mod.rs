@@ -10,8 +10,13 @@ use self::{
     structure::{Struct, StructAccess, StructAttr, StructInit, StructInitValue},
     tuple::{Tuple, TupleAccess},
 };
+use std::{
+    convert::Into,
+    marker::PhantomData,
+    ops::{Index, IndexMut},
+};
 
-use super::context::IrCtx;
+use super::context::{IrArenaType, IrCtx};
 
 pub mod assignment;
 pub mod enumeration;
@@ -42,6 +47,50 @@ pub enum IrNode<'a> {
     EscapeBlock(EscapeBlock<'a>),
 }
 
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct NodeRef<'a, T>
+where
+    T: IrArenaType<'a>,
+{
+    id: Id<T>,
+    _marker: PhantomData<&'a str>,
+}
+
+impl<'a, T> Copy for NodeRef<'a, T> where T: IrArenaType<'a> {}
+
+impl<'a, T> Clone for NodeRef<'a, T>
+where
+    T: IrArenaType<'a>,
+{
+    fn clone(&self) -> Self {
+        NodeRef {
+            id: self.id,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<'a, T> From<Id<T>> for NodeRef<'a, T>
+where
+    T: IrArenaType<'a>,
+{
+    fn from(val: Id<T>) -> Self {
+        NodeRef {
+            id: val,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<'a, T> Into<Id<T>> for NodeRef<'a, T>
+where
+    T: IrArenaType<'a>,
+{
+    fn into(self) -> Id<T> {
+        self.id
+    }
+}
+
 pub struct IrNodeArena<'a> {
     pub stmts: Arena<Stmt<'a>>,
     pub exprs: Arena<Expr<'a>>,
@@ -68,111 +117,209 @@ impl<'a> IrNodeArena<'a> {
     }
 }
 
+impl<'a, T> Index<NodeRef<'a, T>> for IrNodeArena<'a>
+where
+    T: IrArenaType<'a>,
+{
+    type Output = T;
+
+    fn index(&self, index: NodeRef<'a, T>) -> &Self::Output {
+        &self[index]
+    }
+}
+
+impl<'a, T> IndexMut<NodeRef<'a, T>> for IrNodeArena<'a>
+where
+    T: IrArenaType<'a>,
+{
+    fn index_mut(&mut self, index: NodeRef<'a, T>) -> &mut Self::Output {
+        &mut self[index]
+    }
+}
+
 pub trait IrAlloc<'a>
 where
-    Self: Sized,
+    Self: IrArenaType<'a>,
 {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self>;
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self>;
 }
 
-impl<'a> IrAlloc<'a> for Stmt<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.stmts.alloc(self)
+impl<'a, T> IrAlloc<'a> for T
+where
+    T: IrArenaType<'a>,
+{
+    fn allocate(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self> {
+        let id = Self::arena_mut(ctx).alloc(self);
+        NodeRef::from(id)
     }
 }
 
-impl<'a> IrAlloc<'a> for Expr<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.exprs.alloc(self)
+impl<'a> IrArenaType<'a> for Stmt<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.stmts
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.stmts
     }
 }
 
-impl<'a> IrAlloc<'a> for FunctionArg<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.func_args.alloc(self)
+impl<'a> IrArenaType<'a> for Expr<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.exprs
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.exprs
     }
 }
 
-impl<'a> IrAlloc<'a> for StructAttr<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.st_attrs.alloc(self)
+impl<'a> IrArenaType<'a> for FunctionArg<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.func_args
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.func_args
     }
 }
 
-impl<'a> IrAlloc<'a> for Enum<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.enms.alloc(self)
+impl<'a> IrArenaType<'a> for StructAttr<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.st_attrs
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.st_attrs
     }
 }
 
-impl<'a> IrAlloc<'a> for EnumValue<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.enm_vals.alloc(self)
+impl<'a> IrArenaType<'a> for Enum<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.enms
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.enms
     }
 }
 
-impl<'a> IrAlloc<'a> for Function<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.funcs.alloc(self)
+impl<'a> IrArenaType<'a> for EnumValue<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.enm_vals
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.enm_vals
     }
 }
 
-impl<'a> IrAlloc<'a> for FunctionCall<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.func_calls.alloc(self)
+impl<'a> IrArenaType<'a> for Function<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.funcs
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.funcs
     }
 }
 
-impl<'a> IrAlloc<'a> for Struct<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.st_decls.alloc(self)
+impl<'a> IrArenaType<'a> for FunctionCall<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.func_calls
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.func_calls
     }
 }
 
-impl<'a> IrAlloc<'a> for StructInitValue<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.st_init_vals.alloc(self)
+impl<'a> IrArenaType<'a> for Struct<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.st_decls
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.st_decls
     }
 }
 
-impl<'a> IrAlloc<'a> for StructInit<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.st_inits.alloc(self)
+impl<'a> IrArenaType<'a> for StructInitValue<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.st_init_vals
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.st_init_vals
     }
 }
 
-impl<'a> IrAlloc<'a> for StructAccess<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.st_accs.alloc(self)
+impl<'a> IrArenaType<'a> for StructInit<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.st_inits
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.st_inits
     }
 }
 
-impl<'a> IrAlloc<'a> for Tuple<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.tups.alloc(self)
+impl<'a> IrArenaType<'a> for StructAccess<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.st_accs
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.st_accs
     }
 }
 
-impl<'a> IrAlloc<'a> for TupleAccess<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.tup_accs.alloc(self)
+impl<'a> IrArenaType<'a> for Tuple<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.tups
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.tups
     }
 }
 
-impl<'a> IrAlloc<'a> for Assignment<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.asgns.alloc(self)
+impl<'a> IrArenaType<'a> for TupleAccess<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.tup_accs
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.tup_accs
     }
 }
 
-impl<'a> IrAlloc<'a> for EscapeBlock<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.esc_blks.alloc(self)
+impl<'a> IrArenaType<'a> for Assignment<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.asgns
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.asgns
     }
 }
 
-impl<'a> IrAlloc<'a> for VarDecl<'a> {
-    fn allocate(self, ctx: &mut IrCtx<'a>) -> Id<Self> {
-        ctx.nodes.var_decls.alloc(self)
+impl<'a> IrArenaType<'a> for EscapeBlock<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.esc_blks
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.esc_blks
+    }
+}
+
+impl<'a> IrArenaType<'a> for VarDecl<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.var_decls
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.var_decls
     }
 }

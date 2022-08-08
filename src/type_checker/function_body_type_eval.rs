@@ -8,6 +8,7 @@ use crate::{
             function::Function,
             statement::Stmt,
             type_signature::{BuiltinType, TypeEvalError, TypeSignature, Typed},
+            NodeRef,
         },
     },
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
@@ -17,10 +18,14 @@ use super::coercion::coerce;
 
 #[derive(Debug)]
 pub enum FunctionTypeError<'a> {
-    ExprValue(Id<Function<'a>>, Box<TypeEvalError<'a>>),
-    ConflictingReturnTypes(Id<Function<'a>>, TypeSignature<'a>, TypeSignature<'a>),
+    ExprValue(NodeRef<'a, Function<'a>>, Box<TypeEvalError<'a>>),
+    ConflictingReturnTypes(
+        NodeRef<'a, Function<'a>>,
+        TypeSignature<'a>,
+        TypeSignature<'a>,
+    ),
     WrongNumberOfArgs {
-        func: Id<Function<'a>>,
+        func: NodeRef<'a, Function<'a>>,
         expected: usize,
         actual: usize,
     },
@@ -29,18 +34,18 @@ pub enum FunctionTypeError<'a> {
 pub fn eval_func_body_type_sig<'a>(
     ctx: &mut IrCtx<'a>,
     symbols: &mut SymbolTableZipper<'a>,
-    func: Id<Function<'a>>,
+    func: NodeRef<'a, Function<'a>>,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {
-    let func_body = ctx.nodes.funcs[func].body;
+    let func_body = ctx[func].body;
     let body_type = stmt_type(ctx, symbols, func, func_body)?;
 
-    if let Some(return_type) = &ctx.nodes.funcs[func].return_type {
-        if let Some(coerced_type) = coerce(body_type, *return_type, ctx) {
+    if let Some(return_type) = ctx[func].return_type {
+        if let Some(coerced_type) = coerce(body_type, return_type, ctx) {
             Ok(coerced_type)
         } else {
             Err(FunctionTypeError::ConflictingReturnTypes(
                 func,
-                *return_type,
+                return_type,
                 body_type,
             ))
         }
@@ -50,45 +55,46 @@ pub fn eval_func_body_type_sig<'a>(
 }
 
 fn expr_type<'a>(
+    ctx: &mut IrCtx<'a>,
     symbols: &mut SymbolTableZipper<'a>,
-    func: &Function<'a>,
-    expr: &Expr<'a>,
+    func: NodeRef<'a, Function<'a>>,
+    expr: NodeRef<'a, Expr<'a>>,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {
-    expr.eval_type(symbols)
-        .map_err(|err| FunctionTypeError::ExprValue(func.clone(), Box::new(err)))
+    expr.eval_type(symbols, ctx)
+        .map_err(|err| FunctionTypeError::ExprValue(func, Box::new(err)))
 }
 
 fn stmt_type<'a>(
     ctx: &mut IrCtx<'a>,
     symbols: &mut SymbolTableZipper<'a>,
-    func: Id<Function<'a>>,
-    stmt: Id<Stmt<'a>>,
+    func: NodeRef<'a, Function<'a>>,
+    stmt: NodeRef<'a, Stmt<'a>>,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {
-    match &ctx.nodes.stmts[stmt] {
+    match &ctx[stmt] {
         Stmt::VariableDecl(_) => {
-            symbols.visit_next_symbol();
+            symbols.visit_next_symbol(ctx);
             Ok(ctx.get_builtin_type_sig(BuiltinType::Void))
         }
         Stmt::FunctionDecl(_) => Ok(ctx.get_builtin_type_sig(BuiltinType::Void)),
         Stmt::StructDecl(_) => Ok(ctx.get_builtin_type_sig(BuiltinType::Void)),
         Stmt::EnumDecl(_) => Ok(ctx.get_builtin_type_sig(BuiltinType::Void)),
-        Stmt::Expression(expr) => expr_type(symbols, func, expr),
-        Stmt::Return(expr) => expr_type(symbols, func, expr),
-        Stmt::Compound(stmts) => stmt_compound_type(ctx, symbols, func, stmts),
+        Stmt::Expression(expr) => expr_type(ctx, symbols, func, *expr),
+        Stmt::Return(expr) => expr_type(ctx, symbols, func, *expr),
+        Stmt::Compound(stmts) => stmt_compound_type(ctx, symbols, func, stmts.clone()),
     }
 }
 
 fn stmt_compound_type<'a>(
     ctx: &mut IrCtx<'a>,
     symbols: &mut SymbolTableZipper<'a>,
-    func: Id<Function<'a>>,
-    stmts: &Vec<Id<Stmt<'a>>>,
+    func: NodeRef<'a, Function<'a>>,
+    stmts: Vec<NodeRef<'a, Stmt<'a>>>,
 ) -> Result<TypeSignature<'a>, FunctionTypeError<'a>> {
     let mut type_sig: Option<TypeSignature<'a>> = None;
 
     for stmt in stmts {
-        let stmt_type_sig = stmt_type(ctx, symbols, func, *stmt)?;
-        match &ctx.nodes.stmts[*stmt] {
+        let stmt_type_sig = stmt_type(ctx, symbols, func, stmt)?;
+        match &ctx[stmt] {
             Stmt::Compound(_) | Stmt::Return(_) => {
                 if let Some(type_sig_val) = &type_sig {
                     if let Some(coerced_type) = coerce(*type_sig_val, stmt_type_sig, ctx) {
@@ -109,7 +115,7 @@ fn stmt_compound_type<'a>(
         }
     }
 
-    Ok(type_sig.unwrap_or(BuiltinType::Void.type_sig()))
+    Ok(type_sig.unwrap_or(ctx.get_builtin_type_sig(BuiltinType::Void)))
 }
 
 // #[cfg(test)]
