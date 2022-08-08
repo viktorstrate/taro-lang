@@ -1,7 +1,5 @@
 use std::fmt::Debug;
 
-
-
 use crate::symbols::symbol_table::symbol_table_zipper::SymbolTableZipper;
 
 use super::{
@@ -14,6 +12,7 @@ use super::{
         module::Module,
         statement::Stmt,
         structure::{Struct, StructInit},
+        type_signature::{TypeSignature, TypeSignatureValue},
         NodeRef,
     },
     IR,
@@ -119,7 +118,7 @@ pub trait IrWalker<'a> {
     }
 }
 
-pub fn walk_ast<'a, 'ctx, W: IrWalker<'a>>(
+pub fn walk_ir<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     ast: &mut IR<'a>,
@@ -155,12 +154,16 @@ fn walk_struct<'a, W: IrWalker<'a>>(
         let attr_name = ctx[attr_id].name;
         ctx[attr_id].name = walker.visit_ident(ctx, scope, attr_name)?;
 
-        let attr = &mut ctx[attr_id];
-        match attr.default_value {
+        match ctx[attr_id].default_value {
             Some(value) => {
                 walk_expr(walker, ctx, &mut st_scope, value)?;
             }
             _ => (),
+        }
+
+        match ctx[attr_id].type_sig {
+            Some(type_sig) => walk_type_sig(walker, ctx, scope, type_sig)?,
+            None => {}
         }
     }
 
@@ -184,7 +187,13 @@ fn walk_enum<'a, W: IrWalker<'a>>(
     for val in ctx[enm].values.clone() {
         let ident = ctx[val].name;
         ctx[val].name = walker.visit_ident(ctx, scope, ident)?;
+
+        for type_sig in ctx[val].items.clone() {
+            walk_type_sig(walker, ctx, scope, type_sig)?
+        }
     }
+
+    walk_type_sig(walker, ctx, scope, ctx[enm].type_sig)?;
 
     walker.visit_scope_end(ctx, scope, enm_scope, ScopeValue::Enum(enm))?;
 
@@ -204,15 +213,20 @@ fn walk_stmt<'a, W: IrWalker<'a>>(
             let decl = *decl;
             let decl_name = ctx[decl].name;
             ctx[decl].name = walker.visit_ident(ctx, scope, decl_name)?;
-            walk_expr(walker, ctx, scope, ctx[decl].value)?
+            walk_expr(walker, ctx, scope, ctx[decl].value)?;
+
+            match ctx[decl].type_sig {
+                Some(type_sig) => walk_type_sig(walker, ctx, scope, type_sig)?,
+                None => {}
+            }
         }
         Stmt::Expression(expr) => {
             let expr = *expr;
-            walk_expr(walker, ctx, scope, expr)?
+            walk_expr(walker, ctx, scope, expr)?;
         }
         Stmt::FunctionDecl(func) => {
             let func = *func;
-            walk_func_decl(walker, ctx, scope, func)?
+            walk_func_decl(walker, ctx, scope, func)?;
         }
         Stmt::Compound(stmts) => {
             for stmt in stmts.clone() {
@@ -221,22 +235,22 @@ fn walk_stmt<'a, W: IrWalker<'a>>(
         }
         Stmt::StructDecl(st) => {
             let st = *st;
-            walk_struct(walker, ctx, scope, st)?
+            walk_struct(walker, ctx, scope, st)?;
         }
         Stmt::EnumDecl(enm) => {
             let enm = *enm;
-            walk_enum(walker, ctx, scope, enm)?
+            walk_enum(walker, ctx, scope, enm)?;
         }
         Stmt::Return(expr) => {
             let expr = *expr;
-            walk_expr(walker, ctx, scope, expr)?
+            walk_expr(walker, ctx, scope, expr)?;
         }
     };
     walker.visit_stmt(ctx, scope, stmt)?;
     Ok(())
 }
 
-fn walk_func_decl<'a, 'ctx, W: IrWalker<'a>>(
+fn walk_func_decl<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
@@ -247,10 +261,20 @@ fn walk_func_decl<'a, 'ctx, W: IrWalker<'a>>(
     for arg in ctx[func].args.clone() {
         let arg_name = ctx[arg].name;
         ctx[arg].name = walker.visit_ident(ctx, scope, arg_name)?;
+
+        match ctx[arg].type_sig {
+            Some(type_sig) => walk_type_sig(walker, ctx, scope, type_sig)?,
+            None => {}
+        }
     }
 
     let func_name = ctx[func].name;
     ctx[func].name = walker.visit_ident(ctx, scope, func_name)?;
+
+    match ctx[func].return_type {
+        Some(type_sig) => walk_type_sig(walker, ctx, scope, type_sig)?,
+        None => {}
+    }
 
     walk_stmt(walker, ctx, &mut func_scope, ctx[func].body)?;
 
@@ -259,7 +283,7 @@ fn walk_func_decl<'a, 'ctx, W: IrWalker<'a>>(
     Ok(())
 }
 
-fn walk_expr<'a, 'ctx, W: IrWalker<'a>>(
+fn walk_expr<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
@@ -286,16 +310,46 @@ fn walk_expr<'a, 'ctx, W: IrWalker<'a>>(
         Expr::StringLiteral(_) => Ok(()),
         Expr::NumberLiteral(_) => Ok(()),
         Expr::BoolLiteral(_) => Ok(()),
-        Expr::FunctionCall(_) => Ok(()),
-        Expr::TupleAccess(_) => Ok(()),
-        Expr::EscapeBlock(_) => Ok(()),
-        Expr::Tuple(_) => Ok(()),
+        Expr::FunctionCall(func_call) => {
+            for param in ctx[func_call].params.clone() {
+                walk_expr(walker, ctx, scope, param)?;
+            }
+
+            let func_expr = ctx[func_call].func;
+            walk_expr(walker, ctx, scope, func_expr)?;
+
+            Ok(())
+        }
+        Expr::TupleAccess(tup_acc) => {
+            let tup_expr = ctx[tup_acc].tuple_expr;
+            walk_expr(walker, ctx, scope, tup_expr)?;
+            Ok(())
+        }
+        Expr::EscapeBlock(esc_blk) => {
+            match ctx[esc_blk].type_sig {
+                Some(type_sig) => walk_type_sig(walker, ctx, scope, type_sig)?,
+                None => {}
+            }
+
+            Ok(())
+        }
+        Expr::Tuple(tup) => {
+            for expr in ctx[tup].values.clone() {
+                walk_expr(walker, ctx, scope, expr)?;
+            }
+
+            match ctx[tup].type_sig {
+                Some(type_sig) => walk_type_sig(walker, ctx, scope, type_sig)?,
+                None => {}
+            }
+            Ok(())
+        }
     }?;
 
     walker.visit_expr(ctx, scope, expr)
 }
 
-fn walk_struct_init<'a, 'ctx, W: IrWalker<'a>>(
+fn walk_struct_init<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
@@ -314,5 +368,46 @@ fn walk_struct_init<'a, 'ctx, W: IrWalker<'a>>(
         walk_expr(walker, ctx, &mut child_scope, expr)?;
     }
     walker.visit_scope_end(ctx, scope, child_scope, ScopeValue::StructInit(st_init))?;
+    Ok(())
+}
+
+fn walk_type_sig<'a, W: IrWalker<'a>>(
+    walker: &mut W,
+    ctx: &mut IrCtx<'a>,
+    scope: &mut W::Scope,
+    type_sig: TypeSignature<'a>,
+) -> Result<(), W::Error> {
+    let new_ident = match ctx[type_sig].clone() {
+        TypeSignatureValue::Builtin(_) => None,
+        TypeSignatureValue::Unresolved(ident) => Some(walker.visit_ident(ctx, scope, ident)?),
+        TypeSignatureValue::Function { args, return_type } => {
+            for arg in args {
+                walk_type_sig(walker, ctx, scope, arg)?;
+            }
+            walk_type_sig(walker, ctx, scope, return_type)?;
+
+            None
+        }
+        TypeSignatureValue::Struct { name } => Some(walker.visit_ident(ctx, scope, name)?),
+        TypeSignatureValue::Enum { name } => Some(walker.visit_ident(ctx, scope, name)?),
+        TypeSignatureValue::Tuple(types) => {
+            for item in types {
+                walk_type_sig(walker, ctx, scope, item)?;
+            }
+
+            None
+        }
+    };
+
+    match new_ident {
+        Some(ident) => match &mut ctx[type_sig] {
+            TypeSignatureValue::Unresolved(name) => *name = ident,
+            TypeSignatureValue::Struct { name } => *name = ident,
+            TypeSignatureValue::Enum { name } => *name = ident,
+            _ => unreachable!(),
+        },
+        None => {}
+    }
+
     Ok(())
 }

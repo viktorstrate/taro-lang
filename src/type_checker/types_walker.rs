@@ -9,7 +9,9 @@ use crate::{
             NodeRef,
         },
     },
-    symbols::{symbol_table::symbol_table_zipper::SymbolTableZipper, symbol_table::SymbolTable},
+    symbols::{
+        symbol_resolver::SymbolResolver, symbol_table::symbol_table_zipper::SymbolTableZipper,
+    },
 };
 
 use super::{
@@ -24,9 +26,9 @@ pub struct TypeChecker<'a> {
 }
 
 impl<'a> TypeChecker<'a> {
-    pub fn new(symbols: SymbolTable<'a>) -> Self {
+    pub fn new(sym_resolver: SymbolResolver<'a>) -> Self {
         TypeChecker {
-            symbols: symbols.into(),
+            symbols: sym_resolver.symbols,
         }
     }
 }
@@ -40,33 +42,7 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
         _parent: &mut Self::Scope,
         value: ScopeValue<'a>,
     ) -> Result<(), TypeCheckerError<'a>> {
-        match value {
-            ScopeValue::Func(func) => {
-                let name = ctx[func].name;
-                self.symbols
-                    .enter_scope(ctx, name)
-                    .expect("scope should exist");
-            }
-            ScopeValue::Struct(st) => {
-                let name = ctx[st].name;
-                self.symbols
-                    .enter_scope(ctx, name)
-                    .expect("scope should exist");
-            }
-            ScopeValue::StructInit(st_init) => {
-                let scope_name = ctx[st_init].scope_name;
-                self.symbols
-                    .enter_scope(ctx, scope_name)
-                    .expect("scope should exist")
-            }
-            ScopeValue::Enum(enm) => {
-                let name = ctx[enm].name;
-                self.symbols
-                    .enter_scope(ctx, name)
-                    .expect("scope should exist")
-            }
-        }
-
+        value.visit_scope_begin(ctx, &mut self.symbols);
         Ok(())
     }
 
@@ -200,138 +176,141 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::assert_matches::assert_matches;
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
 
-//     use crate::{
-//         ir::test_utils::utils::type_check, parser::parse_ast, symbols::builtin_types::BuiltinType,
-//         type_checker::TypeCheckerError,
-//     };
+    use crate::{
+        ir::{
+            node::type_signature::BuiltinType,
+            test_utils::utils::{lowered_ir, type_check},
+        },
+        type_checker::TypeCheckerError,
+    };
 
-//     #[test]
-//     fn test_var_decl_matching_types() {
-//         let mut ast = parse_ast("let x: String = \"hello\"").unwrap();
-//         assert!(type_check(&mut ast).is_ok());
-//     }
+    #[test]
+    fn test_var_decl_matching_types() {
+        let mut ir = lowered_ir("let x: String = \"hello\"").unwrap();
+        assert_matches!(type_check(&mut ir), Ok(()));
+    }
 
-//     #[test]
-//     fn test_var_decl_mismatched_types() {
-//         let mut ast = parse_ast("let x: String = 2").unwrap();
+    #[test]
+    fn test_var_decl_mismatched_types() {
+        let mut ir = lowered_ir("let x: String = 2").unwrap();
 
-//         match type_check(&mut ast) {
-//             Err(TypeCheckerError::TypeSignatureMismatch {
-//                 type_sig,
-//                 expr_type,
-//             }) => {
-//                 assert_eq!(type_sig, BuiltinType::String.type_sig());
-//                 assert_eq!(expr_type, BuiltinType::Number.type_sig())
-//             }
-//             _ => assert!(false),
-//         }
-//     }
+        match type_check(&mut ir) {
+            Err(TypeCheckerError::TypeSignatureMismatch {
+                type_sig,
+                expr_type,
+            }) => {
+                assert_eq!(type_sig, ir.ctx.get_builtin_type_sig(BuiltinType::String));
+                assert_eq!(expr_type, ir.ctx.get_builtin_type_sig(BuiltinType::Number));
+            }
+            _ => assert!(false),
+        }
+    }
 
-//     #[test]
-//     fn test_struct_decl_attr_mismatched_types() {
-//         let mut ast = parse_ast("struct Test { let attr: String = true }").unwrap();
+    #[test]
+    fn test_struct_decl_attr_mismatched_types() {
+        let mut ir = lowered_ir("struct Test { let attr: String = true }").unwrap();
 
-//         match type_check(&mut ast) {
-//             Err(TypeCheckerError::TypeSignatureMismatch {
-//                 type_sig,
-//                 expr_type,
-//             }) => {
-//                 assert_eq!(type_sig, BuiltinType::String.type_sig());
-//                 assert_eq!(expr_type, BuiltinType::Boolean.type_sig())
-//             }
-//             _ => assert!(false),
-//         }
-//     }
+        match type_check(&mut ir) {
+            Err(TypeCheckerError::TypeSignatureMismatch {
+                type_sig,
+                expr_type,
+            }) => {
+                assert_eq!(type_sig, ir.ctx.get_builtin_type_sig(BuiltinType::String));
+                assert_eq!(expr_type, ir.ctx.get_builtin_type_sig(BuiltinType::Boolean));
+            }
+            _ => assert!(false),
+        }
+    }
 
-//     #[test]
-//     fn test_struct_access_mismatched_types() {
-//         let mut ast = parse_ast(
-//             "\
-//         struct Test { let attr: Number }
-//         let test = Test { attr: 123 }
-//         let wrong: Boolean = test.attr",
-//         )
-//         .unwrap();
+    #[test]
+    fn test_struct_access_mismatched_types() {
+        let mut ir = lowered_ir(
+            "\
+        struct Test { let attr: Number }
+        let test = Test { attr: 123 }
+        let wrong: Boolean = test.attr",
+        )
+        .unwrap();
 
-//         match type_check(&mut ast) {
-//             Err(TypeCheckerError::TypeSignatureMismatch {
-//                 type_sig,
-//                 expr_type,
-//             }) => {
-//                 assert_eq!(type_sig, BuiltinType::Boolean.type_sig());
-//                 assert_eq!(expr_type, BuiltinType::Number.type_sig());
-//             }
-//             _ => assert!(false),
-//         }
-//     }
+        match type_check(&mut ir) {
+            Err(TypeCheckerError::TypeSignatureMismatch {
+                type_sig,
+                expr_type,
+            }) => {
+                assert_eq!(type_sig, ir.ctx.get_builtin_type_sig(BuiltinType::Boolean));
+                assert_eq!(expr_type, ir.ctx.get_builtin_type_sig(BuiltinType::Number));
+            }
+            _ => assert!(false),
+        }
+    }
 
-//     #[test]
-//     fn test_struct_init_default() {
-//         let mut ast = parse_ast(
-//             "\
-//         struct Test { let default = 34; let noDefault: Number }
-//         let test = Test { noDefault: 123 }",
-//         )
-//         .unwrap();
+    // #[test]
+    // fn test_struct_init_default() {
+    //     let mut ast = parse_ast(
+    //         "\
+    //     struct Test { let default = 34; let noDefault: Number }
+    //     let test = Test { noDefault: 123 }",
+    //     )
+    //     .unwrap();
 
-//         assert!(type_check(&mut ast).is_ok())
-//     }
+    //     assert!(type_check(&mut ast).is_ok())
+    // }
 
-//     #[test]
-//     fn test_struct_init_not_default() {
-//         let mut ast = parse_ast(
-//             "\
-//         struct Test { let noDefault: Number }
-//         let test = Test {}",
-//         )
-//         .unwrap();
+    // #[test]
+    // fn test_struct_init_not_default() {
+    //     let mut ast = parse_ast(
+    //         "\
+    //     struct Test { let noDefault: Number }
+    //     let test = Test {}",
+    //     )
+    //     .unwrap();
 
-//         match type_check(&mut ast) {
-//             Err(_) => {}
-//             _ => assert!(false),
-//         }
-//     }
+    //     match type_check(&mut ast) {
+    //         Err(_) => {}
+    //         _ => assert!(false),
+    //     }
+    // }
 
-//     #[test]
-//     fn test_var_assign_var() {
-//         let mut ast = parse_ast("let a = true; let b: Boolean = a").unwrap();
-//         assert_matches!(type_check(&mut ast), Ok(_));
+    // #[test]
+    // fn test_var_assign_var() {
+    //     let mut ast = parse_ast("let a = true; let b: Boolean = a").unwrap();
+    //     assert_matches!(type_check(&mut ast), Ok(_));
 
-//         let mut ast = parse_ast("let a = true; let b: Number = a").unwrap();
-//         match type_check(&mut ast) {
-//             Err(TypeCheckerError::TypeSignatureMismatch {
-//                 type_sig,
-//                 expr_type,
-//             }) => {
-//                 assert_eq!(type_sig, BuiltinType::Number.type_sig());
-//                 assert_eq!(expr_type, BuiltinType::Boolean.type_sig());
-//             }
-//             _ => assert!(false),
-//         }
-//     }
+    //     let mut ast = parse_ast("let a = true; let b: Number = a").unwrap();
+    //     match type_check(&mut ast) {
+    //         Err(TypeCheckerError::TypeSignatureMismatch {
+    //             type_sig,
+    //             expr_type,
+    //         }) => {
+    //             assert_eq!(type_sig, BuiltinType::Number.type_sig());
+    //             assert_eq!(expr_type, BuiltinType::Boolean.type_sig());
+    //         }
+    //         _ => assert!(false),
+    //     }
+    // }
 
-//     #[test]
-//     fn test_call_non_function() {
-//         let mut ast = parse_ast("let val = true; val()").unwrap();
+    // #[test]
+    // fn test_call_non_function() {
+    //     let mut ast = parse_ast("let val = true; val()").unwrap();
 
-//         match type_check(&mut ast) {
-//             Err(TypeCheckerError::CallNonFunction { ident_type }) => {
-//                 assert_eq!(ident_type, BuiltinType::Boolean.type_sig())
-//             }
-//             _ => assert!(false),
-//         }
-//     }
+    //     match type_check(&mut ast) {
+    //         Err(TypeCheckerError::CallNonFunction { ident_type }) => {
+    //             assert_eq!(ident_type, BuiltinType::Boolean.type_sig())
+    //         }
+    //         _ => assert!(false),
+    //     }
+    // }
 
-//     #[test]
-//     fn test_escape_block_function_return() {
-//         let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 } }").unwrap();
-//         assert_matches!(type_check(&mut ast), Ok(_));
+    // #[test]
+    // fn test_escape_block_function_return() {
+    //     let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 } }").unwrap();
+    //     assert_matches!(type_check(&mut ast), Ok(_));
 
-//         let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 }; return 2 }").unwrap();
-//         assert_matches!(type_check(&mut ast), Ok(_));
-//     }
-// }
+    //     let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 }; return 2 }").unwrap();
+    //     assert_matches!(type_check(&mut ast), Ok(_));
+    // }
+}

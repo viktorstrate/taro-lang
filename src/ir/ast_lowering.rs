@@ -1,5 +1,3 @@
-
-
 use crate::ast::AST;
 
 use super::{
@@ -20,19 +18,28 @@ use super::{
     IR,
 };
 
-impl<'a> IrCtx<'a> {
-    pub fn lower_ast(&mut self, ast: AST<'a>) -> IR<'a> {
-        let module = ast.0;
+pub struct LowerAstResult<'a> {
+    pub ctx: IrCtx<'a>,
+    pub ir: IR<'a>,
+}
 
-        let stmts = module
-            .stmts
-            .into_iter()
-            .map(|stmt| self.lower_stmt(stmt))
-            .collect();
+pub fn lower_ast<'a>(ast: AST<'a>) -> LowerAstResult<'a> {
+    let mut ctx = IrCtx::new();
+    let module = ast.0;
 
-        IR(Module { stmts })
+    let stmts = module
+        .stmts
+        .into_iter()
+        .map(|stmt| ctx.lower_stmt(stmt))
+        .collect();
+
+    LowerAstResult {
+        ctx,
+        ir: IR(Module { stmts }),
     }
+}
 
+impl<'a> IrCtx<'a> {
     fn lower_stmt(&mut self, stmt: crate::ast::node::statement::Stmt<'a>) -> NodeRef<'a, Stmt<'a>> {
         let ir_stmt = match stmt.value {
             crate::ast::node::statement::StmtValue::VariableDecl(var_decl) => Stmt::VariableDecl(

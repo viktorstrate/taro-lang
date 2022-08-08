@@ -71,7 +71,11 @@ impl<'a> Typed<'a> for NodeRef<'a, EnumValue<'a>> {
             unreachable!("specified type expected to be tuple");
         };
 
-        assert_eq!(tuple.len(), ctx[*self].items.len());
+        assert_eq!(
+            tuple.len(),
+            ctx[*self].items.len(),
+            "enum value length match"
+        );
 
         ctx[*self].items = tuple.clone();
         Ok(())

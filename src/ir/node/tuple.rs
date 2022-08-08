@@ -1,5 +1,3 @@
-
-
 use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
 
 use super::{
@@ -46,7 +44,9 @@ impl<'a> Typed<'a> for NodeRef<'a, Tuple<'a>> {
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
         match &ctx[new_type] {
-            TypeSignatureValue::Tuple(vals) => assert_eq!(vals.len(), ctx[*self].values.len()),
+            TypeSignatureValue::Tuple(vals) => {
+                assert_eq!(vals.len(), ctx[*self].values.len(), "tuple length match")
+            }
             _ => assert!(false),
         }
 

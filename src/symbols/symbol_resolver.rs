@@ -4,10 +4,18 @@ use crate::ir::{
     node::identifier::{Ident, IdentValue, Identifiable},
 };
 
-use super::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolsError};
+use super::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolTable, SymbolsError};
 
 pub struct SymbolResolver<'a> {
     pub symbols: SymbolTableZipper<'a>,
+}
+
+impl<'a> SymbolResolver<'a> {
+    pub fn new(symbols: SymbolTable<'a>) -> Self {
+        Self {
+            symbols: symbols.into(),
+        }
+    }
 }
 
 impl<'a> IrWalker<'a> for SymbolResolver<'a> {

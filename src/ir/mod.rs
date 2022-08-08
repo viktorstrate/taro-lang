@@ -4,7 +4,7 @@ pub mod ast_lowering;
 pub mod context;
 pub mod ir_walker;
 pub mod node;
-// pub mod test_utils;
+pub mod test_utils;
 
 #[derive(Debug)]
 pub struct IR<'a>(pub Module<'a>);

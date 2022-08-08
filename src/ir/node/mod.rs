@@ -109,7 +109,25 @@ pub struct IrNodeArena<'a> {
 
 impl<'a> IrNodeArena<'a> {
     pub fn new() -> Self {
-        todo!()
+        IrNodeArena {
+            stmts: Arena::new(),
+            exprs: Arena::new(),
+            func_args: Arena::new(),
+            st_attrs: Arena::new(),
+            enms: Arena::new(),
+            enm_vals: Arena::new(),
+            funcs: Arena::new(),
+            func_calls: Arena::new(),
+            st_decls: Arena::new(),
+            st_init_vals: Arena::new(),
+            st_inits: Arena::new(),
+            st_accs: Arena::new(),
+            tup_accs: Arena::new(),
+            tups: Arena::new(),
+            asgns: Arena::new(),
+            esc_blks: Arena::new(),
+            var_decls: Arena::new(),
+        }
     }
 }
 

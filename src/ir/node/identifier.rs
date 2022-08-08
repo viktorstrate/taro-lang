@@ -51,7 +51,7 @@ impl<'a> IdentKey<'a> {
             IdentValue::Resolved(val) => match val {
                 ResolvedIdentValue::Named { def_span: _, name } => IdentKey::Named(name),
                 ResolvedIdentValue::Anonymous => IdentKey::Unnamed(ident),
-                ResolvedIdentValue::BuiltinType(_) => IdentKey::Unnamed(ident),
+                ResolvedIdentValue::BuiltinType(builtin) => IdentKey::Named(builtin.name()),
             },
             IdentValue::Unresolved(ast_ident) => IdentKey::Named(ast_ident.value),
         }

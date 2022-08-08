@@ -1,5 +1,3 @@
-
-
 use crate::ir::{
     context::IrCtx,
     ir_walker::{IrWalker, ScopeValue},
@@ -20,8 +18,8 @@ impl<'a> IrWalker<'a> for SymbolCollector {
         scope: &mut Self::Scope,
     ) -> Result<(), Self::Error> {
         for builtin_type in BUILTIN_TYPES {
-            let type_sig = SymbolValueItem::BuiltinType(ctx.make_builtin_ident(*builtin_type));
-            scope.insert(ctx, type_sig)?;
+            let sym_val = SymbolValueItem::BuiltinType(ctx.make_builtin_ident(*builtin_type));
+            scope.insert(ctx, sym_val)?;
         }
 
         Ok(())

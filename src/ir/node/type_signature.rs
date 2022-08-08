@@ -26,7 +26,7 @@ impl<'a> From<Id<TypeSignatureValue<'a>>> for TypeSignature<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum TypeSignatureValue<'a> {
     Builtin(BuiltinType),
     Unresolved(Ident<'a>),

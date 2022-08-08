@@ -29,14 +29,14 @@ where
         .map_err(TypeCheckerError::TypeEvalError)?;
 
     // don't allow user to specify type signatures as the Untyped type
-    if let Some(type_sig) = &specified_type {
-        if *type_sig == ctx.get_builtin_type_sig(BuiltinType::Untyped) {
+    if let Some(type_sig) = specified_type {
+        if type_sig == ctx.get_builtin_type_sig(BuiltinType::Untyped) {
             return Err(TypeCheckerError::UntypedValue());
         }
     }
 
-    if let Some(type_sig) = &specified_type {
-        let coerced_type = types_match(ctx, *type_sig, eval_type)?;
+    if let Some(type_sig) = specified_type {
+        let coerced_type = types_match(ctx, type_sig, eval_type)?;
         elem.specify_type(ctx, coerced_type)
             .map_err(TypeCheckerError::TypeEvalError)?;
     } else {

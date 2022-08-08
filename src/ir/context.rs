@@ -84,16 +84,14 @@ impl<'a> IndexMut<Ident<'a>> for IrCtx<'a> {
 impl<'a> Index<SymbolValue<'a>> for IrCtx<'a> {
     type Output = SymbolValueItem<'a>;
 
-    fn index(&self, _index: SymbolValue<'a>) -> &Self::Output {
-        // &mut self.symbols[index.into()]
-        todo!()
+    fn index(&self, index: SymbolValue<'a>) -> &Self::Output {
+        &self.symbols[index.into()]
     }
 }
 
 impl<'a> IndexMut<SymbolValue<'a>> for IrCtx<'a> {
-    fn index_mut(&mut self, _index: SymbolValue<'a>) -> &mut Self::Output {
-        // &mut self.symbols[index.into()]
-        todo!()
+    fn index_mut(&mut self, index: SymbolValue<'a>) -> &mut Self::Output {
+        &mut self.symbols[index.into()]
     }
 }
 
@@ -111,7 +109,7 @@ impl<'a> IrCtx<'a> {
             .collect();
 
         IrCtx {
-            types: Arena::new(),
+            types,
             types_lookup: HashMap::new(),
             builtin_types_lookup,
             idents: Arena::new(),
@@ -121,6 +119,11 @@ impl<'a> IrCtx<'a> {
     }
 
     pub fn get_type_sig(&mut self, type_sig: TypeSignatureValue<'a>) -> TypeSignature<'a> {
+        match type_sig {
+            TypeSignatureValue::Builtin(builtin) => return self.get_builtin_type_sig(builtin),
+            _ => {}
+        }
+
         if let Some(found_type) = self.types_lookup.get(&type_sig) {
             return *found_type;
         }
@@ -134,13 +137,6 @@ impl<'a> IrCtx<'a> {
             .get(&builtin)
             .expect("get builtin type signature")
     }
-
-    // pub fn get_resolved_type_sig(&self, ident: Ident<'a>) -> TypeSignature<'a> {
-    //     *self
-    //         .resolved_types_lookup
-    //         .get(&ident)
-    //         .expect("get resolved type signature")
-    // }
 
     pub fn make_type_sig(&mut self, type_sig: TypeSignatureValue<'a>) -> TypeSignature<'a> {
         self.types.alloc(type_sig).into()
