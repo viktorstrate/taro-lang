@@ -39,6 +39,7 @@ where
 {
     type Output = T;
 
+    #[inline]
     fn index(&self, index: NodeRef<'a, T>) -> &Self::Output {
         &T::arena(self)[index.into()]
     }
@@ -48,6 +49,7 @@ impl<'a, T> IndexMut<NodeRef<'a, T>> for IrCtx<'a>
 where
     T: IrArenaType<'a>,
 {
+    #[inline]
     fn index_mut(&mut self, index: NodeRef<'a, T>) -> &mut Self::Output {
         &mut T::arena_mut(self)[index.into()]
     }
@@ -56,12 +58,14 @@ where
 impl<'a> Index<TypeSignature<'a>> for IrCtx<'a> {
     type Output = TypeSignatureValue<'a>;
 
+    #[inline]
     fn index(&self, index: TypeSignature<'a>) -> &Self::Output {
         &self.types[index.into()]
     }
 }
 
 impl<'a> IndexMut<TypeSignature<'a>> for IrCtx<'a> {
+    #[inline]
     fn index_mut(&mut self, index: TypeSignature<'a>) -> &mut Self::Output {
         &mut self.types[index.into()]
     }
@@ -70,12 +74,14 @@ impl<'a> IndexMut<TypeSignature<'a>> for IrCtx<'a> {
 impl<'a> Index<Ident<'a>> for IrCtx<'a> {
     type Output = IdentValue<'a>;
 
+    #[inline]
     fn index(&self, index: Ident<'a>) -> &Self::Output {
         &self.idents[index.into()]
     }
 }
 
 impl<'a> IndexMut<Ident<'a>> for IrCtx<'a> {
+    #[inline]
     fn index_mut(&mut self, index: Ident<'a>) -> &mut Self::Output {
         &mut self.idents[index.into()]
     }
@@ -84,12 +90,14 @@ impl<'a> IndexMut<Ident<'a>> for IrCtx<'a> {
 impl<'a> Index<SymbolValue<'a>> for IrCtx<'a> {
     type Output = SymbolValueItem<'a>;
 
+    #[inline]
     fn index(&self, index: SymbolValue<'a>) -> &Self::Output {
         &self.symbols[index.into()]
     }
 }
 
 impl<'a> IndexMut<SymbolValue<'a>> for IrCtx<'a> {
+    #[inline]
     fn index_mut(&mut self, index: SymbolValue<'a>) -> &mut Self::Output {
         &mut self.symbols[index.into()]
     }

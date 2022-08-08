@@ -70,6 +70,7 @@ impl<'a, T> From<Id<T>> for NodeRef<'a, T>
 where
     T: IrArenaType<'a>,
 {
+    #[inline]
     fn from(val: Id<T>) -> Self {
         NodeRef {
             id: val,
@@ -82,6 +83,7 @@ impl<'a, T> Into<Id<T>> for NodeRef<'a, T>
 where
     T: IrArenaType<'a>,
 {
+    #[inline]
     fn into(self) -> Id<T> {
         self.id
     }
@@ -149,170 +151,204 @@ where
 }
 
 impl<'a> IrArenaType<'a> for Stmt<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.stmts
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.stmts
     }
 }
 
 impl<'a> IrArenaType<'a> for Expr<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.exprs
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.exprs
     }
 }
 
 impl<'a> IrArenaType<'a> for FunctionArg<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.func_args
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.func_args
     }
 }
 
 impl<'a> IrArenaType<'a> for StructAttr<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.st_attrs
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.st_attrs
     }
 }
 
 impl<'a> IrArenaType<'a> for Enum<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.enms
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.enms
     }
 }
 
 impl<'a> IrArenaType<'a> for EnumValue<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.enm_vals
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.enm_vals
     }
 }
 
 impl<'a> IrArenaType<'a> for Function<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.funcs
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.funcs
     }
 }
 
 impl<'a> IrArenaType<'a> for FunctionCall<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.func_calls
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.func_calls
     }
 }
 
 impl<'a> IrArenaType<'a> for Struct<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.st_decls
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.st_decls
     }
 }
 
 impl<'a> IrArenaType<'a> for StructInitValue<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.st_init_vals
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.st_init_vals
     }
 }
 
 impl<'a> IrArenaType<'a> for StructInit<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.st_inits
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.st_inits
     }
 }
 
 impl<'a> IrArenaType<'a> for StructAccess<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.st_accs
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.st_accs
     }
 }
 
 impl<'a> IrArenaType<'a> for Tuple<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.tups
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.tups
     }
 }
 
 impl<'a> IrArenaType<'a> for TupleAccess<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.tup_accs
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.tup_accs
     }
 }
 
 impl<'a> IrArenaType<'a> for Assignment<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.asgns
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.asgns
     }
 }
 
 impl<'a> IrArenaType<'a> for EscapeBlock<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.esc_blks
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.esc_blks
     }
 }
 
 impl<'a> IrArenaType<'a> for VarDecl<'a> {
+    #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
         &ctx.nodes.var_decls
     }
 
+    #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.var_decls
     }
