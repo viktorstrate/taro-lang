@@ -311,12 +311,14 @@ mod tests {
         }
     }
 
-    #[ignore]
     #[test]
     fn test_escape_block_function_return() {
         let mut ir = lowered_ir("func f() -> Number { return @{ 1 + 2 } }").unwrap();
         assert_matches!(type_check(&mut ir), Ok(_));
+    }
 
+    #[test]
+    fn test_escape_block_function_return_coerce() {
         let mut ir = lowered_ir("func f() -> Number { return @{ 1 + 2 }; return 2 }").unwrap();
         assert_matches!(type_check(&mut ir), Ok(_));
     }

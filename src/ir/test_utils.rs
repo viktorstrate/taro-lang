@@ -38,7 +38,23 @@ pub mod utils {
         ir_result: &mut LowerAstResult<'a>,
     ) -> Result<SymbolTable<'a>, SymbolsError<'a>> {
         let mut sym_collector = SymbolCollector {};
-        walk_ir(&mut sym_collector, &mut ir_result.ctx, &mut ir_result.ir)
+        let result = walk_ir(&mut sym_collector, &mut ir_result.ctx, &mut ir_result.ir);
+
+        match result {
+            Ok(val) => Ok(val),
+            Err(err) => {
+                match &err {
+                    SymbolsError::SymbolAlreadyExistsInScope(ident) => {
+                        println!(
+                            "SYMBOL ALREADY EXISTS IN SCOPE: {:?}",
+                            ir_result.ctx[*ident]
+                        )
+                    }
+                    _ => unreachable!(),
+                }
+                Err(err)
+            }
+        }
     }
 
     pub fn type_check<'a>(ir_result: &mut LowerAstResult<'a>) -> Result<(), TypeCheckerError<'a>> {
@@ -51,7 +67,27 @@ pub mod utils {
         walk_ir(&mut sym_resolver, ctx, ir).unwrap();
 
         let mut checker = TypeChecker::new(ctx, sym_resolver);
-        return walk_ir(&mut checker, ctx, ir);
+        let result = walk_ir(&mut checker, ctx, ir);
+
+        match result {
+            Ok(val) => Ok(val),
+            Err(err) => {
+                match &err {
+                    TypeCheckerError::TypeSignatureMismatch {
+                        type_sig,
+                        expr_type,
+                    } => {
+                        println!(
+                            "TYPE SIG MISMATCH {:?} {:?}",
+                            ctx[*type_sig], ctx[*expr_type]
+                        );
+                    }
+                    _ => {}
+                };
+
+                Err(err)
+            }
+        }
     }
 
     // pub fn final_codegen(input: &str) -> Result<String, FinalIrError> {

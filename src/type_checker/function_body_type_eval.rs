@@ -116,103 +116,103 @@ fn stmt_compound_type<'a>(
     Ok(type_sig.unwrap_or(ctx.get_builtin_type_sig(BuiltinType::Void)))
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::assert_matches::assert_matches;
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
 
-//     use crate::{
-//         ir::{
-//             node::type_signature::TypeSignatureValue,
-//             test_utils::utils::{lowered_ir, type_check},
-//         },
-//         type_checker::TypeCheckerError,
-//     };
+    use crate::{
+        ir::{
+            node::type_signature::TypeSignatureValue,
+            test_utils::utils::{lowered_ir, type_check},
+        },
+        type_checker::TypeCheckerError,
+    };
 
-//     use super::*;
+    use super::*;
 
-//     // #[test]
-//     // fn test_func_call_wrong_arg_type() {
-//     //     let mut ir = lowered_ir("func f(a: Number) {}; f(true)").unwrap();
-//     //     match type_check(&mut ir) {
-//     //         Err(TypeCheckerError::TypeSignatureMismatch {
-//     //             type_sig,
-//     //             expr_type,
-//     //         }) => {
-//     //             assert_eq!(
-//     //                 type_sig,
-//     //                 TypeSignatureValue::Function {
-//     //                     args: vec![BuiltinType::Number.type_sig()],
-//     //                     return_type: Box::new(BuiltinType::Void.type_sig())
-//     //                 }
-//     //             );
+    #[test]
+    fn test_func_call_wrong_arg_type() {
+        let mut ir = lowered_ir("func f(a: Number) {}; f(true)").unwrap();
+        match type_check(&mut ir) {
+            Err(TypeCheckerError::TypeSignatureMismatch {
+                type_sig,
+                expr_type,
+            }) => {
+                assert_eq!(
+                    ir.ctx[type_sig],
+                    TypeSignatureValue::Function {
+                        args: vec![ir.ctx.get_builtin_type_sig(BuiltinType::Number)],
+                        return_type: ir.ctx.get_builtin_type_sig(BuiltinType::Void)
+                    }
+                );
 
-//     //             assert_eq!(
-//     //                 expr_type,
-//     //                 TypeSignatureValue::Function {
-//     //                     args: vec![BuiltinType::Boolean.type_sig()],
-//     //                     return_type: Box::new(BuiltinType::Void.type_sig())
-//     //                 }
-//     //             );
-//     //         }
-//     //         _ => assert!(false),
-//     //     }
-//     // }
+                assert_eq!(
+                    ir.ctx[expr_type],
+                    TypeSignatureValue::Function {
+                        args: vec![ir.ctx.get_builtin_type_sig(BuiltinType::Boolean)],
+                        return_type: ir.ctx.get_builtin_type_sig(BuiltinType::Void)
+                    }
+                );
+            }
+            _ => assert!(false),
+        }
+    }
 
-//     // #[test]
-//     // fn test_func_call_wrong_arg_amount() {
-//     //     let mut ir = lowered_ir("func f(a: Number) {}; f(2, 3)").unwrap();
-//     //     match type_check(&mut ir) {
-//     //         Err(TypeCheckerError::TypeSignatureMismatch {
-//     //             type_sig,
-//     //             expr_type,
-//     //         }) => {
-//     //             assert_eq!(
-//     //                 type_sig,
-//     //                 TypeSignatureValue::Function {
-//     //                     args: vec![BuiltinType::Number.type_sig()],
-//     //                     return_type: Box::new(BuiltinType::Void.type_sig())
-//     //                 }
-//     //             );
+    #[test]
+    fn test_func_call_wrong_arg_amount() {
+        let mut ir = lowered_ir("func f(a: Number) {}; f(2, 3)").unwrap();
+        match type_check(&mut ir) {
+            Err(TypeCheckerError::TypeSignatureMismatch {
+                type_sig,
+                expr_type,
+            }) => {
+                assert_eq!(
+                    ir.ctx[type_sig],
+                    TypeSignatureValue::Function {
+                        args: vec![ir.ctx.get_builtin_type_sig(BuiltinType::Number)],
+                        return_type: ir.ctx.get_builtin_type_sig(BuiltinType::Void)
+                    }
+                );
 
-//     //             assert_eq!(
-//     //                 expr_type,
-//     //                 TypeSignatureValue::Function {
-//     //                     args: vec![
-//     //                         BuiltinType::Number.type_sig(),
-//     //                         BuiltinType::Number.type_sig()
-//     //                     ],
-//     //                     return_type: Box::new(BuiltinType::Void.type_sig())
-//     //                 }
-//     //             );
-//     //         }
-//     //         _ => assert!(false),
-//     //     }
-//     // }
+                assert_eq!(
+                    ir.ctx[expr_type],
+                    TypeSignatureValue::Function {
+                        args: vec![
+                            ir.ctx.get_builtin_type_sig(BuiltinType::Number),
+                            ir.ctx.get_builtin_type_sig(BuiltinType::Number)
+                        ],
+                        return_type: ir.ctx.get_builtin_type_sig(BuiltinType::Void)
+                    }
+                );
+            }
+            _ => assert!(false),
+        }
+    }
 
-//     #[test]
-//     fn test_func_return_typecheck() {
-//         let mut ir = lowered_ir("func test() -> Number { return false }").unwrap();
+    #[test]
+    fn test_func_return_typecheck() {
+        let mut ir = lowered_ir("func test() -> Number { return false }").unwrap();
 
-//         match type_check(&mut ir) {
-//             Err(TypeCheckerError::TypeEvalError(TypeEvalError::FunctionType(
-//                 FunctionTypeError::ConflictingReturnTypes(_, a, b),
-//             ))) => {
-//                 assert_eq!(a, ir.ctx.get_builtin_type_sig(BuiltinType::Number));
-//                 assert_eq!(b, ir.ctx.get_builtin_type_sig(BuiltinType::Boolean));
-//             }
-//             _ => assert!(false),
-//         }
-//     }
+        match type_check(&mut ir) {
+            Err(TypeCheckerError::TypeEvalError(TypeEvalError::FunctionType(
+                FunctionTypeError::ConflictingReturnTypes(_, a, b),
+            ))) => {
+                assert_eq!(a, ir.ctx.get_builtin_type_sig(BuiltinType::Number));
+                assert_eq!(b, ir.ctx.get_builtin_type_sig(BuiltinType::Boolean));
+            }
+            _ => assert!(false),
+        }
+    }
 
-//     #[test]
-//     fn test_decl_inside_scope() {
-//         let mut ir = lowered_ir("let f = () -> Boolean { let a = true; return a }").unwrap();
-//         assert_matches!(type_check(&mut ir), Ok(_))
-//     }
+    #[test]
+    fn test_decl_inside_scope() {
+        let mut ir = lowered_ir("let f = () -> Boolean { let a = true; return a }").unwrap();
+        assert_matches!(type_check(&mut ir), Ok(_))
+    }
 
-//     #[test]
-//     fn test_func_type_deduce() {
-//         let mut ir = lowered_ir("let f: (Boolean) -> Boolean = (val) { return val }").unwrap();
-//         assert_matches!(type_check(&mut ir), Ok(_))
-//     }
-// }
+    #[test]
+    fn test_func_type_deduce() {
+        let mut ir = lowered_ir("let f: (Boolean) -> Boolean = (val) { return val }").unwrap();
+        assert_matches!(type_check(&mut ir), Ok(_))
+    }
+}

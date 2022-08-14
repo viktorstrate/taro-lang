@@ -205,9 +205,9 @@ mod tests {
         assert_matches!(type_check(&mut ir), Err(TypeCheckerError::UntypedValue()));
     }
 
-    // #[test]
-    // fn test_untyped_function_return() {
-    //     let mut ir = lowered_ir("func foo() { return @{ 123 } }").unwrap();
-    //     assert_matches!(type_check(&mut ir), Err(TypeCheckerError::UntypedValue()));
-    // }
+    #[test]
+    fn test_untyped_function_return() {
+        let mut ir = lowered_ir("func foo() { return @{ 123 } }").unwrap();
+        assert_matches!(type_check(&mut ir), Err(TypeCheckerError::UntypedValue()));
+    }
 }

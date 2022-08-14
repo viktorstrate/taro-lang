@@ -2,7 +2,7 @@ use crate::ir::{
     context::IrCtx,
     ir_walker::{IrWalker, ScopeValue},
     node::{
-        identifier::{Ident, IdentParent, IdentValue, Identifiable},
+        identifier::{Ident, IdentParent, IdentValue, Identifiable, ResolvedIdentValue},
         type_signature::{TypeEvalError, TypeSignatureValue, Typed},
     },
 };
@@ -152,5 +152,44 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
         } else {
             Ok(ident)
         }
+    }
+
+    fn visit_type_sig(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        _scope: &mut Self::Scope,
+        type_sig: crate::ir::node::type_signature::TypeSignature<'a>,
+    ) -> Result<crate::ir::node::type_signature::TypeSignature<'a>, Self::Error> {
+        let updated_type_sig = match ctx[type_sig] {
+            TypeSignatureValue::Unresolved(ident) => {
+                // let ident_name = match IdentKey::from_ident(ctx, ident) {
+                //     IdentKey::Named(name) => name,
+                //     _ => unreachable!("all type signatures have a name"),
+                // };
+
+                let sym_val = *self
+                    .symbols
+                    .lookup(ctx, ident)
+                    .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
+
+                let new_type_sig = match ctx[sym_val] {
+                    SymbolValueItem::BuiltinType(builtin_ident) => match ctx[builtin_ident] {
+                        IdentValue::Resolved(ResolvedIdentValue::BuiltinType(builtin)) => {
+                            ctx.get_builtin_type_sig(builtin)
+                        }
+                        _ => unreachable!(),
+                    },
+                    SymbolValueItem::StructDecl(st) => {
+                        ctx.get_type_sig(TypeSignatureValue::Struct { name: ctx[st].name })
+                    }
+                    item => panic!("UNHANDLED SYMBOL VALUE: {item:?}"),
+                };
+
+                new_type_sig
+            }
+            _ => type_sig,
+        };
+
+        Ok(updated_type_sig)
     }
 }

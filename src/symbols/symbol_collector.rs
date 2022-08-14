@@ -89,10 +89,6 @@ impl<'a> IrWalker<'a> for SymbolCollector {
                     .insert(ctx, SymbolValueItem::VarDecl(decl))
                     .map(|_| ())
             }
-            Stmt::FunctionDecl(func) => {
-                let fnc = *func;
-                scope.insert(ctx, (fnc).into()).map(|_| ())
-            }
             _ => Ok(()),
         }
     }
