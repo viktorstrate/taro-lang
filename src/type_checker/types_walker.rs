@@ -81,7 +81,6 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
                             args: _,
                             return_type: _,
                         } => {
-                            println!("Specify func type: {:?}", ctx[type_sig]);
                             func.specify_type(ctx, type_sig)
                                 .map_err(TypeCheckerError::TypeEvalError)?;
                         }

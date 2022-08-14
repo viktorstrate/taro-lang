@@ -3,7 +3,7 @@ use crate::ir::{
     node::identifier::{Ident, IdentKey, Identifiable},
 };
 
-use super::{SymbolTable, SymbolValue, SymbolsError};
+use super::{SymbolCollectionError, SymbolTable, SymbolValue};
 
 #[derive(Debug)]
 struct SymbolTableZipperBreadcrumb<'a> {
@@ -35,11 +35,11 @@ impl<'a> SymbolTableZipper<'a> {
         &mut self,
         ctx: &IrCtx<'a>,
         ident: Ident<'a>,
-    ) -> Result<(), SymbolsError<'a>> {
+    ) -> Result<(), SymbolCollectionError<'a>> {
         let mut temp_cursor = self
             .cursor
             .remove_scope(ctx, ident)
-            .ok_or(SymbolsError::ScopeNotFound(ident))?;
+            .ok_or(SymbolCollectionError::ScopeNotFound(ident))?;
 
         std::mem::swap(&mut self.cursor, &mut temp_cursor);
         self.breadcrumb.push(SymbolTableZipperBreadcrumb {
@@ -51,11 +51,11 @@ impl<'a> SymbolTableZipper<'a> {
         Ok(())
     }
 
-    pub fn exit_scope(&mut self, ctx: &IrCtx<'a>) -> Result<(), SymbolsError<'a>> {
+    pub fn exit_scope(&mut self, ctx: &IrCtx<'a>) -> Result<(), SymbolCollectionError<'a>> {
         let mut breadcrumb = self
             .breadcrumb
             .pop()
-            .ok_or(SymbolsError::MovePastGlobalScope)?;
+            .ok_or(SymbolCollectionError::MovePastGlobalScope)?;
 
         std::mem::swap(&mut self.cursor, &mut breadcrumb.sym_table);
         self.cursor

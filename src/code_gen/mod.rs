@@ -2,52 +2,68 @@ use std::io::{BufWriter, Write};
 
 use crate::{
     ir::{
+        context::IrCtx,
         node::{
             expression::Expr,
             function::{Function, FunctionArg},
-            identifier::{Ident, IdentValue},
+            identifier::{Ident, IdentValue, ResolvedIdentValue},
             module::Module,
             statement::{Stmt, VarDecl},
             structure::Struct,
             type_signature::Mutability,
+            NodeRef,
         },
-        AST,
+        IR,
     },
-    symbols::{symbol_table::symbol_table_zipper::SymbolTableZipper, symbol_table::SymbolValue},
+    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolValueItem},
 };
 
-pub fn format_ast<'a, W: Write>(
-    writer: W,
-    ast: &AST<'a>,
-    symbols: SymbolTableZipper<'a>,
+pub fn format_ir<'a, 'ctx, W: Write>(
+    writer: &mut W,
+    ctx: &mut IrCtx<'a>,
+    mut symbols: SymbolTableZipper<'a>,
+    ir: &mut IR<'a>,
 ) -> Result<SymbolTableZipper<'a>, std::io::Error> {
+    symbols.reset(&ctx);
     let mut ctx = CodeGenCtx {
         writer: BufWriter::new(writer),
         symbols,
+        ctx,
     };
-    format_module(&mut ctx, ast.inner_module())?;
+    format_module(&mut ctx, &ir.0)?;
     Ok(ctx.symbols)
 }
 
-struct CodeGenCtx<'a, W: Write> {
-    writer: BufWriter<W>,
-    symbols: SymbolTableZipper<'a>,
+pub struct CodeGenCtx<'a, 'ctx, W: Write> {
+    pub writer: BufWriter<W>,
+    pub symbols: SymbolTableZipper<'a>,
+    pub ctx: &'ctx mut IrCtx<'a>,
 }
 
 type CodeGenResult = std::io::Result<()>;
 
-impl<'a, W: Write> CodeGenCtx<'a, W> {
+impl<'a, 'ctx, W: Write> CodeGenCtx<'a, 'ctx, W> {
     fn write(&mut self, s: &str) -> CodeGenResult {
         self.writer.write(s.as_bytes())?;
         Ok(())
     }
 
-    fn write_ident(&mut self, ident: &Ident<'a>) -> CodeGenResult {
-        ident.write(&mut self.writer, &self.symbols)
+    fn write_ident(&mut self, ident: Ident<'a>) -> CodeGenResult {
+        // ident.write(&mut self.writer, &self.symbols)
+        match &self.ctx[ident] {
+            IdentValue::Resolved(resolved_ident) => match resolved_ident {
+                ResolvedIdentValue::Named { def_span: _, name } => self.write(name),
+                ResolvedIdentValue::BuiltinType(builtin) => self.write(builtin.name()),
+                ResolvedIdentValue::Anonymous => {
+                    panic!("Anonymous identifiers should not be written")
+                }
+            },
+            IdentValue::Unresolved(_) => unreachable!("all identifiers should be resolved by now"),
+        }
     }
 }
 
-impl<'a, W: Write> Write for CodeGenCtx<'a, W> {
+impl<'a, 'ctx, W: Write> Write for CodeGenCtx<'a, 'ctx, W> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.writer.write(buf)
     }
@@ -57,229 +73,258 @@ impl<'a, W: Write> Write for CodeGenCtx<'a, W> {
     }
 }
 
-fn format_module<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, module: &Module<'a>) -> CodeGenResult {
-    format_with_separator(ctx, "\n", module.stmts.iter(), format_stmt)?;
-    ctx.write("\n")
+fn format_module<'a, 'ctx, W: Write>(
+    gen: &mut CodeGenCtx<'a, 'ctx, W>,
+    module: &Module<'a>,
+) -> CodeGenResult {
+    format_with_separator(gen, "\n", module.stmts.clone().into_iter(), format_stmt)?;
+    gen.write("\n")
 }
 
-fn format_struct<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, st: &Struct<'a>) -> CodeGenResult {
-    ctx.write("function ")?;
-    ctx.write_ident(&st.name)?;
+fn format_struct<'a, 'ctx, W: Write>(
+    gen: &mut CodeGenCtx<'a, 'ctx, W>,
+    st: NodeRef<'a, Struct<'a>>,
+) -> CodeGenResult {
+    gen.write("function ")?;
+    gen.write_ident(gen.ctx[st].name)?;
 
-    ctx.symbols.enter_scope(st.name.clone()).unwrap();
+    gen.symbols.enter_scope(&gen.ctx, gen.ctx[st].name).unwrap();
 
-    ctx.write(" (")?;
+    gen.write(" (")?;
 
-    format_with_separator(ctx, ", ", st.attrs.iter(), |ctx, attr| {
-        ctx.write_ident(&attr.name)
-    })?;
+    format_with_separator(
+        gen,
+        ", ",
+        gen.ctx[st].attrs.clone().into_iter(),
+        |gen, attr| gen.write_ident(gen.ctx[attr].name),
+    )?;
 
-    ctx.write(") {\n")?;
+    gen.write(") {\n")?;
 
-    format_with_separator(ctx, ";\n", st.attrs.iter(), |ctx, attr| {
-        ctx.write("this.")?;
-        ctx.write_ident(&attr.name)?;
-        ctx.write(" = ")?;
-        ctx.write_ident(&attr.name)?;
+    format_with_separator(
+        gen,
+        ";\n",
+        gen.ctx[st].attrs.clone().into_iter(),
+        |gen, attr| {
+            gen.write("this.")?;
+            gen.write_ident(gen.ctx[attr].name)?;
+            gen.write(" = ")?;
+            gen.write_ident(gen.ctx[attr].name)?;
 
-        if let Some(default) = &attr.default_value {
-            ctx.write(" ?? ")?;
-            format_expr(ctx, default)?;
-        }
+            if let Some(default) = gen.ctx[attr].default_value {
+                gen.write(" ?? ")?;
+                format_expr(gen, default)?;
+            }
 
-        Ok(())
-    })?;
+            Ok(())
+        },
+    )?;
 
-    ctx.write("}")?;
+    gen.write("}")?;
 
-    ctx.symbols.exit_scope().unwrap();
+    gen.symbols.exit_scope(&gen.ctx).unwrap();
 
     Ok(())
 }
 
-fn format_stmt<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, stmt: &Stmt<'a>) -> CodeGenResult {
-    match stmt {
-        Stmt::VariableDecl(var_decl) => format_var_decl(ctx, var_decl),
-        Stmt::FunctionDecl(func_decl) => format_func_decl(ctx, func_decl),
-        Stmt::Compound(stmts) => format_with_separator(ctx, "\n", stmts.iter(), format_stmt),
-        Stmt::Expression(expr) => {
-            format_expr(ctx, expr)?;
-            ctx.write(";")
+fn format_stmt<'a, 'ctx, W: Write>(
+    gen: &mut CodeGenCtx<'a, 'ctx, W>,
+    stmt: NodeRef<'a, Stmt<'a>>,
+) -> CodeGenResult {
+    match gen.ctx[stmt].clone() {
+        Stmt::VariableDecl(var_decl) => format_var_decl(gen, var_decl),
+        Stmt::FunctionDecl(func_decl) => format_func_decl(gen, func_decl),
+        Stmt::Compound(stmts) => {
+            format_with_separator(gen, "\n", stmts.clone().into_iter(), format_stmt)
         }
-        Stmt::StructDecl(st) => format_struct(ctx, st),
+        Stmt::Expression(expr) => {
+            format_expr(gen, expr)?;
+            gen.write(";")
+        }
+        Stmt::StructDecl(st) => format_struct(gen, st),
         Stmt::EnumDecl(_) => Ok(()),
         Stmt::Return(expr) => {
-            ctx.write("return ")?;
-            format_expr(ctx, expr)?;
-            ctx.write(";")
+            gen.write("return ")?;
+            format_expr(gen, expr)?;
+            gen.write(";")
         }
     }
 }
 
-fn format_var_decl<'a, W: Write>(
-    ctx: &mut CodeGenCtx<'a, W>,
-    var_decl: &VarDecl<'a>,
+fn format_var_decl<'a, 'ctx, W: Write>(
+    gen: &mut CodeGenCtx<'a, 'ctx, W>,
+    var_decl: NodeRef<'a, VarDecl<'a>>,
 ) -> CodeGenResult {
-    ctx.symbols.visit_next_symbol();
+    gen.symbols.visit_next_symbol(&gen.ctx);
 
-    if var_decl.mutability == Mutability::Mutable {
-        ctx.write("let ")?;
+    if gen.ctx[var_decl].mutability == Mutability::Mutable {
+        gen.write("let ")?;
     } else {
-        ctx.write("const ")?;
+        gen.write("const ")?;
     }
 
-    ctx.write_ident(&var_decl.name)?;
-    ctx.write(" = ")?;
-    format_expr(ctx, &var_decl.value)?;
-    ctx.write(";")
+    gen.write_ident(gen.ctx[var_decl].name)?;
+    gen.write(" = ")?;
+    format_expr(gen, gen.ctx[var_decl].value)?;
+    gen.write(";")
 }
 
-fn format_func_decl<'a, W: Write>(
-    ctx: &mut CodeGenCtx<'a, W>,
-    func: &Function<'a>,
+fn format_func_decl<'a, 'ctx, W: Write>(
+    gen: &mut CodeGenCtx<'a, 'ctx, W>,
+    func: NodeRef<'a, Function<'a>>,
 ) -> CodeGenResult {
-    ctx.write("function ")?;
-    ctx.write_ident(&func.name)?;
+    let func_name = gen.ctx[func].name;
 
-    ctx.symbols
-        .enter_scope(func.name.clone())
+    gen.write("function ")?;
+    gen.write_ident(func_name)?;
+
+    gen.symbols
+        .enter_scope(&gen.ctx, func_name)
         .expect("function scope should exist");
 
-    format_func_args(ctx, &func.args)?;
+    format_func_args(gen, gen.ctx[func].args.clone())?;
 
-    ctx.write(" {")?;
+    gen.write(" {")?;
 
-    format_stmt(ctx, &func.body)?;
+    format_stmt(gen, gen.ctx[func].body)?;
 
-    ctx.symbols.exit_scope().unwrap();
+    gen.symbols.exit_scope(&gen.ctx).unwrap();
 
-    ctx.write("}")?;
+    gen.write("}")?;
 
     Ok(())
 }
 
-fn format_expr<'a, W: Write>(ctx: &mut CodeGenCtx<'a, W>, expr: &Expr<'a>) -> CodeGenResult {
-    match expr {
+fn format_expr<'a, 'ctx, W: Write>(
+    gen: &mut CodeGenCtx<'a, 'ctx, W>,
+    expr: NodeRef<'a, Expr<'a>>,
+) -> CodeGenResult {
+    match gen.ctx[expr].clone() {
         Expr::StringLiteral(str) => {
-            ctx.write("\"")?;
-            ctx.write(str)?;
-            ctx.write("\"")
+            gen.write("\"")?;
+            gen.write(str)?;
+            gen.write("\"")
         }
-        Expr::NumberLiteral(num) => ctx.write_fmt(format_args!("{}", num)),
-        Expr::BoolLiteral(val) => ctx.write(if *val == true { "true" } else { "false" }),
+        Expr::NumberLiteral(num) => gen.write_fmt(format_args!("{}", num)),
+        Expr::BoolLiteral(val) => gen.write(if val == true { "true" } else { "false" }),
         Expr::Function(func) => {
-            ctx.symbols
-                .enter_scope(func.name.clone())
+            gen.symbols
+                .enter_scope(&gen.ctx, gen.ctx[func].name.clone())
                 .expect("function scope should exist");
 
-            format_func_args(ctx, &func.args)?;
-            ctx.write(" => {")?;
+            format_func_args(gen, gen.ctx[func].args.clone())?;
+            gen.write(" => {")?;
 
-            format_stmt(ctx, &func.body)?;
+            format_stmt(gen, gen.ctx[func].body)?;
 
-            ctx.symbols.exit_scope().unwrap();
+            gen.symbols.exit_scope(&gen.ctx).unwrap();
 
-            ctx.write("}")
+            gen.write("}")
         }
         Expr::FunctionCall(call) => {
-            format_expr(ctx, &call.func)?;
-            ctx.write("(")?;
-            format_with_separator(ctx, ", ", call.params.iter(), format_expr)?;
-            ctx.write(")")
+            format_expr(gen, gen.ctx[call].func)?;
+            gen.write("(")?;
+            format_with_separator(
+                gen,
+                ", ",
+                gen.ctx[call].params.clone().into_iter(),
+                format_expr,
+            )?;
+            gen.write(")")
         }
-        Expr::Identifier(ident) => ctx.write_ident(ident),
+        Expr::Identifier(ident) => gen.write_ident(ident),
         Expr::StructInit(st_init) => {
-            ctx.symbols
-                .enter_scope(st_init.scope_name.clone())
+            gen.symbols
+                .enter_scope(&gen.ctx, gen.ctx[st_init].scope_name)
                 .expect("struct init scope should exist");
-            ctx.write("new ")?;
-            ctx.write_ident(&st_init.struct_name)?;
-            ctx.write("(")?;
+            gen.write("new ")?;
+            gen.write_ident(gen.ctx[st_init].struct_name)?;
+            gen.write("(")?;
 
-            let st = ctx.symbols.lookup(&st_init.struct_name).unwrap();
-            let st = match st {
-                SymbolValue::StructDecl(st) => st,
+            let st = *gen
+                .symbols
+                .lookup(&gen.ctx, gen.ctx[st_init].struct_name)
+                .unwrap();
+            let st = match &gen.ctx[st] {
+                SymbolValueItem::StructDecl(st) => *st,
                 _ => unreachable!(),
             };
 
-            let attr_names = st
+            let attr_names = gen.ctx[st]
                 .attrs
                 .iter()
-                .map(|attr| attr.name.clone())
+                .map(|attr| gen.ctx[*attr].name)
                 .collect::<Vec<_>>();
 
-            format_with_separator(ctx, ", ", attr_names.iter(), |ctx, attr_name| {
-                let attr_val = st_init.values.iter().find(|val| val.name == *attr_name);
+            format_with_separator(gen, ", ", attr_names.iter(), |gen, attr_name| {
+                let attr_val = gen.ctx[st_init]
+                    .values
+                    .iter()
+                    .find(|val| gen.ctx[**val].name == *attr_name);
                 if let Some(val) = attr_val {
-                    format_expr(ctx, &val.value)
+                    format_expr(gen, gen.ctx[*val].value)
                 } else {
-                    ctx.write("null")
+                    gen.write("null")
                 }
             })?;
 
-            ctx.write(")")?;
-            ctx.symbols.exit_scope().unwrap();
+            gen.write(")")?;
+            gen.symbols.exit_scope(&gen.ctx).unwrap();
             Ok(())
         }
         Expr::StructAccess(st_access) => {
-            format_expr(ctx, &*st_access.struct_expr)?;
-            ctx.write(".")?;
+            format_expr(gen, gen.ctx[st_access].struct_expr)?;
+            gen.write(".")?;
 
-            // attribute identifier cannot be looked up since it is under the scope of the struct
-            // ctx.write_ident(&st_access.attr_name)
-
-            match &st_access.attr_name.value {
-                IdentValue::Named(attr_str) => ctx.write(attr_str),
-                _ => unreachable!(),
-            }
+            gen.write_ident(gen.ctx[st_access].attr_name)
         }
-        Expr::EscapeBlock(block) => ctx.write(block.content),
+        Expr::EscapeBlock(block) => gen.write(gen.ctx[block].content),
         Expr::Assignment(asg) => {
-            format_expr(ctx, &asg.lhs)?;
-            ctx.write(" = ")?;
-            format_expr(ctx, &asg.rhs)
+            format_expr(gen, gen.ctx[asg].lhs)?;
+            gen.write(" = ")?;
+            format_expr(gen, gen.ctx[asg].rhs)
         }
         Expr::Tuple(tup) => {
-            ctx.write("[")?;
-            for (i, val) in tup.values.iter().enumerate() {
-                format_expr(ctx, val)?;
+            gen.write("[")?;
+            for (i, val) in gen.ctx[tup].values.clone().into_iter().enumerate() {
+                format_expr(gen, val)?;
 
-                if i < tup.values.len() - 1 {
-                    ctx.write(", ")?;
+                if i < gen.ctx[tup].values.len() - 1 {
+                    gen.write(", ")?;
                 }
             }
-            ctx.write("]")
+            gen.write("]")
         }
         Expr::TupleAccess(tup_acc) => {
-            format_expr(ctx, tup_acc.tuple_expr.as_ref())?;
-            ctx.write("[")?;
-            ctx.write(tup_acc.attr.to_string().as_str())?;
-            ctx.write("]")
+            format_expr(gen, gen.ctx[tup_acc].tuple_expr)?;
+            gen.write("[")?;
+            gen.write(gen.ctx[tup_acc].attr.to_string().as_str())?;
+            gen.write("]")
         }
     }
 }
 
-fn format_func_args<'a, W: Write>(
-    ctx: &mut CodeGenCtx<'a, W>,
-    args: &Vec<FunctionArg<'a>>,
+fn format_func_args<'a, 'ctx, W: Write>(
+    gen: &mut CodeGenCtx<'a, 'ctx, W>,
+    args: Vec<NodeRef<'a, FunctionArg<'a>>>,
 ) -> CodeGenResult {
-    ctx.write("(")?;
-    format_with_separator(ctx, ", ", args.iter(), |ctx, arg| {
-        ctx.write_ident(&arg.name)
+    gen.write("(")?;
+    format_with_separator(gen, ", ", args.iter(), |gen, arg| {
+        gen.write_ident(gen.ctx[*arg].name)
     })?;
-    ctx.write(")")
+    gen.write(")")
 }
 
-fn format_with_separator<W, I, T, F>(
+fn format_with_separator<W, I, T>(
     writer: &mut W,
     sep: &str,
     items: I,
-    format: F,
+    format: impl Fn(&mut W, T) -> std::io::Result<()>,
 ) -> std::io::Result<()>
 where
     W: Write,
-    F: Fn(&mut W, T) -> std::io::Result<()>,
     I: ExactSizeIterator<Item = T>,
+    T: Copy,
 {
     let len = items.len() as isize;
     for (i, elem) in items.enumerate() {
@@ -296,7 +341,7 @@ where
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::ir::test_utils::utils::{final_codegen, FinalAstError};
+    use crate::{ir::test_utils::utils::final_codegen, TranspilerError};
 
     #[test]
     fn test_let_assign_simple() {
@@ -333,7 +378,7 @@ mod tests {
     #[test]
     fn test_assign_func_call_mismatched_types() {
         let ast = final_codegen("func f() { return 123 }; let x: Boolean = f()");
-        assert_matches!(ast, Err(FinalAstError::TypeCheck(_)));
+        assert_matches!(ast, Err(TranspilerError::TypeCheck(_)));
     }
 
     #[test]

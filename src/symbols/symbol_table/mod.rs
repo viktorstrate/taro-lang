@@ -20,7 +20,7 @@ use self::symbol_table_zipper::SymbolTableZipper;
 pub mod symbol_table_zipper;
 
 #[derive(Debug)]
-pub enum SymbolsError<'a> {
+pub enum SymbolCollectionError<'a> {
     SymbolAlreadyExistsInScope(Ident<'a>),
     ScopeNotFound(Ident<'a>),
     MovePastGlobalScope,
@@ -172,7 +172,7 @@ impl<'a> SymbolTable<'a> {
         &mut self,
         ctx: &mut IrCtx<'a>,
         val: SymbolValueItem<'a>,
-    ) -> Result<SymbolValue<'a>, SymbolsError<'a>> {
+    ) -> Result<SymbolValue<'a>, SymbolCollectionError<'a>> {
         let new_sym = ctx.make_symbol(val);
         let val = &ctx[new_sym];
         if val.is_order_dependent() {
@@ -182,7 +182,7 @@ impl<'a> SymbolTable<'a> {
             let key = IdentKey::from_ident(ctx, ident);
             self.scope_global_table
                 .try_insert(key, new_sym)
-                .map_err(move |_| SymbolsError::SymbolAlreadyExistsInScope(ident))?;
+                .map_err(move |_| SymbolCollectionError::SymbolAlreadyExistsInScope(ident))?;
         }
         Ok(new_sym)
     }
@@ -192,10 +192,10 @@ impl<'a> SymbolTable<'a> {
         ctx: &IrCtx<'a>,
         ident: Ident<'a>,
         scope: SymbolTable<'a>,
-    ) -> Result<&mut SymbolTable<'a>, SymbolsError<'a>> {
+    ) -> Result<&mut SymbolTable<'a>, SymbolCollectionError<'a>> {
         self.scopes
             .try_insert(IdentKey::from_ident(ctx, ident), scope)
-            .map_err(move |_| SymbolsError::SymbolAlreadyExistsInScope(ident))
+            .map_err(move |_| SymbolCollectionError::SymbolAlreadyExistsInScope(ident))
     }
 
     pub fn remove_scope(&mut self, ctx: &IrCtx<'a>, ident: Ident<'a>) -> Option<SymbolTable<'a>> {

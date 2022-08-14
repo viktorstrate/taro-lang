@@ -4,14 +4,14 @@ use crate::ir::{
     node::{statement::Stmt, type_signature::BUILTIN_TYPES, NodeRef},
 };
 
-use super::symbol_table::{SymbolTable, SymbolValueItem, SymbolsError};
+use super::symbol_table::{SymbolCollectionError, SymbolTable, SymbolValueItem};
 
 #[derive(Default)]
 pub struct SymbolCollector {}
 
 impl<'a> IrWalker<'a> for SymbolCollector {
     type Scope = SymbolTable<'a>;
-    type Error = SymbolsError<'a>;
+    type Error = SymbolCollectionError<'a>;
 
     fn visit_begin(
         &mut self,
@@ -100,7 +100,7 @@ mod tests {
 
     use crate::{
         ir::test_utils::utils::{collect_symbols, lowered_ir},
-        symbols::symbol_table::SymbolsError,
+        symbols::symbol_table::SymbolCollectionError,
     };
 
     #[test]
@@ -114,7 +114,7 @@ mod tests {
         let mut ir = lowered_ir("func f() {}; func f() {}").unwrap();
         assert_matches!(
             collect_symbols(&mut ir),
-            Err(SymbolsError::SymbolAlreadyExistsInScope(_))
+            Err(SymbolCollectionError::SymbolAlreadyExistsInScope(_))
         )
     }
 }

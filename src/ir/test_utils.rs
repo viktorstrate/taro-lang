@@ -1,50 +1,46 @@
 #[cfg(test)]
 pub mod utils {
     use crate::{
+        code_gen::format_ir,
         ir::{
             ast_lowering::{lower_ast, LowerAstResult},
             ir_walker::walk_ir,
-            IR,
         },
         parser::{parse_ast, ParserError},
         symbols::{
             symbol_collector::SymbolCollector,
             symbol_resolver::SymbolResolver,
-            symbol_table::{SymbolTable, SymbolsError},
+            symbol_table::{SymbolCollectionError, SymbolTable},
         },
         type_checker::{types_walker::TypeChecker, TypeCheckerError},
+        TranspilerError,
     };
 
-    #[derive(Debug)]
-    pub enum FinalIrError<'a> {
-        Parser(ParserError<'a>),
-        TypeCheck(TypeCheckerError<'a>),
-    }
+    // #[derive(Debug)]
+    // pub enum FinalIrError<'a> {
+    //     Parser(ParserError<'a>),
+    //     TypeCheck(TypeCheckerError<'a>),
+    // }
 
     pub fn lowered_ir<'a>(input: &'a str) -> Result<LowerAstResult<'a>, ParserError<'a>> {
         let ast = parse_ast(input)?;
         Ok(lower_ast(ast))
     }
 
-    pub fn final_ir<'a>(input: &'a str) -> Result<IR<'a>, FinalIrError<'a>> {
-        let mut result = lowered_ir(input).map_err(FinalIrError::Parser)?;
-
-        type_check(&mut result).map_err(FinalIrError::TypeCheck)?;
-
-        Ok(result.ir)
-    }
-
     pub fn collect_symbols<'a>(
         ir_result: &mut LowerAstResult<'a>,
-    ) -> Result<SymbolTable<'a>, SymbolsError<'a>> {
-        let mut sym_collector = SymbolCollector {};
-        let result = walk_ir(&mut sym_collector, &mut ir_result.ctx, &mut ir_result.ir);
+    ) -> Result<SymbolTable<'a>, SymbolCollectionError<'a>> {
+        let result = walk_ir(
+            &mut SymbolCollector {},
+            &mut ir_result.ctx,
+            &mut ir_result.ir,
+        );
 
         match result {
             Ok(val) => Ok(val),
             Err(err) => {
                 match &err {
-                    SymbolsError::SymbolAlreadyExistsInScope(ident) => {
+                    SymbolCollectionError::SymbolAlreadyExistsInScope(ident) => {
                         println!(
                             "SYMBOL ALREADY EXISTS IN SCOPE: {:?}",
                             ir_result.ctx[*ident]
@@ -90,21 +86,35 @@ pub mod utils {
         }
     }
 
-    // pub fn final_codegen(input: &str) -> Result<String, FinalIrError> {
-    //     let mut ast = parse_ast(input).map_err(FinalIrError::Parser)?;
+    pub fn final_codegen<'a>(input: &'a str) -> Result<String, TranspilerError<'a>> {
+        let ast = parse_ast(&input).map_err(TranspilerError::Parse)?;
+        let mut lowered_ast = lower_ast(ast);
 
-    //     let mut sym_collector = SymbolCollector {};
-    //     let symbols = walk_ast(&mut sym_collector, &mut ast).unwrap();
+        let sym_table = walk_ir(
+            &mut SymbolCollector {},
+            &mut lowered_ast.ctx,
+            &mut lowered_ast.ir,
+        )
+        .map_err(TranspilerError::SymbolCollectError)?;
 
-    //     let mut checker = TypeChecker::new(symbols);
-    //     walk_ast(&mut checker, &mut ast).map_err(FinalIrError::TypeCheck)?;
+        let mut sym_resolver = SymbolResolver::new(sym_table);
+        walk_ir(&mut sym_resolver, &mut lowered_ast.ctx, &mut lowered_ast.ir)
+            .map_err(TranspilerError::SymbolResolveError)?;
 
-    //     checker.symbols.reset();
-    //     let mut buf = Vec::new();
-    //     format_ast(&mut buf, &ast, checker.symbols).unwrap();
+        let mut type_checker = TypeChecker::new(&mut lowered_ast.ctx, sym_resolver);
+        walk_ir(&mut type_checker, &mut lowered_ast.ctx, &mut lowered_ast.ir)
+            .map_err(TranspilerError::TypeCheck)?;
 
-    //     let out = String::from_utf8(buf).unwrap();
+        let mut buf = Vec::new();
+        format_ir(
+            &mut buf,
+            &mut lowered_ast.ctx,
+            type_checker.symbols,
+            &mut lowered_ast.ir,
+        )
+        .map_err(TranspilerError::Write)?;
+        let out = String::from_utf8(buf).unwrap();
 
-    //     Ok(out)
-    // }
+        Ok(out)
+    }
 }
