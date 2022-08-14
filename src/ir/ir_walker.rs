@@ -99,6 +99,14 @@ pub trait IrWalker<'a> {
         Ok(())
     }
 
+    fn visit_ordered_symbol(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        scope: &mut Self::Scope,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
     fn visit_expr(
         &mut self,
         ctx: &mut IrCtx<'a>,
@@ -212,6 +220,8 @@ fn walk_stmt<'a, W: IrWalker<'a>>(
         Stmt::VariableDecl(decl) => {
             let decl = *decl;
             let decl_name = ctx[decl].name;
+
+            walker.visit_ordered_symbol(ctx, scope)?;
             ctx[decl].name = walker.visit_ident(ctx, scope, decl_name)?;
             walk_expr(walker, ctx, scope, ctx[decl].value)?;
 
@@ -297,7 +307,13 @@ fn walk_expr<'a, W: IrWalker<'a>>(
             walk_expr(walker, ctx, scope, lhs)?;
             walk_expr(walker, ctx, scope, rhs)
         }
-        Expr::StructAccess(st_access) => walk_expr(walker, ctx, scope, ctx[st_access].struct_expr),
+        Expr::StructAccess(st_access) => {
+            walk_expr(walker, ctx, scope, ctx[st_access].struct_expr)?;
+
+            let attr_name = ctx[st_access].attr_name;
+            ctx[st_access].attr_name = walker.visit_ident(ctx, scope, attr_name)?;
+            Ok(())
+        }
         Expr::StructInit(st_init) => walk_struct_init(walker, ctx, scope, st_init),
         Expr::Identifier(ident) => {
             let new_ident = walker.visit_ident(ctx, scope, ident)?;
@@ -360,10 +376,13 @@ fn walk_struct_init<'a, W: IrWalker<'a>>(
     let st_name = ctx[st_init].struct_name;
     let scp_name = ctx[st_init].scope_name;
 
-    ctx[st_init].struct_name = walker.visit_ident(ctx, scope, st_name)?;
-    ctx[st_init].scope_name = walker.visit_ident(ctx, scope, scp_name)?;
+    ctx[st_init].struct_name = walker.visit_ident(ctx, &mut child_scope, st_name)?;
+    ctx[st_init].scope_name = walker.visit_ident(ctx, &mut child_scope, scp_name)?;
 
     for value in ctx[st_init].values.clone() {
+        let val_ident = ctx[value].name;
+        ctx[value].name = walker.visit_ident(ctx, &mut child_scope, val_ident)?;
+
         let expr = ctx[value].value;
         walk_expr(walker, ctx, &mut child_scope, expr)?;
     }

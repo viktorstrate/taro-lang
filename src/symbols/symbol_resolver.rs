@@ -46,6 +46,15 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
         Ok(())
     }
 
+    fn visit_ordered_symbol(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        _scope: &mut Self::Scope,
+    ) -> Result<(), Self::Error> {
+        self.symbols.visit_next_symbol(ctx);
+        Ok(())
+    }
+
     fn visit_ident(
         &mut self,
         ctx: &mut IrCtx<'a>,
@@ -53,11 +62,13 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
         ident: Ident<'a>,
     ) -> Result<Ident<'a>, Self::Error> {
         let sym = match &ctx[ident] {
-            IdentValue::Unresolved(_) => {
+            IdentValue::Unresolved(val) => {
+                println!("VAL: {:?} {:?}", ident, val);
                 let sym_id = *self
                     .symbols
                     .lookup(ctx, ident)
                     .ok_or(SymbolsError::ScopeNotFound(ident))?;
+                println!("AFTER");
 
                 let sym = *&ctx[sym_id];
                 Some(sym)

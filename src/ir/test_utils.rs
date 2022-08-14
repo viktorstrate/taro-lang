@@ -40,7 +40,7 @@ pub mod utils {
         let mut sym_resolver = SymbolResolver::new(symbols);
         walk_ir(&mut sym_resolver, ctx, ir).unwrap();
 
-        let mut checker = TypeChecker::new(sym_resolver);
+        let mut checker = TypeChecker::new(ctx, sym_resolver);
         return walk_ir(&mut checker, ctx, ir);
     }
 

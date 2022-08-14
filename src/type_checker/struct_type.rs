@@ -1,7 +1,12 @@
 use crate::{
     ir::{
         context::IrCtx,
-        node::{identifier::Ident, structure::StructInit, type_signature::Typed, NodeRef},
+        node::{
+            identifier::{Ident, IdentKey},
+            structure::StructInit,
+            type_signature::Typed,
+            NodeRef,
+        },
     },
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
@@ -31,7 +36,7 @@ pub fn check_struct_init<'a>(
             if ctx[st_init]
                 .values
                 .iter()
-                .find(|val| ctx[**val].name == attr_name)
+                .find(|val| IdentKey::idents_eq(ctx, ctx[**val].name, attr_name))
                 .is_none()
             {
                 return Err(TypeCheckerError::StructError(
@@ -47,7 +52,7 @@ pub fn check_struct_init<'a>(
         if ctx[st]
             .attrs
             .iter()
-            .find(|val| ctx[**val].name == attr_name)
+            .find(|val| IdentKey::idents_eq(ctx, ctx[**val].name, attr_name))
             .is_none()
         {
             return Err(TypeCheckerError::StructError(
@@ -72,7 +77,7 @@ pub fn check_struct_init<'a>(
             .attrs
             .clone()
             .into_iter()
-            .find(|val| ctx[*val].name == attr_name)
+            .find(|val| IdentKey::idents_eq(ctx, ctx[*val].name, attr_name))
             .expect("checked earlier")
             .eval_type(symbols, ctx)
             .map_err(TypeCheckerError::TypeEvalError)?;

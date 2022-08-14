@@ -26,10 +26,10 @@ pub struct TypeChecker<'a> {
 }
 
 impl<'a> TypeChecker<'a> {
-    pub fn new(sym_resolver: SymbolResolver<'a>) -> Self {
-        TypeChecker {
-            symbols: sym_resolver.symbols,
-        }
+    pub fn new(ctx: &IrCtx<'a>, sym_resolver: SymbolResolver<'a>) -> Self {
+        let mut symbols = sym_resolver.symbols;
+        symbols.reset(ctx);
+        TypeChecker { symbols }
     }
 }
 
@@ -57,6 +57,15 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
             .exit_scope(ctx)
             .expect("scope should not be global scope");
 
+        Ok(())
+    }
+
+    fn visit_ordered_symbol(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        _scope: &mut Self::Scope,
+    ) -> Result<(), Self::Error> {
+        self.symbols.visit_next_symbol(ctx);
         Ok(())
     }
 
@@ -103,10 +112,7 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
         stmt: NodeRef<'a, Stmt<'a>>,
     ) -> Result<(), TypeCheckerError<'a>> {
         match ctx[stmt].clone() {
-            Stmt::VariableDecl(var_decl) => {
-                self.symbols.visit_next_symbol(ctx);
-                type_check(ctx, &mut self.symbols, var_decl)
-            }
+            Stmt::VariableDecl(var_decl) => type_check(ctx, &mut self.symbols, var_decl),
             Stmt::FunctionDecl(func_decl) => type_check(ctx, &mut self.symbols, func_decl),
             Stmt::StructDecl(st) => {
                 for attr in ctx[st].attrs.clone() {
@@ -244,7 +250,7 @@ mod tests {
                 assert_eq!(type_sig, ir.ctx.get_builtin_type_sig(BuiltinType::Boolean));
                 assert_eq!(expr_type, ir.ctx.get_builtin_type_sig(BuiltinType::Number));
             }
-            _ => assert!(false),
+            res => assert!(false, "wrong result: {:?}", res),
         }
     }
 

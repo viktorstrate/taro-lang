@@ -212,7 +212,7 @@ impl<'a> IrCtx<'a> {
                         .into_iter()
                         .map(|val| {
                             StructInitValue {
-                                name: self.make_ident(val.name),
+                                name: self.make_unresolved_ident(val.name),
                                 value: self.lower_expr(val.value),
                             }
                             .allocate(self)
@@ -224,7 +224,7 @@ impl<'a> IrCtx<'a> {
             crate::ast::node::expression::ExprValue::StructAccess(st_acc) => Expr::StructAccess(
                 StructAccess {
                     struct_expr: self.lower_expr(*st_acc.struct_expr),
-                    attr_name: self.make_ident(st_acc.attr_name),
+                    attr_name: self.make_unresolved_ident(st_acc.attr_name),
                 }
                 .allocate(self),
             ),

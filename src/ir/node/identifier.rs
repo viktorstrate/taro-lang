@@ -56,4 +56,13 @@ impl<'a> IdentKey<'a> {
             IdentValue::Unresolved(ast_ident) => IdentKey::Named(ast_ident.value),
         }
     }
+
+    pub fn idents_eq(ctx: &IrCtx<'a>, a: Ident<'a>, b: Ident<'a>) -> bool {
+        let key_a = IdentKey::from_ident(ctx, a);
+        let key_b = IdentKey::from_ident(ctx, b);
+
+        println!("Idents eq: {:?} {:?}", key_a, key_b);
+
+        key_a == key_b
+    }
 }

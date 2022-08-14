@@ -1,6 +1,6 @@
 use crate::ir::{
     context::IrCtx,
-    node::identifier::{Ident, Identifiable},
+    node::identifier::{Ident, IdentKey, Identifiable},
 };
 
 use super::{SymbolTable, SymbolValue, SymbolsError};
@@ -95,12 +95,29 @@ impl<'a> SymbolTableZipper<'a> {
         visited_symbols: usize,
         ident: Ident<'a>,
     ) -> Option<&'b SymbolValue<'a>> {
+        println!(
+            "Locate visited symbol: {:?}",
+            sym_table.ordered_symbols.len()
+        );
+
+        let debug = sym_table
+            .ordered_symbols
+            .iter()
+            .take(visited_symbols)
+            .rev()
+            .map(|sym| IdentKey::from_ident(ctx, ctx[*sym].name(ctx)))
+            .collect::<Vec<_>>();
+
+        println!("KEYS: {:?}", debug);
+
         sym_table
             .ordered_symbols
             .iter()
             .take(visited_symbols)
             .rev()
-            .find(|sym| ctx[**sym].name(ctx) == ident)
+            .find(|sym| IdentKey::idents_eq(ctx, ctx[**sym].name(ctx), ident))
+        // .map(|(_key, sym)| sym)
+        // .find(|sym| ctx[**sym].name(ctx) == ident)
     }
 
     pub fn lookup_current_scope(
