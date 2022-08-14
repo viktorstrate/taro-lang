@@ -5,7 +5,7 @@ use crate::{
 
 use super::{
     expression::Expr,
-    identifier::{Ident, Identifiable},
+    identifier::{Ident, IdentKey, Identifiable},
     type_signature::{Mutability, TypeEvalError, TypeSignature, TypeSignatureValue, Typed},
     NodeRef,
 };
@@ -34,6 +34,7 @@ pub struct StructInit<'a> {
 #[derive(Debug)]
 pub struct StructInitValue<'a> {
     pub name: Ident<'a>,
+    pub parent: NodeRef<'a, StructInit<'a>>,
     pub value: NodeRef<'a, Expr<'a>>,
 }
 
@@ -52,7 +53,7 @@ impl<'a> NodeRef<'a, Struct<'a>> {
         ctx[*self]
             .attrs
             .iter()
-            .find(|attr| ctx[**attr].name == ident)
+            .find(|attr| IdentKey::idents_eq(ctx, ctx[**attr].name, ident))
             .map(|attr| *attr)
     }
 }

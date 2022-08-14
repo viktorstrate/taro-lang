@@ -3,7 +3,15 @@ use id_arena::Id;
 use crate::{ir::context::IrCtx, parser::Span};
 use std::fmt::Debug;
 
-use super::type_signature::BuiltinType;
+use super::{
+    enumeration::{Enum, EnumValue},
+    expression::Expr,
+    function::{Function, FunctionArg},
+    statement::VarDecl,
+    structure::{Struct, StructAccess, StructAttr, StructInit, StructInitValue},
+    type_signature::{BuiltinType, TypeSignature},
+    NodeRef,
+};
 
 pub trait Identifiable<'a> {
     fn name(&self, ctx: &IrCtx<'a>) -> Ident<'a>;
@@ -65,4 +73,21 @@ impl<'a> IdentKey<'a> {
 
         key_a == key_b
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum IdentParent<'a> {
+    StructDeclName(NodeRef<'a, Struct<'a>>),
+    StructDeclAttrName(NodeRef<'a, StructAttr<'a>>),
+    StructInitValueName(NodeRef<'a, StructInitValue<'a>>),
+    StructInitStructName(NodeRef<'a, StructInit<'a>>),
+    StructInitScopeName(NodeRef<'a, StructInit<'a>>),
+    StructAccessAttrName(NodeRef<'a, StructAccess<'a>>),
+    EnumDeclName(NodeRef<'a, Enum<'a>>),
+    EnumDeclValueName(NodeRef<'a, EnumValue<'a>>),
+    VarDeclName(NodeRef<'a, VarDecl<'a>>),
+    FuncDeclName(NodeRef<'a, Function<'a>>),
+    FuncDeclArgName(NodeRef<'a, FunctionArg<'a>>),
+    IdentExpr(NodeRef<'a, Expr<'a>>),
+    TypeSigName(TypeSignature<'a>),
 }

@@ -8,7 +8,7 @@ use super::{
         enumeration::Enum,
         expression::Expr,
         function::Function,
-        identifier::Ident,
+        identifier::{Ident, IdentParent},
         module::Module,
         statement::Stmt,
         structure::{Struct, StructInit},
@@ -120,6 +120,7 @@ pub trait IrWalker<'a> {
         &mut self,
         ctx: &mut IrCtx<'a>,
         scope: &mut Self::Scope,
+        parent: IdentParent<'a>,
         ident: Ident<'a>,
     ) -> Result<Ident<'a>, Self::Error> {
         Ok(ident)
@@ -160,7 +161,12 @@ fn walk_struct<'a, W: IrWalker<'a>>(
 
     for attr_id in ctx[st].attrs.clone() {
         let attr_name = ctx[attr_id].name;
-        ctx[attr_id].name = walker.visit_ident(ctx, scope, attr_name)?;
+        ctx[attr_id].name = walker.visit_ident(
+            ctx,
+            scope,
+            IdentParent::StructDeclAttrName(attr_id),
+            attr_name,
+        )?;
 
         match ctx[attr_id].default_value {
             Some(value) => {
@@ -176,7 +182,7 @@ fn walk_struct<'a, W: IrWalker<'a>>(
     }
 
     let st_name = ctx[st].name;
-    ctx[st].name = walker.visit_ident(ctx, scope, st_name)?;
+    ctx[st].name = walker.visit_ident(ctx, scope, IdentParent::StructDeclName(st), st_name)?;
 
     walker.visit_scope_end(ctx, scope, st_scope, ScopeValue::Struct(st))?;
 
@@ -190,11 +196,13 @@ fn walk_enum<'a, W: IrWalker<'a>>(
     enm: NodeRef<'a, Enum<'a>>,
 ) -> Result<(), W::Error> {
     let enm_scope = walker.visit_scope_begin(ctx, scope, ScopeValue::Enum(enm))?;
-    ctx[enm].name = walker.visit_ident(ctx, scope, ctx[enm].name)?;
+    ctx[enm].name =
+        walker.visit_ident(ctx, scope, IdentParent::EnumDeclName(enm), ctx[enm].name)?;
 
     for val in ctx[enm].values.clone() {
         let ident = ctx[val].name;
-        ctx[val].name = walker.visit_ident(ctx, scope, ident)?;
+        ctx[val].name =
+            walker.visit_ident(ctx, scope, IdentParent::EnumDeclValueName(val), ident)?;
 
         for type_sig in ctx[val].items.clone() {
             walk_type_sig(walker, ctx, scope, type_sig)?
@@ -222,7 +230,8 @@ fn walk_stmt<'a, W: IrWalker<'a>>(
             let decl_name = ctx[decl].name;
 
             walker.visit_ordered_symbol(ctx, scope)?;
-            ctx[decl].name = walker.visit_ident(ctx, scope, decl_name)?;
+            ctx[decl].name =
+                walker.visit_ident(ctx, scope, IdentParent::VarDeclName(decl), decl_name)?;
             walk_expr(walker, ctx, scope, ctx[decl].value)?;
 
             match ctx[decl].type_sig {
@@ -270,7 +279,8 @@ fn walk_func_decl<'a, W: IrWalker<'a>>(
 
     for arg in ctx[func].args.clone() {
         let arg_name = ctx[arg].name;
-        ctx[arg].name = walker.visit_ident(ctx, scope, arg_name)?;
+        ctx[arg].name =
+            walker.visit_ident(ctx, scope, IdentParent::FuncDeclArgName(arg), arg_name)?;
 
         match ctx[arg].type_sig {
             Some(type_sig) => walk_type_sig(walker, ctx, scope, type_sig)?,
@@ -279,7 +289,7 @@ fn walk_func_decl<'a, W: IrWalker<'a>>(
     }
 
     let func_name = ctx[func].name;
-    ctx[func].name = walker.visit_ident(ctx, scope, func_name)?;
+    ctx[func].name = walker.visit_ident(ctx, scope, IdentParent::FuncDeclName(func), func_name)?;
 
     match ctx[func].return_type {
         Some(type_sig) => walk_type_sig(walker, ctx, scope, type_sig)?,
@@ -311,12 +321,17 @@ fn walk_expr<'a, W: IrWalker<'a>>(
             walk_expr(walker, ctx, scope, ctx[st_access].struct_expr)?;
 
             let attr_name = ctx[st_access].attr_name;
-            ctx[st_access].attr_name = walker.visit_ident(ctx, scope, attr_name)?;
+            ctx[st_access].attr_name = walker.visit_ident(
+                ctx,
+                scope,
+                IdentParent::StructAccessAttrName(st_access),
+                attr_name,
+            )?;
             Ok(())
         }
         Expr::StructInit(st_init) => walk_struct_init(walker, ctx, scope, st_init),
         Expr::Identifier(ident) => {
-            let new_ident = walker.visit_ident(ctx, scope, ident)?;
+            let new_ident = walker.visit_ident(ctx, scope, IdentParent::IdentExpr(expr), ident)?;
             match &mut ctx[expr] {
                 Expr::Identifier(ident) => *ident = new_ident,
                 _ => unreachable!(),
@@ -376,12 +391,27 @@ fn walk_struct_init<'a, W: IrWalker<'a>>(
     let st_name = ctx[st_init].struct_name;
     let scp_name = ctx[st_init].scope_name;
 
-    ctx[st_init].struct_name = walker.visit_ident(ctx, &mut child_scope, st_name)?;
-    ctx[st_init].scope_name = walker.visit_ident(ctx, &mut child_scope, scp_name)?;
+    ctx[st_init].struct_name = walker.visit_ident(
+        ctx,
+        &mut child_scope,
+        IdentParent::StructInitStructName(st_init),
+        st_name,
+    )?;
+    ctx[st_init].scope_name = walker.visit_ident(
+        ctx,
+        &mut child_scope,
+        IdentParent::StructInitScopeName(st_init),
+        scp_name,
+    )?;
 
     for value in ctx[st_init].values.clone() {
         let val_ident = ctx[value].name;
-        ctx[value].name = walker.visit_ident(ctx, &mut child_scope, val_ident)?;
+        ctx[value].name = walker.visit_ident(
+            ctx,
+            &mut child_scope,
+            IdentParent::StructInitValueName(value),
+            val_ident,
+        )?;
 
         let expr = ctx[value].value;
         walk_expr(walker, ctx, &mut child_scope, expr)?;
@@ -398,7 +428,9 @@ fn walk_type_sig<'a, W: IrWalker<'a>>(
 ) -> Result<(), W::Error> {
     let new_ident = match ctx[type_sig].clone() {
         TypeSignatureValue::Builtin(_) => None,
-        TypeSignatureValue::Unresolved(ident) => Some(walker.visit_ident(ctx, scope, ident)?),
+        TypeSignatureValue::Unresolved(ident) => {
+            Some(walker.visit_ident(ctx, scope, IdentParent::TypeSigName(type_sig), ident)?)
+        }
         TypeSignatureValue::Function { args, return_type } => {
             for arg in args {
                 walk_type_sig(walker, ctx, scope, arg)?;
@@ -407,8 +439,12 @@ fn walk_type_sig<'a, W: IrWalker<'a>>(
 
             None
         }
-        TypeSignatureValue::Struct { name } => Some(walker.visit_ident(ctx, scope, name)?),
-        TypeSignatureValue::Enum { name } => Some(walker.visit_ident(ctx, scope, name)?),
+        TypeSignatureValue::Struct { name } => {
+            Some(walker.visit_ident(ctx, scope, IdentParent::TypeSigName(type_sig), name)?)
+        }
+        TypeSignatureValue::Enum { name } => {
+            Some(walker.visit_ident(ctx, scope, IdentParent::TypeSigName(type_sig), name)?)
+        }
         TypeSignatureValue::Tuple(types) => {
             for item in types {
                 walk_type_sig(walker, ctx, scope, item)?;

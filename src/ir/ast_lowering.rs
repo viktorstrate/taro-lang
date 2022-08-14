@@ -203,24 +203,31 @@ impl<'a> IrCtx<'a> {
             crate::ast::node::expression::ExprValue::Identifier(id) => {
                 Expr::Identifier(self.make_unresolved_ident(id))
             }
-            crate::ast::node::expression::ExprValue::StructInit(st_init) => Expr::StructInit(
-                StructInit {
+            crate::ast::node::expression::ExprValue::StructInit(st_init) => {
+                let struct_init = StructInit {
                     struct_name: self.make_unresolved_ident(st_init.struct_name),
                     scope_name: self.make_anon_ident(),
-                    values: st_init
-                        .values
-                        .into_iter()
-                        .map(|val| {
-                            StructInitValue {
-                                name: self.make_unresolved_ident(val.name),
-                                value: self.lower_expr(val.value),
-                            }
-                            .allocate(self)
-                        })
-                        .collect(),
+                    values: Vec::new(),
                 }
-                .allocate(self),
-            ),
+                .allocate(self);
+
+                let st_init_vals = st_init
+                    .values
+                    .into_iter()
+                    .map(|val| {
+                        StructInitValue {
+                            name: self.make_unresolved_ident(val.name),
+                            parent: struct_init,
+                            value: self.lower_expr(val.value),
+                        }
+                        .allocate(self)
+                    })
+                    .collect();
+
+                self[struct_init].values = st_init_vals;
+
+                Expr::StructInit(struct_init)
+            }
             crate::ast::node::expression::ExprValue::StructAccess(st_acc) => Expr::StructAccess(
                 StructAccess {
                     struct_expr: self.lower_expr(*st_acc.struct_expr),

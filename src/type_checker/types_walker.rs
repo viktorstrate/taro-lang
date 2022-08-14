@@ -254,69 +254,69 @@ mod tests {
         }
     }
 
-    // #[test]
-    // fn test_struct_init_default() {
-    //     let mut ast = parse_ast(
-    //         "\
-    //     struct Test { let default = 34; let noDefault: Number }
-    //     let test = Test { noDefault: 123 }",
-    //     )
-    //     .unwrap();
+    #[test]
+    fn test_struct_init_default() {
+        let mut ir = lowered_ir(
+            "\
+        struct Test { let default = 34; let noDefault: Number }
+        let test = Test { noDefault: 123 }",
+        )
+        .unwrap();
 
-    //     assert!(type_check(&mut ast).is_ok())
-    // }
+        assert!(type_check(&mut ir).is_ok())
+    }
 
-    // #[test]
-    // fn test_struct_init_not_default() {
-    //     let mut ast = parse_ast(
-    //         "\
-    //     struct Test { let noDefault: Number }
-    //     let test = Test {}",
-    //     )
-    //     .unwrap();
+    #[test]
+    fn test_struct_init_not_default() {
+        let mut ir = lowered_ir(
+            "\
+        struct Test { let noDefault: Number }
+        let test = Test {}",
+        )
+        .unwrap();
 
-    //     match type_check(&mut ast) {
-    //         Err(_) => {}
-    //         _ => assert!(false),
-    //     }
-    // }
+        assert!(type_check(&mut ir).is_err());
+    }
 
-    // #[test]
-    // fn test_var_assign_var() {
-    //     let mut ast = parse_ast("let a = true; let b: Boolean = a").unwrap();
-    //     assert_matches!(type_check(&mut ast), Ok(_));
+    #[test]
+    fn test_var_assign_var() {
+        let mut ir = lowered_ir("let a = true; let b: Boolean = a").unwrap();
+        assert_matches!(type_check(&mut ir), Ok(_));
 
-    //     let mut ast = parse_ast("let a = true; let b: Number = a").unwrap();
-    //     match type_check(&mut ast) {
-    //         Err(TypeCheckerError::TypeSignatureMismatch {
-    //             type_sig,
-    //             expr_type,
-    //         }) => {
-    //             assert_eq!(type_sig, BuiltinType::Number.type_sig());
-    //             assert_eq!(expr_type, BuiltinType::Boolean.type_sig());
-    //         }
-    //         _ => assert!(false),
-    //     }
-    // }
+        let mut ir = lowered_ir("let a = true; let b: Number = a").unwrap();
+        match type_check(&mut ir) {
+            Err(TypeCheckerError::TypeSignatureMismatch {
+                type_sig,
+                expr_type,
+            }) => {
+                assert_eq!(type_sig, ir.ctx.get_builtin_type_sig(BuiltinType::Number));
+                assert_eq!(expr_type, ir.ctx.get_builtin_type_sig(BuiltinType::Boolean));
+            }
+            _ => assert!(false),
+        }
+    }
 
-    // #[test]
-    // fn test_call_non_function() {
-    //     let mut ast = parse_ast("let val = true; val()").unwrap();
+    #[test]
+    fn test_call_non_function() {
+        let mut ir = lowered_ir("let val = true; val()").unwrap();
 
-    //     match type_check(&mut ast) {
-    //         Err(TypeCheckerError::CallNonFunction { ident_type }) => {
-    //             assert_eq!(ident_type, BuiltinType::Boolean.type_sig())
-    //         }
-    //         _ => assert!(false),
-    //     }
-    // }
+        match type_check(&mut ir) {
+            Err(TypeCheckerError::CallNonFunction { ident_type }) => {
+                assert_eq!(
+                    ident_type,
+                    ir.ctx.get_builtin_type_sig(BuiltinType::Boolean)
+                )
+            }
+            _ => assert!(false),
+        }
+    }
 
-    // #[test]
-    // fn test_escape_block_function_return() {
-    //     let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 } }").unwrap();
-    //     assert_matches!(type_check(&mut ast), Ok(_));
+    #[test]
+    fn test_escape_block_function_return() {
+        let mut ir = lowered_ir("func f() -> Number { return @{ 1 + 2 } }").unwrap();
+        assert_matches!(type_check(&mut ir), Ok(_));
 
-    //     let mut ast = parse_ast("func f() -> Number { return @{ 1 + 2 }; return 2 }").unwrap();
-    //     assert_matches!(type_check(&mut ast), Ok(_));
-    // }
+        let mut ir = lowered_ir("func f() -> Number { return @{ 1 + 2 }; return 2 }").unwrap();
+        assert_matches!(type_check(&mut ir), Ok(_));
+    }
 }
