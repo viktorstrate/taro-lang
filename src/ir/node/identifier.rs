@@ -69,8 +69,6 @@ impl<'a> IdentKey<'a> {
         let key_a = IdentKey::from_ident(ctx, a);
         let key_b = IdentKey::from_ident(ctx, b);
 
-        println!("Idents eq: {:?} {:?}", key_a, key_b);
-
         key_a == key_b
     }
 }

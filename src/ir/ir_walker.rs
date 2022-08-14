@@ -447,26 +447,11 @@ fn walk_type_sig<'a, W: IrWalker<'a>>(
     scope: &mut W::Scope,
     type_sig: TypeSignature<'a>,
 ) -> Result<TypeSignature<'a>, W::Error> {
-    enum TypeResult<'a> {
-        Ident(Ident<'a>),
-        Func {
-            new_args: Vec<TypeSignature<'a>>,
-            new_return_type: TypeSignature<'a>,
-        },
-        Tuple {
-            new_items: Vec<TypeSignature<'a>>,
-        },
-        None,
-    }
-
-    let new_ident: TypeResult<'a> = match ctx[type_sig].clone() {
-        TypeSignatureValue::Builtin(_) => TypeResult::None,
-        TypeSignatureValue::Unresolved(ident) => TypeResult::Ident(walker.visit_ident(
-            ctx,
-            scope,
-            IdentParent::TypeSigName(type_sig),
-            ident,
-        )?),
+    let new_type_sig: TypeSignatureValue<'a> = match ctx[type_sig].clone() {
+        TypeSignatureValue::Builtin(builtin) => TypeSignatureValue::Builtin(builtin),
+        TypeSignatureValue::Unresolved(ident) => TypeSignatureValue::Unresolved(
+            walker.visit_ident(ctx, scope, IdentParent::TypeSigName(type_sig), ident)?,
+        ),
         TypeSignatureValue::Function { args, return_type } => {
             let mut new_args = Vec::with_capacity(args.len());
             for arg in args {
@@ -475,58 +460,27 @@ fn walk_type_sig<'a, W: IrWalker<'a>>(
 
             let new_return_type = walk_type_sig(walker, ctx, scope, return_type)?;
 
-            TypeResult::Func {
-                new_args,
-                new_return_type,
+            TypeSignatureValue::Function {
+                args: new_args,
+                return_type: new_return_type,
             }
         }
-        TypeSignatureValue::Struct { name } => TypeResult::Ident(walker.visit_ident(
-            ctx,
-            scope,
-            IdentParent::TypeSigName(type_sig),
-            name,
-        )?),
-        TypeSignatureValue::Enum { name } => TypeResult::Ident(walker.visit_ident(
-            ctx,
-            scope,
-            IdentParent::TypeSigName(type_sig),
-            name,
-        )?),
+        TypeSignatureValue::Struct { name } => TypeSignatureValue::Struct {
+            name: walker.visit_ident(ctx, scope, IdentParent::TypeSigName(type_sig), name)?,
+        },
+        TypeSignatureValue::Enum { name } => TypeSignatureValue::Enum {
+            name: walker.visit_ident(ctx, scope, IdentParent::TypeSigName(type_sig), name)?,
+        },
         TypeSignatureValue::Tuple(types) => {
             let mut new_items = Vec::with_capacity(types.len());
             for item in types {
                 new_items.push(walk_type_sig(walker, ctx, scope, item)?);
             }
 
-            TypeResult::Tuple { new_items }
+            TypeSignatureValue::Tuple(new_items)
         }
     };
 
-    match new_ident {
-        TypeResult::Ident(ident) => match &mut ctx[type_sig] {
-            TypeSignatureValue::Unresolved(name) => *name = ident,
-            TypeSignatureValue::Struct { name } => *name = ident,
-            TypeSignatureValue::Enum { name } => *name = ident,
-            _ => unreachable!(),
-        },
-        TypeResult::None => {}
-        TypeResult::Func {
-            new_args,
-            new_return_type,
-        } => match &mut ctx[type_sig] {
-            TypeSignatureValue::Function { args, return_type } => {
-                *args = new_args;
-                *return_type = new_return_type;
-            }
-            _ => unreachable!(),
-        },
-        TypeResult::Tuple { new_items } => match &mut ctx[type_sig] {
-            TypeSignatureValue::Tuple(items) => {
-                *items = new_items;
-            }
-            _ => unreachable!(),
-        },
-    }
-
-    walker.visit_type_sig(ctx, scope, type_sig)
+    let new_type_sig = ctx.get_type_sig(new_type_sig);
+    walker.visit_type_sig(ctx, scope, new_type_sig)
 }

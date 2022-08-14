@@ -2,7 +2,7 @@ use crate::ir::{
     context::IrCtx,
     ir_walker::{IrWalker, ScopeValue},
     node::{
-        identifier::{Ident, IdentParent, IdentValue, Identifiable, ResolvedIdentValue},
+        identifier::{Ident, IdentParent, IdentValue, Identifiable},
         type_signature::{TypeEvalError, TypeSignatureValue, Typed},
     },
 };
@@ -72,76 +72,61 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
         ident: Ident<'a>,
     ) -> Result<Ident<'a>, Self::Error> {
         let resolved_ident = match &ctx[ident] {
-            IdentValue::Unresolved(_) => {
-                println!("Visit unresolved ident: {:?} {:?}", ctx[ident], parent);
-                match parent {
-                    IdentParent::StructInitValueName(st_init) => {
-                        println!("STRUCT INIT VALUE NAME {:?}", ctx[st_init]);
-                        let st_name = ctx[ctx[st_init].parent].struct_name;
+            IdentValue::Unresolved(_) => match parent {
+                IdentParent::StructInitValueName(st_init) => {
+                    let st_name = ctx[ctx[st_init].parent].struct_name;
 
-                        let st_sym_val = *self
-                            .symbols
-                            .lookup(ctx, st_name)
-                            .ok_or(SymbolResolutionError::UnknownIdentifier(st_name))?;
+                    let st_sym_val = *self
+                        .symbols
+                        .lookup(ctx, st_name)
+                        .ok_or(SymbolResolutionError::UnknownIdentifier(st_name))?;
 
-                        println!("Found struct sym {:?}", ctx[st_sym_val]);
+                    let st = match ctx[st_sym_val] {
+                        SymbolValueItem::StructDecl(st) => st,
+                        _ => unreachable!("expected to find struct"),
+                    };
 
-                        let st = match ctx[st_sym_val] {
-                            SymbolValueItem::StructDecl(st) => st,
-                            _ => unreachable!("expected to find struct"),
-                        };
+                    let attr = st
+                        .lookup_attr(ident, ctx)
+                        .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
 
-                        println!(
-                            "Found struct {:?} {:?}",
-                            ctx[st], ctx[ctx[ctx[st].attrs[0]].name]
-                        );
-
-                        let attr = st
-                            .lookup_attr(ident, ctx)
-                            .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
-
-                        println!("Found struct attr {:?}", ctx[attr]);
-                        Some(ctx[attr].name)
-                    }
-                    IdentParent::StructAccessAttrName(st_access) => {
-                        let st_attr = st_access
-                            .lookup_attr(ctx, &mut self.symbols)
-                            .map_err(|_| SymbolResolutionError::UnknownIdentifier(ident))?;
-
-                        match ctx[st_attr].type_sig {
-                            Some(type_sig) => match ctx[type_sig] {
-                                TypeSignatureValue::Unresolved(type_ident) => {
-                                    println!("Lookup st_attr type ident: {:?}", ctx[type_ident]);
-                                    let resolved_type_sig = self
-                                        .symbols
-                                        .lookup(ctx, type_ident)
-                                        .ok_or(SymbolResolutionError::UnknownIdentifier(
-                                            type_ident,
-                                        ))?
-                                        .clone()
-                                        .eval_type(&mut self.symbols, ctx)
-                                        .map_err(SymbolResolutionError::TypeEval)?;
-
-                                    ctx[st_attr].type_sig = Some(resolved_type_sig);
-                                }
-                                _ => {}
-                            },
-                            _ => {}
-                        }
-
-                        Some(ctx[st_attr].name)
-                    }
-                    _ => {
-                        let sym_id = *self
-                            .symbols
-                            .lookup(ctx, ident)
-                            .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
-
-                        let sym = *&ctx[sym_id];
-                        Some(sym.name(ctx))
-                    }
+                    Some(ctx[attr].name)
                 }
-            }
+                IdentParent::StructAccessAttrName(st_access) => {
+                    let st_attr = st_access
+                        .lookup_attr(ctx, &mut self.symbols)
+                        .map_err(|_| SymbolResolutionError::UnknownIdentifier(ident))?;
+
+                    match ctx[st_attr].type_sig {
+                        Some(type_sig) => match ctx[type_sig] {
+                            TypeSignatureValue::Unresolved(type_ident) => {
+                                let resolved_type_sig = self
+                                    .symbols
+                                    .lookup(ctx, type_ident)
+                                    .ok_or(SymbolResolutionError::UnknownIdentifier(type_ident))?
+                                    .clone()
+                                    .eval_type(&mut self.symbols, ctx)
+                                    .map_err(SymbolResolutionError::TypeEval)?;
+
+                                ctx[st_attr].type_sig = Some(resolved_type_sig);
+                            }
+                            _ => {}
+                        },
+                        _ => {}
+                    }
+
+                    Some(ctx[st_attr].name)
+                }
+                _ => {
+                    let sym_id = *self
+                        .symbols
+                        .lookup(ctx, ident)
+                        .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
+
+                    let sym = *&ctx[sym_id];
+                    Some(sym.name(ctx))
+                }
+            },
             IdentValue::Resolved(_) => None,
         };
 
@@ -162,30 +147,16 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
     ) -> Result<crate::ir::node::type_signature::TypeSignature<'a>, Self::Error> {
         let updated_type_sig = match ctx[type_sig] {
             TypeSignatureValue::Unresolved(ident) => {
-                // let ident_name = match IdentKey::from_ident(ctx, ident) {
-                //     IdentKey::Named(name) => name,
-                //     _ => unreachable!("all type signatures have a name"),
-                // };
-
                 let sym_val = *self
                     .symbols
                     .lookup(ctx, ident)
                     .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
 
-                let new_type_sig = match ctx[sym_val] {
-                    SymbolValueItem::BuiltinType(builtin_ident) => match ctx[builtin_ident] {
-                        IdentValue::Resolved(ResolvedIdentValue::BuiltinType(builtin)) => {
-                            ctx.get_builtin_type_sig(builtin)
-                        }
-                        _ => unreachable!(),
-                    },
-                    SymbolValueItem::StructDecl(st) => {
-                        ctx.get_type_sig(TypeSignatureValue::Struct { name: ctx[st].name })
-                    }
-                    item => panic!("UNHANDLED SYMBOL VALUE: {item:?}"),
-                };
+                let new_type = sym_val
+                    .eval_type(&mut self.symbols, ctx)
+                    .map_err(SymbolResolutionError::TypeEval)?;
 
-                new_type_sig
+                new_type
             }
             _ => type_sig,
         };

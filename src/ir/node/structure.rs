@@ -143,10 +143,6 @@ impl<'a> Typed<'a> for NodeRef<'a, StructInit<'a>> {
         symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        println!(
-            "Lookup struct (st_init): {:?} {:?}",
-            ctx[*self].struct_name, ctx[ctx[*self].struct_name]
-        );
         let st = self
             .lookup_struct(ctx, symbols)
             .ok_or(TypeEvalError::UnknownIdentifier(ctx[*self].struct_name))?;
@@ -177,7 +173,6 @@ impl<'a> NodeRef<'a, StructAccess<'a>> {
             _ => return Err(TypeEvalError::AccessNonStruct(st_type)),
         };
 
-        println!("Lookup struct {:?} {:?}", struct_name, ctx[struct_name]);
         let st_sym = symbols
             .lookup(ctx, struct_name)
             .ok_or(TypeEvalError::UnknownIdentifier(struct_name))?;
@@ -188,7 +183,6 @@ impl<'a> NodeRef<'a, StructAccess<'a>> {
         };
 
         let attr_name = ctx[*self].attr_name;
-        println!("Lookup attr {:?} {:?}", attr_name, ctx[attr_name]);
         st.lookup_attr(attr_name, ctx)
             .ok_or(TypeEvalError::UnknownIdentifier(attr_name))
     }

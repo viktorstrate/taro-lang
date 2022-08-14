@@ -15,9 +15,7 @@ use crate::{
 };
 
 use super::{
-    assignment::check_assignment,
-    struct_type::check_struct_init,
-    types_helpers::{fill_type_signature, type_check},
+    assignment::check_assignment, struct_type::check_struct_init, types_helpers::type_check,
     TypeCheckerError,
 };
 
@@ -83,7 +81,9 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
                             args: _,
                             return_type: _,
                         } => {
-                            fill_type_signature(ctx, &mut self.symbols, func, Some(type_sig))?;
+                            println!("Specify func type: {:?}", ctx[type_sig]);
+                            func.specify_type(ctx, type_sig)
+                                .map_err(TypeCheckerError::TypeEvalError)?;
                         }
                         _ => {
                             return Err(TypeCheckerError::TypeSignatureMismatch {
@@ -92,7 +92,7 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
                                     args: vec![],
                                     return_type: ctx.get_builtin_type_sig(BuiltinType::Void),
                                 }),
-                            })
+                            });
                         }
                     },
                     None => {}

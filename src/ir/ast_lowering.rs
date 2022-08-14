@@ -127,7 +127,7 @@ impl<'a> IrCtx<'a> {
                     Enum {
                         name: enm_name,
                         values,
-                        type_sig: self.make_type_sig(TypeSignatureValue::Enum { name: enm_name }),
+                        type_sig: self.get_type_sig(TypeSignatureValue::Enum { name: enm_name }),
                     }
                     .allocate(self),
                 )

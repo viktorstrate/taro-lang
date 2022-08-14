@@ -95,21 +95,6 @@ impl<'a> SymbolTableZipper<'a> {
         visited_symbols: usize,
         ident: Ident<'a>,
     ) -> Option<&'b SymbolValue<'a>> {
-        println!(
-            "Locate visited symbol: {:?}",
-            sym_table.ordered_symbols.len()
-        );
-
-        let debug = sym_table
-            .ordered_symbols
-            .iter()
-            .take(visited_symbols)
-            .rev()
-            .map(|sym| IdentKey::from_ident(ctx, ctx[*sym].name(ctx)))
-            .collect::<Vec<_>>();
-
-        println!("KEYS: {:?}", debug);
-
         sym_table
             .ordered_symbols
             .iter()

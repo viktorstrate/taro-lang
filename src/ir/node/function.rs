@@ -1,5 +1,3 @@
-
-
 use crate::{
     ir::context::IrCtx,
     ir::node::type_signature::TypeSignatureValue,
@@ -105,28 +103,27 @@ impl<'a> Typed<'a> for NodeRef<'a, Function<'a>> {
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
-        let args = match &ctx[new_type] {
-            TypeSignatureValue::Function {
-                args,
-                return_type: _,
-            } => args.clone(),
+        let (new_args, new_return_type) = match &ctx[new_type] {
+            TypeSignatureValue::Function { args, return_type } => (args.clone(), *return_type),
             _ => unreachable!("specified type expected to be function"),
         };
 
         let func_args_len = ctx[*self].args.len();
-        if args.len() != func_args_len {
+        if new_args.len() != func_args_len {
             return Err(TypeEvalError::FunctionType(
                 FunctionTypeError::WrongNumberOfArgs {
                     func: *self,
-                    expected: args.len(),
+                    expected: new_args.len(),
                     actual: func_args_len,
                 },
             ));
         }
 
-        for (arg_type, arg) in args.iter().zip(ctx[*self].args.clone().into_iter()) {
+        for (arg_type, arg) in new_args.iter().zip(ctx[*self].args.clone().into_iter()) {
             ctx[arg].type_sig = Some(*arg_type);
         }
+
+        ctx[*self].return_type = Some(new_return_type);
 
         Ok(())
     }

@@ -136,6 +136,21 @@ impl<'a> IrCtx<'a> {
             return *found_type;
         }
 
+        println!("TYPE SIG NOT FOUND, CREATING NEW: {type_sig:?}");
+
+        match &type_sig {
+            TypeSignatureValue::Function { args, return_type } => {
+                for arg in args {
+                    match self[*arg] {
+                        TypeSignatureValue::Unresolved(id) => println!("- ARG: {:?}", self[id]),
+                        _ => println!("- ARG: {:?}", self[*arg]),
+                    }
+                }
+                println!("- RET TYPE: {:?}", self[*return_type])
+            }
+            _ => {}
+        }
+
         let type_sig_id = self.types.alloc(type_sig.clone()).into();
         self.types_lookup.insert(type_sig, type_sig_id);
 
@@ -147,10 +162,6 @@ impl<'a> IrCtx<'a> {
             .builtin_types_lookup
             .get(&builtin)
             .expect("get builtin type signature")
-    }
-
-    pub fn make_type_sig(&mut self, type_sig: TypeSignatureValue<'a>) -> TypeSignature<'a> {
-        self.types.alloc(type_sig).into()
     }
 
     pub fn make_ident(&mut self, ident: ast::node::identifier::Ident<'a>) -> Ident<'a> {
