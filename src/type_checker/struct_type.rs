@@ -1,5 +1,13 @@
 use crate::{
-    ast::node::{identifier::Ident, structure::StructInit, type_signature::Typed},
+    ir::{
+        context::IrCtx,
+        node::{
+            identifier::{Ident, IdentKey},
+            structure::StructInit,
+            type_signature::Typed,
+            NodeRef,
+        },
+    },
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
@@ -12,63 +20,74 @@ pub enum StructTypeError<'a> {
 }
 
 pub fn check_struct_init<'a>(
+    ctx: &mut IrCtx<'a>,
     symbols: &mut SymbolTableZipper<'a>,
-    st_init: &mut StructInit<'a>,
+    st_init: NodeRef<'a, StructInit<'a>>,
 ) -> Result<(), TypeCheckerError<'a>> {
+    let st_name = ctx[st_init].struct_name;
     let st = st_init
-        .lookup_struct(symbols)
-        .cloned()
-        .ok_or(TypeCheckerError::LookupError(st_init.struct_name.clone()))?;
+        .lookup_struct(ctx, symbols)
+        .ok_or(TypeCheckerError::LookupError(st_name))?;
 
     // Check that all attributes without default values are declared
-    for attr in &st.attrs {
-        if attr.default_value.is_none() {
-            if st_init
+    for attr in ctx[st].attrs.clone() {
+        if ctx[attr].default_value.is_none() {
+            let attr_name = ctx[attr].name;
+            if ctx[st_init]
                 .values
                 .iter()
-                .find(|val| val.name == attr.name)
+                .find(|val| IdentKey::idents_eq(ctx, ctx[**val].name, attr_name))
                 .is_none()
             {
                 return Err(TypeCheckerError::StructError(
-                    StructTypeError::MissingAttribute(attr.name.clone()),
+                    StructTypeError::MissingAttribute(attr_name),
                 ));
             }
         }
     }
 
     // Check that declared attributes all exist on struct
-    for attr in &st_init.values {
-        if st.attrs.iter().find(|val| val.name == attr.name).is_none() {
+    for attr in ctx[st_init].values.clone() {
+        let attr_name = ctx[attr].name;
+        if ctx[st]
+            .attrs
+            .iter()
+            .find(|val| IdentKey::idents_eq(ctx, ctx[**val].name, attr_name))
+            .is_none()
+        {
             return Err(TypeCheckerError::StructError(
-                StructTypeError::UnknownAttribute(attr.name.clone()),
+                StructTypeError::UnknownAttribute(attr_name),
             ));
         }
     }
 
     // Type check attributes
     symbols
-        .enter_scope(st_init.scope_name.clone())
+        .enter_scope(ctx, ctx[st_init].scope_name)
         .expect("struct init scope should exist");
-    for attr in &mut st_init.values {
-        let attr_type = attr
-            .value
-            .eval_type(symbols)
+    for id in ctx[st_init].values.clone() {
+        let attr_name = ctx[id].name;
+        let attr_value = ctx[id].value;
+
+        let attr_type = attr_value
+            .eval_type(symbols, ctx)
             .map_err(TypeCheckerError::TypeEvalError)?;
 
-        let st_attr_type = st
+        let st_attr_type = ctx[st]
             .attrs
-            .iter()
-            .find(|val| val.name == attr.name)
+            .clone()
+            .into_iter()
+            .find(|val| IdentKey::idents_eq(ctx, ctx[*val].name, attr_name))
             .expect("checked earlier")
-            .eval_type(symbols)
+            .eval_type(symbols, ctx)
             .map_err(TypeCheckerError::TypeEvalError)?;
 
-        let coerced_type = types_match(st_attr_type, attr_type)?;
-        attr.value
-            .specify_type(coerced_type)
+        let coerced_type = types_match(ctx, st_attr_type, attr_type)?;
+        attr_value
+            .specify_type(ctx, coerced_type)
             .map_err(TypeCheckerError::TypeEvalError)?;
     }
-    symbols.exit_scope().unwrap();
+    symbols.exit_scope(ctx).unwrap();
 
     Ok(())
 }
@@ -78,18 +97,19 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::test_utils::utils::type_check, parser::parse_ast, type_checker::TypeCheckerError,
+        ir::test_utils::utils::{lowered_ir, type_check},
+        type_checker::TypeCheckerError,
     };
 
     #[test]
     fn test_func_decl_inside_struct() {
-        let mut ast = parse_ast(
+        let mut ir = lowered_ir(
             "struct Foo { let attr: () -> Number }
             let a = Foo { attr: () { return false } }",
         )
         .unwrap();
         assert_matches!(
-            type_check(&mut ast),
+            type_check(&mut ir),
             Err(TypeCheckerError::TypeSignatureMismatch {
                 type_sig: _,
                 expr_type: _

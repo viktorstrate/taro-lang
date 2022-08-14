@@ -1,9 +1,12 @@
-use crate::ast::node::{module::Module, statement::Stmt};
+use crate::ast::node::{
+    module::Module,
+    statement::{Stmt, StmtValue},
+};
 
-use super::{statement::statement, Res, Span};
+use super::{statement::statement, Input, Res};
 
-pub fn module<'a>(i: Span<'a>) -> Res<Span<'a>, Module<'a>> {
-    let mut stmts: Vec<Stmt> = Vec::new();
+pub fn module<'a>(i: Input<'a>) -> Res<Input<'a>, Module<'a>> {
+    let mut stmts: Vec<Stmt<'_>> = Vec::new();
 
     let mut input = i;
 
@@ -11,7 +14,7 @@ pub fn module<'a>(i: Span<'a>) -> Res<Span<'a>, Module<'a>> {
         let (i, new_stmt) = statement(input)?;
         input = i;
 
-        let empty_stmt = if let Stmt::Compound(stmts) = &new_stmt {
+        let empty_stmt = if let StmtValue::Compound(stmts) = &new_stmt.value {
             stmts.is_empty()
         } else {
             false
@@ -29,13 +32,13 @@ pub fn module<'a>(i: Span<'a>) -> Res<Span<'a>, Module<'a>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::new_span;
+    use crate::parser::new_input;
 
     use super::module;
 
     #[test]
     fn test_module() {
-        let m = module(new_span("struct S {} let x = false")).unwrap().1;
+        let m = module(new_input("struct S {} let x = false")).unwrap().1;
 
         assert_eq!(m.stmts.len(), 2);
     }

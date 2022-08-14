@@ -5,12 +5,13 @@ use nom::{
     combinator::{map, opt},
     error::context,
     multi::{fold_many0, separated_list0},
-    sequence::{delimited, preceded, tuple},
+    sequence::{delimited, pair, preceded, tuple},
 };
+use nom_locate::position;
 
 use crate::ast::node::{
     assignment::Assignment,
-    expression::Expr,
+    expression::{Expr, ExprValue},
     function::FunctionCall,
     identifier::Ident,
     structure::StructAccess,
@@ -18,26 +19,29 @@ use crate::ast::node::{
 };
 
 use super::{
-    escape_block::escape_block, function::function_expr, identifier::identifier,
-    structure::struct_init_expr, surround_brackets, token, BracketType, Res, Span,
+    escape_block::escape_block, function::function_expr, identifier::identifier, span,
+    structure::struct_init_expr, surround_brackets, token, BracketType, Input, Res, Span,
 };
 
-pub fn expression(i: Span) -> Res<Span, Expr> {
-    let (i, expr) = context(
+pub fn expression(i: Input<'_>) -> Res<Input<'_>, Expr<'_>> {
+    let (i_next, expr) = context(
         "expression",
-        alt((
-            struct_init_expr,
-            expr_identifier,
-            expr_string_literal,
-            expr_number_literal,
-            expr_boolean_literal,
-            function_expr,
-            expr_tuple,
-            map(escape_block, Expr::EscapeBlock),
-        )),
-    )(i)?;
+        map(
+            span(alt((
+                map(struct_init_expr, ExprValue::StructInit),
+                map(identifier, ExprValue::Identifier),
+                expr_string_literal,
+                expr_number_literal,
+                expr_boolean_literal,
+                function_expr,
+                expr_tuple,
+                map(escape_block, ExprValue::EscapeBlock),
+            ))),
+            |(span, value)| Expr { span, value },
+        ),
+    )(i.clone())?;
 
-    expr_tail(&expr, i.clone())
+    expr_tail(&expr, i_next, i)
 }
 
 enum ExprTailChain<'a> {
@@ -46,42 +50,65 @@ enum ExprTailChain<'a> {
     TupleAccess(usize),
 }
 
-fn expr_tail<'a>(base: &Expr<'a>, i: Span<'a>) -> Res<Span<'a>, Expr<'a>> {
-    let (i, base) = expr_tail_chain(base.clone(), i)?;
+fn expr_tail<'a>(base: &Expr<'a>, i: Input<'a>, i_start: Input<'a>) -> Res<Input<'a>, Expr<'a>> {
+    let (i_next, base) = expr_tail_chain(base.clone(), i, i_start.clone())?;
 
-    tail_assignments(&base, i)
+    tail_assignments(&base, i_next, i_start)
 }
 
-fn tail_assignments<'a>(base: &Expr<'a>, i: Span<'a>) -> Res<Span<'a>, Expr<'a>> {
+fn tail_assignments<'a>(
+    base: &Expr<'a>,
+    i: Input<'a>,
+    i_start: Input<'a>,
+) -> Res<Input<'a>, Expr<'a>> {
     fold_many0(
-        preceded(token(tag("=")), expression),
+        pair(preceded(token(tag("=")), expression), position),
         || base.clone(),
-        |acc, rhs| Expr::Assignment(Box::new(Assignment { lhs: acc, rhs })),
-    )(i)
-}
-
-fn expr_tail_chain<'a>(base: Expr<'a>, i: Span<'a>) -> Res<Span<'a>, Expr<'a>> {
-    fold_many0(
-        alt((tail_func_call, tail_struct_access, tail_tuple_access)),
-        || base.clone(),
-        |acc, expr_tail| match expr_tail {
-            ExprTailChain::FuncCall(func_args) => Expr::FunctionCall(Box::new(FunctionCall {
-                func: acc,
-                params: func_args,
-            })),
-            ExprTailChain::StructAccess(attr_name) => Expr::StructAccess(StructAccess {
-                struct_expr: Box::new(acc),
-                attr_name,
-            }),
-            ExprTailChain::TupleAccess(attr) => Expr::TupleAccess(TupleAccess {
-                tuple_expr: Box::new(acc),
-                attr,
-            }),
+        |acc, (rhs, end)| Expr {
+            span: Span::new(i_start.clone(), end),
+            value: ExprValue::Assignment(Box::new(Assignment { lhs: acc, rhs })),
         },
     )(i)
 }
 
-fn tail_func_call(i: Span) -> Res<Span, ExprTailChain> {
+fn expr_tail_chain<'a>(
+    base: Expr<'a>,
+    i: Input<'a>,
+    i_start: Input<'a>,
+) -> Res<Input<'a>, Expr<'a>> {
+    fold_many0(
+        pair(
+            alt((tail_func_call, tail_struct_access, tail_tuple_access)),
+            position,
+        ),
+        || base.clone(),
+        |acc, (expr_tail, end)| {
+            let expr_val = match expr_tail {
+                ExprTailChain::FuncCall(func_args) => {
+                    ExprValue::FunctionCall(Box::new(FunctionCall {
+                        func: acc,
+                        params: func_args,
+                    }))
+                }
+                ExprTailChain::StructAccess(attr_name) => ExprValue::StructAccess(StructAccess {
+                    struct_expr: Box::new(acc),
+                    attr_name,
+                }),
+                ExprTailChain::TupleAccess(attr) => ExprValue::TupleAccess(TupleAccess {
+                    tuple_expr: Box::new(acc),
+                    attr,
+                }),
+            };
+
+            Expr {
+                span: Span::new(i_start.clone(), end),
+                value: expr_val,
+            }
+        },
+    )(i)
+}
+
+fn tail_func_call(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
     let func_params = separated_list0(token(tag(",")), expression);
 
     map(
@@ -90,28 +117,28 @@ fn tail_func_call(i: Span) -> Res<Span, ExprTailChain> {
     )(i)
 }
 
-fn tail_struct_access(i: Span) -> Res<Span, ExprTailChain> {
+fn tail_struct_access(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
     map(
         preceded(token(tag(".")), identifier),
         ExprTailChain::StructAccess,
     )(i)
 }
 
-fn tail_tuple_access(i: Span) -> Res<Span, ExprTailChain> {
+fn tail_tuple_access(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
     let (i, digit) = preceded(token(tag(".")), digit1)(i)?;
     let num = digit.parse().unwrap();
 
     Ok((i, ExprTailChain::TupleAccess(num)))
 }
 
-pub fn expr_string_literal(i: Span) -> Res<Span, Expr> {
+pub fn expr_string_literal(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
     let string_value = take_until("\"");
 
     return delimited(char_parser('\"'), string_value, char_parser('\"'))(i)
-        .map(|(i, str_val)| (i, Expr::StringLiteral(&str_val)));
+        .map(|(i, str_val)| (i, ExprValue::StringLiteral(&str_val)));
 }
 
-pub fn expr_number_literal(i: Span) -> Res<Span, Expr> {
+pub fn expr_number_literal(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
     let (i, num) = digit1(i)?;
 
     let (i, maybe_decimal) = opt(tuple((tag("."), digit1)))(i)?;
@@ -121,24 +148,20 @@ pub fn expr_number_literal(i: Span) -> Res<Span, Expr> {
         num.parse().unwrap()
     };
 
-    Ok((i, Expr::NumberLiteral(result)))
+    Ok((i, ExprValue::NumberLiteral(result)))
 }
 
-pub fn expr_boolean_literal(i: Span) -> Res<Span, Expr> {
+pub fn expr_boolean_literal(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
     context(
         "boolean",
         map(
             alt((map(tag("true"), |_| true), map(tag("false"), |_| false))),
-            Expr::BoolLiteral,
+            ExprValue::BoolLiteral,
         ),
     )(i)
 }
 
-pub fn expr_identifier(i: Span) -> Res<Span, Expr> {
-    context("identifier expression", map(identifier, Expr::Identifier))(i)
-}
-
-pub fn expr_tuple(i: Span) -> Res<Span, Expr> {
+pub fn expr_tuple(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
     context(
         "tuple expression",
         map(
@@ -147,7 +170,7 @@ pub fn expr_tuple(i: Span) -> Res<Span, Expr> {
                 separated_list0(token(tag(",")), expression),
             ),
             |exprs| {
-                Expr::Tuple(Tuple {
+                ExprValue::Tuple(Tuple {
                     values: exprs,
                     type_sig: None,
                 })
@@ -160,19 +183,28 @@ pub fn expr_tuple(i: Span) -> Res<Span, Expr> {
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::{ast::node::identifier::Ident, parser::new_span};
+    use crate::{
+        ast::test_utils::test_ident,
+        parser::{new_input, Span},
+    };
 
     use super::*;
 
     #[test]
     fn test_expr_number() {
-        match expression(new_span("23")).unwrap().1 {
-            Expr::NumberLiteral(val) => assert_eq!(val, 23.0),
+        match expression(new_input("23")).unwrap().1 {
+            Expr {
+                span,
+                value: ExprValue::NumberLiteral(val),
+            } => {
+                assert_eq!(val, 23.0);
+                assert_eq!(span.fragment, "23")
+            }
             _ => assert!(false),
         }
 
-        match expression(new_span("23.2")).unwrap().1 {
-            Expr::NumberLiteral(val) => assert_eq!(val, 23.2),
+        match expression(new_input("23.2")).unwrap().1.value {
+            ExprValue::NumberLiteral(val) => assert_eq!(val, 23.2),
             _ => assert!(false),
         }
     }
@@ -180,33 +212,59 @@ mod tests {
     #[test]
     fn test_expr_string_literal() {
         assert_matches!(
-            expression(new_span("\"hello\"")),
-            Ok((_, Expr::StringLiteral("hello")))
+            expression(new_input("\"hello\"")),
+            Ok((
+                _,
+                Expr {
+                    span: Span {
+                        line: 1,
+                        offset: 1,
+                        fragment: "\"hello\""
+                    },
+                    value: ExprValue::StringLiteral("hello")
+                }
+            ))
         );
 
-        assert!(expr_string_literal(new_span("\"hello not closed")).is_err());
+        assert!(expr_string_literal(new_input("\"hello not closed")).is_err());
     }
 
     #[test]
     fn test_expr_identifier() {
-        match expression(new_span("ident_234")).unwrap().1 {
-            Expr::Identifier(ident) => assert_eq!(ident, Ident::new_unplaced("ident_234")),
+        match expression(new_input("ident_234")).unwrap().1 {
+            Expr {
+                span,
+                value: ExprValue::Identifier(ident),
+            } => {
+                assert_eq!(ident, test_ident("ident_234"));
+                assert_eq!(span.fragment, "ident_234");
+            }
             _ => assert!(false),
         }
 
-        match expression(new_span("$_ident")).unwrap().1 {
-            Expr::Identifier(ident) => assert_eq!(ident, Ident::new_unplaced("$_ident")),
+        match expression(new_input("$_ident")).unwrap().1 {
+            Expr {
+                span,
+                value: ExprValue::Identifier(ident),
+            } => {
+                assert_eq!(ident, test_ident("$_ident"));
+                assert_eq!(span.fragment, "$_ident");
+            }
             _ => assert!(false),
         }
     }
 
     #[test]
     fn test_expr_tail_chain() {
-        let expr = expression(new_span("base()().first.next(123)")).unwrap().1;
+        let expr = expression(new_input("base()().first.next(123)")).unwrap().1;
 
         match expr {
-            Expr::FunctionCall(call) => {
+            Expr {
+                span,
+                value: ExprValue::FunctionCall(call),
+            } => {
                 assert_eq!(call.params.len(), 1);
+                assert_eq!(span.fragment, "base()().first.next(123)")
             }
             _ => assert!(false),
         }
@@ -214,19 +272,36 @@ mod tests {
 
     #[test]
     fn test_expr_assignments() {
-        let expr = expression(new_span("a = b = 2")).unwrap().1;
+        let expr = expression(new_input("a = b = 2")).unwrap().1;
 
         match expr {
-            Expr::Assignment(outer_asg) => {
-                match outer_asg.lhs {
-                    Expr::Identifier(ident) => assert_eq!(ident, Ident::new_unplaced("a")),
+            Expr {
+                span,
+                value: ExprValue::Assignment(outer_asg),
+            } => {
+                assert_eq!(span.fragment, "a = b = 2");
+
+                match outer_asg.lhs.value {
+                    ExprValue::Identifier(ident) => assert_eq!(ident, test_ident("a")),
                     _ => assert!(false),
                 }
 
-                match outer_asg.rhs {
-                    Expr::Assignment(rhs_asg) => {
-                        assert_matches!(rhs_asg.lhs, Expr::Identifier(_));
-                        assert_matches!(rhs_asg.rhs, Expr::NumberLiteral(_));
+                match outer_asg.rhs.value {
+                    ExprValue::Assignment(rhs_asg) => {
+                        assert_matches!(
+                            rhs_asg.lhs,
+                            Expr {
+                                span: _,
+                                value: ExprValue::Identifier(_)
+                            }
+                        );
+                        assert_matches!(
+                            rhs_asg.rhs,
+                            Expr {
+                                span: _,
+                                value: ExprValue::NumberLiteral(_)
+                            }
+                        );
                     }
                     _ => assert!(false),
                 }
@@ -237,15 +312,23 @@ mod tests {
 
     #[test]
     fn test_expr_tuple() {
-        let expr = expression(new_span("(true, 42)")).unwrap().1;
+        let expr = expression(new_input("(true, 42)")).unwrap().1;
 
         match expr {
-            Expr::Tuple(Tuple {
-                values,
-                type_sig: None,
-            }) => {
+            Expr {
+                span,
+                value:
+                    ExprValue::Tuple(Tuple {
+                        values,
+                        type_sig: None,
+                    }),
+            } => {
                 assert_eq!(values.len(), 2);
-                assert_matches!(values[0], Expr::BoolLiteral(true));
+                assert_matches!(values[0].value, ExprValue::BoolLiteral(true));
+
+                assert_eq!(span.fragment, "(true, 42)");
+                assert_eq!(values[0].span.fragment, "true");
+                assert_eq!(values[1].span.fragment, "42");
             }
             _ => assert!(false),
         }

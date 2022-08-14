@@ -7,39 +7,26 @@ use nom::{
     sequence::{pair, preceded},
 };
 
-use crate::ast::node::{
-    enumeration::{Enum, EnumInit, EnumValue},
-    statement::Stmt,
-};
+use crate::ast::node::enumeration::{Enum, EnumValue};
 
 use super::{
     identifier::identifier, surround_brackets, token, type_signature::type_signature, BracketType,
-    Res, Span,
+    Input, Res,
 };
 
-pub fn enum_stmt(i: Span) -> Res<Span, Stmt> {
-    map(enumeration, Stmt::EnumDecl)(i)
-}
-
-pub fn enumeration(mut i: Span) -> Res<Span, Enum> {
+pub fn enumeration(i: Input<'_>) -> Res<Input<'_>, Enum<'_>> {
     // enum IDENT "{" ENUM_VALUE* "}"
-
-    let ref_id = i.extra.ref_gen.make_ref();
 
     map(
         pair(
             preceded(token(tag("enum")), identifier),
             surround_brackets(BracketType::Curly, enum_values),
         ),
-        move |(name, values)| Enum {
-            name,
-            values,
-            ref_id,
-        },
+        move |(name, values)| Enum { name, values },
     )(i)
 }
 
-fn enum_values(i: Span) -> Res<Span, Vec<EnumValue>> {
+fn enum_values(i: Input<'_>) -> Res<Input<'_>, Vec<EnumValue<'_>>> {
     // IDENT [ "(" TYPE_SIG+ ")" ]
     // let (i, name) = identifier(i)?;
     // let (i, items) = opt(surround_brackets(BracketType::Round, many1(type_signature)))(i)?;
@@ -64,41 +51,34 @@ fn enum_values(i: Span) -> Res<Span, Vec<EnumValue>> {
     )(i)
 }
 
-fn enum_init(i: Span) -> Res<Span, EnumInit> {
-    // [IDENT] "." VALUE [ "(" EXPR+ ")" ]
-    todo!()
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::node::identifier::Ident, parser::new_span, symbols::builtin_types::BuiltinType,
+        ast::test_utils::{test_ident, test_type_sig},
+        parser::new_input,
     };
 
     use super::*;
 
     #[test]
     fn test_enum() {
-        let enm = enumeration(new_span(
+        let enm = enumeration(new_input(
             "enum Test { numbers(Number, Number); string(String) }",
         ))
         .unwrap()
         .1;
 
-        assert_eq!(enm.name, Ident::new_unplaced("Test"));
+        assert_eq!(enm.name, test_ident("Test"));
         assert_eq!(
             enm.values,
             vec![
                 EnumValue {
-                    name: Ident::new_unplaced("numbers"),
-                    items: vec![
-                        BuiltinType::Number.type_sig(),
-                        BuiltinType::Number.type_sig()
-                    ]
+                    name: test_ident("numbers"),
+                    items: vec![test_type_sig("Number"), test_type_sig("Number")]
                 },
                 EnumValue {
-                    name: Ident::new_unplaced("string"),
-                    items: vec![BuiltinType::String.type_sig()]
+                    name: test_ident("string"),
+                    items: vec![test_type_sig("String")]
                 }
             ]
         );

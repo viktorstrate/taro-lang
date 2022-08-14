@@ -1,49 +1,28 @@
-#[cfg(test)]
-pub mod utils {
-    use crate::{
-        ast::{ast_walker::walk_ast, AST},
-        code_gen::format_ast,
-        parser::{parse_ast, ParserError},
-        symbols::symbol_walker::SymbolCollector,
-        type_checker::{types_walker::TypeChecker, TypeCheckerError},
-    };
+use crate::parser::Span;
 
-    #[derive(Debug)]
-    pub enum FinalAstError<'a> {
-        Parser(ParserError<'a>),
-        TypeCheck(TypeCheckerError<'a>),
+use super::node::{
+    identifier::Ident,
+    type_signature::{TypeSignature, TypeSignatureValue},
+};
+
+fn test_span() -> Span<'static> {
+    Span {
+        line: 0,
+        offset: 0,
+        fragment: "",
     }
+}
 
-    pub fn final_ast<'a>(input: &'a str) -> Result<AST<'a>, FinalAstError<'a>> {
-        let mut ast = parse_ast(input).map_err(FinalAstError::Parser)?;
-        type_check(&mut ast).map_err(FinalAstError::TypeCheck)?;
-
-        Ok(ast)
+pub fn test_ident<'a>(name: &'a str) -> Ident<'a> {
+    Ident {
+        span: test_span(),
+        value: name,
     }
+}
 
-    pub fn type_check<'a>(ast: &mut AST<'a>) -> Result<(), TypeCheckerError<'a>> {
-        let mut sym_collector = SymbolCollector {};
-        let symbols = walk_ast(&mut sym_collector, ast).unwrap();
-
-        let mut checker = TypeChecker::new(symbols);
-        return walk_ast(&mut checker, ast);
-    }
-
-    pub fn final_codegen(input: &str) -> Result<String, FinalAstError> {
-        let mut ast = parse_ast(input).map_err(FinalAstError::Parser)?;
-
-        let mut sym_collector = SymbolCollector {};
-        let symbols = walk_ast(&mut sym_collector, &mut ast).unwrap();
-
-        let mut checker = TypeChecker::new(symbols);
-        walk_ast(&mut checker, &mut ast).map_err(FinalAstError::TypeCheck)?;
-
-        checker.symbols.reset();
-        let mut buf = Vec::new();
-        format_ast(&mut buf, &ast, checker.symbols).unwrap();
-
-        let out = String::from_utf8(buf).unwrap();
-
-        Ok(out)
+pub fn test_type_sig<'a>(name: &'a str) -> TypeSignature<'a> {
+    TypeSignature {
+        span: test_span(),
+        value: TypeSignatureValue::Base(test_ident(name)),
     }
 }

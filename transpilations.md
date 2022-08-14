@@ -75,11 +75,13 @@ let result = match ipValue {
 ----
 
 let result = null
-if (ipValue[0] === 1) {
-  const inner = 10 * ipValue[2]
-  result = ipValue[1] + ipValue[2] + ipValue[3] + ipValue[4]
-} else if (ipValue[0] === 2) {
-  return "error"
+switch (ipValue[0]) {
+  case 1:
+    const inner = 10 * ipValue[2]
+    result = ipValue[1] + ipValue[2] + ipValue[3] + ipValue[4]
+    break
+  case 2:
+    return "error"
 }
 ```
 

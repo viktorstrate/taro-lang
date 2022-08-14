@@ -1,3 +1,3 @@
-pub mod builtin_types;
+pub mod symbol_collector;
+pub mod symbol_resolver;
 pub mod symbol_table;
-pub mod symbol_walker;

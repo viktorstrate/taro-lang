@@ -10,48 +10,60 @@ use nom::{
 
 use crate::{
     ast::node::{
-        statement::{Stmt, VarDecl},
+        statement::{Stmt, StmtValue, VarDecl},
         type_signature::Mutability,
     },
     parser::expression::expression,
 };
 
 use super::{
-    enumeration::enum_stmt, function::function_decl, identifier::identifier,
-    structure::struct_stmt, token, type_signature::type_signature, ws, Res, Span,
+    enumeration::enumeration, function::function_decl, identifier::identifier, span,
+    structure::structure, token, type_signature::type_signature, ws, Input, Res,
 };
 
-pub fn statement<'a>(i: Span<'a>) -> Res<Span<'a>, Stmt<'a>> {
+pub fn statement<'a>(i: Input<'a>) -> Res<Input<'a>, Stmt<'a>> {
     // STMT <<; | \n> STMT>* [;]
 
-    let (i, mut stmts) = separated_list0(alt((tag(";"), tag("\n"))), single_statement)(i)?;
+    let (i, (span, mut stmts)) = span(separated_list0(
+        alt((tag(";"), tag("\n"))),
+        single_statement,
+    ))(i)?;
 
     let (i, stmt) = if stmts.len() == 1 {
         let stmt = stmts.pop().expect("vec should have length 1");
         (i, stmt)
     } else {
-        (i, Stmt::Compound(stmts))
+        (
+            i,
+            Stmt {
+                span,
+                value: StmtValue::Compound(stmts),
+            },
+        )
     };
 
     let (i, _) = opt(token(tag(";")))(i)?;
     Ok((i, stmt))
 }
 
-pub fn single_statement(i: Span) -> Res<Span, Stmt> {
+pub fn single_statement(i: Input<'_>) -> Res<Input<'_>, Stmt<'_>> {
     context(
         "statement",
-        alt((
-            variable_decl,
-            function_decl,
-            struct_stmt,
-            enum_stmt,
-            stmt_return,
-            stmt_expression,
-        )),
+        map(
+            span(alt((
+                map(variable_decl, StmtValue::VariableDecl),
+                map(function_decl, StmtValue::FunctionDecl),
+                map(structure, StmtValue::StructDecl),
+                map(enumeration, StmtValue::EnumDecl),
+                stmt_return,
+                map(expression, StmtValue::Expression),
+            ))),
+            |(span, value)| Stmt { span, value },
+        ),
     )(i)
 }
 
-pub fn variable_decl(i: Span) -> Res<Span, Stmt> {
+pub fn variable_decl(i: Input<'_>) -> Res<Input<'_>, VarDecl<'_>> {
     // let [mut] IDENTIFIER [: TYPE_SIGNATURE] = EXPRESSION
 
     context(
@@ -63,23 +75,21 @@ pub fn variable_decl(i: Span) -> Res<Span, Stmt> {
                 opt(preceded(token(char(':')), type_signature)),
                 preceded(token(char('=')), expression),
             )),
-            |(mutability, name, type_sig, value)| {
-                Stmt::VariableDecl(VarDecl {
-                    name,
-                    mutability,
-                    type_sig,
-                    value,
-                })
+            |(mutability, name, type_sig, value)| VarDecl {
+                name,
+                mutability,
+                type_sig,
+                value,
             },
         ),
     )(i)
 }
 
-pub fn let_specifier(i: Span) -> Res<Span, ()> {
+pub fn let_specifier(i: Input<'_>) -> Res<Input<'_>, ()> {
     map(token(tuple((tag("let"), ws))), |_| ())(i)
 }
 
-pub fn mut_specifier(i: Span) -> Res<Span, Mutability> {
+pub fn mut_specifier(i: Input<'_>) -> Res<Input<'_>, Mutability> {
     context(
         "mut specifier",
         map(opt(token(tuple((tag("mut"), ws)))), |val| {
@@ -88,14 +98,13 @@ pub fn mut_specifier(i: Span) -> Res<Span, Mutability> {
     )(i)
 }
 
-pub fn stmt_expression(i: Span) -> Res<Span, Stmt> {
-    expression(i).map(|(i, expr)| (i, Stmt::Expression(expr)))
-}
-
-pub fn stmt_return(i: Span) -> Res<Span, Stmt> {
+pub fn stmt_return(i: Input<'_>) -> Res<Input<'_>, StmtValue<'_>> {
     context(
         "return",
-        map(preceded(token(tag("return")), expression), Stmt::Return),
+        map(
+            preceded(token(tag("return")), expression),
+            StmtValue::Return,
+        ),
     )(i)
 }
 
@@ -105,11 +114,11 @@ mod tests {
 
     use crate::{
         ast::node::{
-            expression::Expr,
-            identifier::{Ident, IdentValue},
-            type_signature::{Mutability, TypeSignature},
+            expression::{Expr, ExprValue},
+            identifier::Ident,
+            type_signature::{TypeSignature, TypeSignatureValue},
         },
-        parser::new_span,
+        parser::{new_input, Span},
     };
 
     use super::*;
@@ -117,21 +126,46 @@ mod tests {
     #[test]
     fn test_stmt() {
         assert_matches!(
-            statement(new_span("let mut name: String = \"John\"")),
+            statement(new_input("let mut name: String = \"John\"")),
             Ok((
                 _,
-                Stmt::VariableDecl(VarDecl {
-                    name: Ident {
-                        pos: _,
-                        value: IdentValue::Named("name")
+                Stmt {
+                    span: Span {
+                        line: _,
+                        offset: _,
+                        fragment: "let mut name: String = \"John\""
                     },
-                    mutability: Mutability::Mutable,
-                    type_sig: Some(TypeSignature::Base(Ident {
-                        pos: _,
-                        value: IdentValue::Named("String")
-                    })),
-                    value: Expr::StringLiteral("John")
-                })
+                    value: StmtValue::VariableDecl(VarDecl {
+                        name: Ident {
+                            span: Span {
+                                line: _,
+                                offset: _,
+                                fragment: "name"
+                            },
+                            value: "name"
+                        },
+                        mutability: Mutability::Mutable,
+                        type_sig: Some(TypeSignature {
+                            span: _,
+                            value: TypeSignatureValue::Base(Ident {
+                                span: Span {
+                                    line: _,
+                                    offset: _,
+                                    fragment: "String"
+                                },
+                                value: "String"
+                            })
+                        }),
+                        value: Expr {
+                            span: Span {
+                                line: _,
+                                offset: _,
+                                fragment: "\"John\""
+                            },
+                            value: ExprValue::StringLiteral("John")
+                        }
+                    })
+                }
             ))
         );
     }
@@ -139,18 +173,36 @@ mod tests {
     #[test]
     fn test_stmt_type_inferrance() {
         assert_matches!(
-            statement(new_span("let name = true")),
+            statement(new_input("let name = true")),
             Ok((
                 _,
-                Stmt::VariableDecl(VarDecl {
-                    name: Ident {
-                        pos: _,
-                        value: IdentValue::Named("name")
+                Stmt {
+                    span: Span {
+                        line: _,
+                        offset: _,
+                        fragment: "let name = true"
                     },
-                    mutability: Mutability::Immutable,
-                    type_sig: None,
-                    value: Expr::BoolLiteral(true)
-                })
+                    value: StmtValue::VariableDecl(VarDecl {
+                        name: Ident {
+                            span: Span {
+                                line: _,
+                                offset: _,
+                                fragment: "name"
+                            },
+                            value: "name"
+                        },
+                        mutability: Mutability::Immutable,
+                        type_sig: None,
+                        value: Expr {
+                            span: Span {
+                                line: _,
+                                offset: _,
+                                fragment: "true"
+                            },
+                            value: ExprValue::BoolLiteral(true)
+                        }
+                    })
+                }
             ))
         );
     }

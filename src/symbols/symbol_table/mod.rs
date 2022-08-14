@@ -1,18 +1,26 @@
 use std::collections::{HashMap, VecDeque};
 
-use crate::ast::node::{
-    enumeration::Enum,
-    function::{Function, FunctionArg},
-    identifier::{Ident, Identifiable},
-    statement::VarDecl,
-    structure::{Struct, StructAttr, StructInit},
-    type_signature::{TypeEvalError, TypeSignature, Typed},
+use id_arena::Id;
+
+use crate::ir::{
+    context::{IrArenaType, IrCtx},
+    node::{
+        enumeration::Enum,
+        function::{Function, FunctionArg},
+        identifier::{Ident, IdentKey, Identifiable, ResolvedIdentValue},
+        statement::VarDecl,
+        structure::{Struct, StructAttr, StructInit},
+        type_signature::{TypeEvalError, TypeSignature, Typed},
+        NodeRef,
+    },
 };
+
+use self::symbol_table_zipper::SymbolTableZipper;
 
 pub mod symbol_table_zipper;
 
 #[derive(Debug)]
-pub enum SymbolsError<'a> {
+pub enum SymbolCollectionError<'a> {
     SymbolAlreadyExistsInScope(Ident<'a>),
     ScopeNotFound(Ident<'a>),
     MovePastGlobalScope,
@@ -21,58 +29,85 @@ pub enum SymbolsError<'a> {
 #[derive(Default, Debug)]
 pub struct SymbolTable<'a> {
     /// Symbols that are available from the entire scope
-    pub(super) scope_global_table: HashMap<Ident<'a>, SymbolValue<'a>>,
+    pub(super) scope_global_table: HashMap<IdentKey<'a>, SymbolValue<'a>>,
     /// An list for order dependent symbols such as variable declarations,
     /// where symbols are first available after they have been declared.
     pub(super) ordered_symbols: VecDeque<SymbolValue<'a>>,
     /// Nested scopes such as function bodies and struct definitions.
-    pub(super) scopes: HashMap<Ident<'a>, SymbolTable<'a>>,
+    pub(super) scopes: HashMap<IdentKey<'a>, SymbolTable<'a>>,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub struct SymbolValue<'a> {
+    id: Id<SymbolValueItem<'a>>,
 }
 
 /// A value returned from a symbol lookup
-#[derive(Debug, Clone)]
-pub enum SymbolValue<'a> {
+#[derive(Debug, Clone, Copy)]
+pub enum SymbolValueItem<'a> {
     BuiltinType(Ident<'a>),
-    VarDecl(VarDecl<'a>),
-    FuncDecl(Function<'a>),
-    FuncArg(FunctionArg<'a>),
-    StructDecl(Struct<'a>),
-    StructAttr(StructAttr<'a>),
-    StructInit(StructInit<'a>),
-    EnumDecl(Enum<'a>),
+    VarDecl(NodeRef<'a, VarDecl<'a>>),
+    FuncDecl(NodeRef<'a, Function<'a>>),
+    FuncArg(NodeRef<'a, FunctionArg<'a>>),
+    StructDecl(NodeRef<'a, Struct<'a>>),
+    StructAttr(NodeRef<'a, StructAttr<'a>>),
+    StructInit(NodeRef<'a, StructInit<'a>>),
+    EnumDecl(NodeRef<'a, Enum<'a>>),
 }
 
-impl<'a> From<Function<'a>> for SymbolValue<'a> {
-    fn from(func: Function<'a>) -> Self {
+impl<'a> Into<Id<SymbolValueItem<'a>>> for SymbolValue<'a> {
+    fn into(self) -> Id<SymbolValueItem<'a>> {
+        self.id
+    }
+}
+
+impl<'a> From<Id<SymbolValueItem<'a>>> for SymbolValue<'a> {
+    fn from(id: Id<SymbolValueItem<'a>>) -> Self {
+        Self { id }
+    }
+}
+
+impl<'a> From<NodeRef<'a, Function<'a>>> for SymbolValueItem<'a> {
+    fn from(func: NodeRef<'a, Function<'a>>) -> Self {
         Self::FuncDecl(func)
     }
 }
 
-impl<'a> From<VarDecl<'a>> for SymbolValue<'a> {
-    fn from(var: VarDecl<'a>) -> Self {
+impl<'a> From<NodeRef<'a, VarDecl<'a>>> for SymbolValueItem<'a> {
+    fn from(var: NodeRef<'a, VarDecl<'a>>) -> Self {
         Self::VarDecl(var)
     }
 }
 
-impl<'a> Identifiable<'a> for SymbolValue<'a> {
-    fn name(&self) -> &Ident<'a> {
+impl<'a> Identifiable<'a> for SymbolValueItem<'a> {
+    fn name(&self, ctx: &IrCtx<'a>) -> Ident<'a> {
         match self {
-            SymbolValue::BuiltinType(builtin) => builtin,
-            SymbolValue::VarDecl(var) => var.name(),
-            SymbolValue::FuncDecl(func) => func.name(),
-            SymbolValue::FuncArg(arg) => arg.name(),
-            SymbolValue::StructDecl(st) => st.name(),
-            SymbolValue::StructAttr(attr) => attr.name(),
-            SymbolValue::StructInit(st_init) => st_init.name(),
-            SymbolValue::EnumDecl(enm) => enm.name(),
+            SymbolValueItem::BuiltinType(builtin) => *builtin,
+            SymbolValueItem::VarDecl(var) => ctx[*var].name(ctx),
+            SymbolValueItem::FuncDecl(func) => ctx[*func].name(ctx),
+            SymbolValueItem::FuncArg(arg) => ctx[*arg].name(ctx),
+            SymbolValueItem::StructDecl(st) => ctx[*st].name(ctx),
+            SymbolValueItem::StructAttr(attr) => ctx[*attr].name(ctx),
+            SymbolValueItem::StructInit(st_init) => ctx[*st_init].name(ctx),
+            SymbolValueItem::EnumDecl(enm) => ctx[*enm].name(ctx),
         }
     }
 }
 
-impl SymbolValue<'_> {
+impl<'a> IrArenaType<'a> for SymbolValueItem<'a> {
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b id_arena::Arena<Self> {
+        &ctx.symbols
+    }
+
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut id_arena::Arena<Self> {
+        &mut ctx.symbols
+    }
+}
+
+impl SymbolValueItem<'_> {
     fn is_order_dependent(&self) -> bool {
         match self {
-            SymbolValue::VarDecl(_) => true,
+            SymbolValueItem::VarDecl(_) => true,
             _ => false,
         }
     }
@@ -81,43 +116,53 @@ impl SymbolValue<'_> {
 impl<'a> Typed<'a> for SymbolValue<'a> {
     fn eval_type(
         &self,
-        symbols: &mut symbol_table_zipper::SymbolTableZipper<'a>,
-    ) -> Result<crate::ast::node::type_signature::TypeSignature<'a>, TypeEvalError<'a>> {
-        match self {
-            SymbolValue::BuiltinType(builtin) => Ok(TypeSignature::Base(builtin.clone())),
-            SymbolValue::VarDecl(var) => var.eval_type(symbols),
-            SymbolValue::FuncDecl(decl) => decl.eval_type(symbols),
-            SymbolValue::FuncArg(arg) => arg.eval_type(symbols),
-            SymbolValue::StructDecl(st) => st.eval_type(symbols),
-            SymbolValue::StructAttr(attr) => attr.eval_type(symbols),
-            SymbolValue::StructInit(st_init) => st_init.eval_type(symbols),
-            SymbolValue::EnumDecl(enm) => enm.eval_type(symbols),
+        symbols: &mut SymbolTableZipper<'a>,
+        ctx: &mut IrCtx<'a>,
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
+        match ctx[*self].clone() {
+            SymbolValueItem::BuiltinType(builtin) => match &ctx[builtin] {
+                crate::ir::node::identifier::IdentValue::Resolved(
+                    ResolvedIdentValue::BuiltinType(builtin_type),
+                ) => Ok(ctx.get_builtin_type_sig(*builtin_type)),
+                _ => unreachable!("ident should resolve to builtin type"),
+            },
+            SymbolValueItem::VarDecl(var) => var.eval_type(symbols, ctx),
+            SymbolValueItem::FuncDecl(decl) => decl.eval_type(symbols, ctx),
+            SymbolValueItem::FuncArg(arg) => arg.eval_type(symbols, ctx),
+            SymbolValueItem::StructDecl(st) => st.eval_type(symbols, ctx),
+            SymbolValueItem::StructAttr(attr) => attr.eval_type(symbols, ctx),
+            SymbolValueItem::StructInit(st_init) => st_init.eval_type(symbols, ctx),
+            SymbolValueItem::EnumDecl(enm) => enm.eval_type(symbols, ctx),
         }
     }
 
-    fn specified_type(&self) -> Option<TypeSignature<'a>> {
-        match self {
-            SymbolValue::BuiltinType(_) => None,
-            SymbolValue::VarDecl(var) => var.specified_type(),
-            SymbolValue::FuncDecl(decl) => decl.specified_type(),
-            SymbolValue::FuncArg(arg) => arg.specified_type(),
-            SymbolValue::StructDecl(st) => st.specified_type(),
-            SymbolValue::StructAttr(attr) => attr.specified_type(),
-            SymbolValue::StructInit(st_init) => st_init.specified_type(),
-            SymbolValue::EnumDecl(enm) => enm.specified_type(),
+    fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
+        match ctx[*self].clone() {
+            SymbolValueItem::BuiltinType(_) => None,
+            SymbolValueItem::VarDecl(var) => var.specified_type(ctx),
+            SymbolValueItem::FuncDecl(decl) => decl.specified_type(ctx),
+            SymbolValueItem::FuncArg(arg) => arg.specified_type(ctx),
+            SymbolValueItem::StructDecl(st) => st.specified_type(ctx),
+            SymbolValueItem::StructAttr(attr) => attr.specified_type(ctx),
+            SymbolValueItem::StructInit(st_init) => st_init.specified_type(ctx),
+            SymbolValueItem::EnumDecl(enm) => enm.specified_type(ctx),
         }
     }
 
-    fn specify_type(&mut self, new_type: TypeSignature<'a>) -> Result<(), TypeEvalError<'a>> {
-        match self {
-            SymbolValue::BuiltinType(_) => Ok(()),
-            SymbolValue::VarDecl(var) => var.specify_type(new_type),
-            SymbolValue::FuncDecl(decl) => decl.specify_type(new_type),
-            SymbolValue::FuncArg(arg) => arg.specify_type(new_type),
-            SymbolValue::StructDecl(st) => st.specify_type(new_type),
-            SymbolValue::StructAttr(attr) => attr.specify_type(new_type),
-            SymbolValue::StructInit(st_init) => st_init.specify_type(new_type),
-            SymbolValue::EnumDecl(enm) => enm.specify_type(new_type),
+    fn specify_type(
+        &self,
+        ctx: &mut IrCtx<'a>,
+        new_type: TypeSignature<'a>,
+    ) -> Result<(), TypeEvalError<'a>> {
+        match ctx[*self].clone() {
+            SymbolValueItem::BuiltinType(_) => Ok(()),
+            SymbolValueItem::VarDecl(var) => var.specify_type(ctx, new_type),
+            SymbolValueItem::FuncDecl(decl) => decl.specify_type(ctx, new_type),
+            SymbolValueItem::FuncArg(arg) => arg.specify_type(ctx, new_type),
+            SymbolValueItem::StructDecl(st) => st.specify_type(ctx, new_type),
+            SymbolValueItem::StructAttr(attr) => attr.specify_type(ctx, new_type),
+            SymbolValueItem::StructInit(st_init) => st_init.specify_type(ctx, new_type),
+            SymbolValueItem::EnumDecl(enm) => enm.specify_type(ctx, new_type),
         }
     }
 }
@@ -125,38 +170,45 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
 impl<'a> SymbolTable<'a> {
     pub fn insert(
         &mut self,
-        val: SymbolValue<'a>,
-    ) -> Result<&mut SymbolValue<'a>, SymbolsError<'a>> {
+        ctx: &mut IrCtx<'a>,
+        val: SymbolValueItem<'a>,
+    ) -> Result<SymbolValue<'a>, SymbolCollectionError<'a>> {
+        let new_sym = ctx.make_symbol(val);
+        let val = &ctx[new_sym];
         if val.is_order_dependent() {
-            self.ordered_symbols.push_back(val);
-            Ok(self.ordered_symbols.back_mut().expect("was just added"))
+            self.ordered_symbols.push_back(new_sym);
         } else {
-            let key: Ident<'a> = val.name().clone();
-            let error_ident = key.clone();
+            let ident = val.name(ctx);
+            let key = IdentKey::from_ident(ctx, ident);
             self.scope_global_table
-                .try_insert(key, val)
-                .map_err(move |_| SymbolsError::SymbolAlreadyExistsInScope(error_ident))
+                .try_insert(key, new_sym)
+                .map_err(move |_| SymbolCollectionError::SymbolAlreadyExistsInScope(ident))?;
         }
+        Ok(new_sym)
     }
 
     pub fn insert_scope(
         &mut self,
+        ctx: &IrCtx<'a>,
         ident: Ident<'a>,
         scope: SymbolTable<'a>,
-    ) -> Result<&mut SymbolTable<'a>, SymbolsError<'a>> {
-        let error_ident = ident.clone();
-
+    ) -> Result<&mut SymbolTable<'a>, SymbolCollectionError<'a>> {
         self.scopes
-            .try_insert(ident, scope)
-            .map_err(move |_| SymbolsError::SymbolAlreadyExistsInScope(error_ident))
+            .try_insert(IdentKey::from_ident(ctx, ident), scope)
+            .map_err(move |_| SymbolCollectionError::SymbolAlreadyExistsInScope(ident))
     }
 
-    pub fn remove_scope(&mut self, ident: &Ident<'a>) -> Option<SymbolTable<'a>> {
-        self.scopes.remove(ident)
+    pub fn remove_scope(&mut self, ctx: &IrCtx<'a>, ident: Ident<'a>) -> Option<SymbolTable<'a>> {
+        self.scopes.remove(&IdentKey::from_ident(ctx, ident))
     }
 
-    pub fn lookup_global_table(&self, ident: &Ident<'a>) -> Option<&SymbolValue<'a>> {
-        self.scope_global_table.get(ident)
+    pub fn lookup_global_table(
+        &self,
+        ctx: &IrCtx<'a>,
+        ident: Ident<'a>,
+    ) -> Option<&SymbolValue<'a>> {
+        self.scope_global_table
+            .get(&IdentKey::from_ident(ctx, ident))
     }
 }
 
@@ -164,25 +216,28 @@ impl<'a> SymbolTable<'a> {
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::{
-        ast::{ast_walker::walk_ast, node::expression::Expr},
-        parser::parse_ast,
-        symbols::symbol_walker::SymbolCollector,
+    use crate::ir::{
+        node::expression::Expr,
+        test_utils::utils::{collect_symbols, lowered_ir},
     };
 
     use super::*;
 
     #[test]
     fn test_locate_ordered_symbol() {
-        let mut ast = parse_ast("let x: Boolean = true").unwrap();
-        let mut collector = SymbolCollector::default();
-        let symtable = walk_ast(&mut collector, &mut ast).unwrap();
-        let sym_val = symtable.ordered_symbols.front().unwrap();
+        let mut ir = lowered_ir("let x: Boolean = true").unwrap();
+        let symtable = collect_symbols(&mut ir).unwrap();
 
-        assert_eq!(*sym_val.name(), Ident::new_unplaced("x"));
-        match sym_val {
-            SymbolValue::VarDecl(var_decl) => {
-                assert_matches!(var_decl.value, Expr::BoolLiteral(true));
+        let sym_val = *symtable.ordered_symbols.front().unwrap();
+
+        assert_eq!(
+            IdentKey::from_ident(&ir.ctx, ir.ctx[sym_val].name(&ir.ctx)),
+            IdentKey::Named("x")
+        );
+
+        match ir.ctx[sym_val] {
+            SymbolValueItem::VarDecl(var_decl) => {
+                assert_matches!(ir.ctx[ir.ctx[var_decl].value], Expr::BoolLiteral(true));
             }
             _ => assert!(false),
         }
