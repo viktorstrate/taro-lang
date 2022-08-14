@@ -97,6 +97,10 @@ mod tests {
             node::{expression::Expr, identifier::Ident},
             test_utils::{test_ident, test_type_sig},
         },
+        ir::{
+            node::{identifier::IdentKey, statement::Stmt},
+            test_utils::utils::lowered_ir,
+        },
         parser::{expression::expression, new_input},
     };
 
@@ -145,25 +149,27 @@ mod tests {
         }
     }
 
-    #[ignore]
     #[test]
     fn test_function_var_assignment() {
-        // let ast = parse_ast("let f = (a: Number, b: Number) {}").unwrap();
-        // assert_eq!(ast.inner_module().stmts.len(), 1);
-        // let func_var_assignment = &ast.inner_module().stmts[0];
+        let ir = lowered_ir("let f = (a: Number, b: Number) {}").unwrap();
+        assert_eq!(ir.ir.0.stmts.len(), 1);
+        let func_var_assignment = ir.ir.0.stmts[0];
 
-        // match func_var_assignment {
-        //     Stmt::VariableDecl(var_decl) => {
-        //         assert_eq!(var_decl.name, Ident::new_unplaced("f"));
-        //         match &var_decl.value {
-        //             Expr::Function(func) => {
-        //                 assert_eq!(func.args.len(), 2);
-        //             }
-        //             _ => assert!(false),
-        //         }
-        //     }
-        //     _ => assert!(false),
-        // }
+        match ir.ctx[func_var_assignment] {
+            Stmt::VariableDecl(var_decl) => {
+                assert_eq!(
+                    IdentKey::from_ident(&ir.ctx, ir.ctx[var_decl].name),
+                    IdentKey::Named("f")
+                );
+                match ir.ctx[ir.ctx[var_decl].value] {
+                    crate::ir::node::expression::Expr::Function(func) => {
+                        assert_eq!(ir.ctx[func].args.len(), 2);
+                    }
+                    _ => assert!(false),
+                }
+            }
+            _ => assert!(false),
+        }
     }
 
     #[test]

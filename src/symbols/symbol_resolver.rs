@@ -1,12 +1,13 @@
 use crate::ir::{
     context::IrCtx,
     ir_walker::{IrWalker, ScopeValue},
-    node::identifier::{Ident, IdentParent, IdentValue, Identifiable},
+    node::{
+        identifier::{Ident, IdentParent, IdentValue, Identifiable},
+        type_signature::{TypeEvalError, TypeSignatureValue, Typed},
+    },
 };
 
-use super::symbol_table::{
-    symbol_table_zipper::SymbolTableZipper, SymbolTable, SymbolValueItem, SymbolsError,
-};
+use super::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolTable, SymbolValueItem};
 
 pub struct SymbolResolver<'a> {
     pub symbols: SymbolTableZipper<'a>,
@@ -20,16 +21,22 @@ impl<'a> SymbolResolver<'a> {
     }
 }
 
+#[derive(Debug)]
+pub enum SymbolResolutionError<'a> {
+    UnknownIdentifier(Ident<'a>),
+    TypeEval(TypeEvalError<'a>),
+}
+
 impl<'a> IrWalker<'a> for SymbolResolver<'a> {
     type Scope = ();
-    type Error = SymbolsError<'a>;
+    type Error = SymbolResolutionError<'a>;
 
     fn visit_scope_begin(
         &mut self,
         ctx: &mut IrCtx<'a>,
         _parent: &mut Self::Scope,
         value: ScopeValue<'a>,
-    ) -> Result<(), SymbolsError<'a>> {
+    ) -> Result<(), Self::Error> {
         value.visit_scope_begin(ctx, &mut self.symbols);
         Ok(())
     }
@@ -40,7 +47,7 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
         _parent: &mut Self::Scope,
         _child: Self::Scope,
         _value: ScopeValue<'a>,
-    ) -> Result<(), SymbolsError<'a>> {
+    ) -> Result<(), Self::Error> {
         self.symbols
             .exit_scope(ctx)
             .expect("scope should not be global scope");
@@ -75,7 +82,7 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                         let st_sym_val = *self
                             .symbols
                             .lookup(ctx, st_name)
-                            .ok_or(SymbolsError::ScopeNotFound(ident))?;
+                            .ok_or(SymbolResolutionError::UnknownIdentifier(st_name))?;
 
                         println!("Found struct sym {:?}", ctx[st_sym_val]);
 
@@ -91,15 +98,36 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
 
                         let attr = st
                             .lookup_attr(ident, ctx)
-                            .ok_or(SymbolsError::ScopeNotFound(ident))?;
+                            .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
 
                         println!("Found struct attr {:?}", ctx[attr]);
                         Some(ctx[attr].name)
                     }
                     IdentParent::StructAccessAttrName(st_access) => {
                         let st_attr = st_access
-                            .lookup_attr_chain(ctx, &mut self.symbols)
-                            .map_err(|_| SymbolsError::ScopeNotFound(ident))?[0];
+                            .lookup_attr(ctx, &mut self.symbols)
+                            .map_err(|_| SymbolResolutionError::UnknownIdentifier(ident))?;
+
+                        match ctx[st_attr].type_sig {
+                            Some(type_sig) => match ctx[type_sig] {
+                                TypeSignatureValue::Unresolved(type_ident) => {
+                                    println!("Lookup st_attr type ident: {:?}", ctx[type_ident]);
+                                    let resolved_type_sig = self
+                                        .symbols
+                                        .lookup(ctx, type_ident)
+                                        .ok_or(SymbolResolutionError::UnknownIdentifier(
+                                            type_ident,
+                                        ))?
+                                        .clone()
+                                        .eval_type(&mut self.symbols, ctx)
+                                        .map_err(SymbolResolutionError::TypeEval)?;
+
+                                    ctx[st_attr].type_sig = Some(resolved_type_sig);
+                                }
+                                _ => {}
+                            },
+                            _ => {}
+                        }
 
                         Some(ctx[st_attr].name)
                     }
@@ -107,7 +135,7 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                         let sym_id = *self
                             .symbols
                             .lookup(ctx, ident)
-                            .ok_or(SymbolsError::ScopeNotFound(ident))?;
+                            .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
 
                         let sym = *&ctx[sym_id];
                         Some(sym.name(ctx))

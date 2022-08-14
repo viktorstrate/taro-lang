@@ -6,6 +6,7 @@ use crate::ir::{
 
 use super::symbol_table::{SymbolTable, SymbolValueItem, SymbolsError};
 
+#[derive(Default)]
 pub struct SymbolCollector {}
 
 impl<'a> IrWalker<'a> for SymbolCollector {
@@ -97,29 +98,27 @@ impl<'a> IrWalker<'a> for SymbolCollector {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::assert_matches::assert_matches;
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
 
-//     use crate::{
-//         ir::ast_walker::walk_ast,
-//         parser::parse_ast,
-//         symbols::{symbol_table::SymbolsError, symbol_walker::SymbolCollector},
-//     };
+    use crate::{
+        ir::test_utils::utils::{collect_symbols, lowered_ir},
+        symbols::symbol_table::SymbolsError,
+    };
 
-//     #[test]
-//     fn test_symbol_shadowing() {
-//         let mut ast = parse_ast("let x = 2; let x = true").unwrap();
-//         let mut collector = SymbolCollector::default();
-//         let result = walk_ast(&mut collector, &mut ast);
-//         assert_matches!(result, Ok(_));
-//     }
+    #[test]
+    fn test_symbol_shadowing() {
+        let mut ir = lowered_ir("let x = 2; let x = true").unwrap();
+        assert_matches!(collect_symbols(&mut ir), Ok(_));
+    }
 
-//     #[test]
-//     fn test_existing_symbol_error() {
-//         let mut ast = parse_ast("func f() {}; func f() {}").unwrap();
-//         let mut collector = SymbolCollector::default();
-//         let result = walk_ast(&mut collector, &mut ast);
-//         assert_matches!(result, Err(SymbolsError::SymbolAlreadyExistsInScope(_)))
-//     }
-// }
+    #[test]
+    fn test_existing_symbol_error() {
+        let mut ir = lowered_ir("func f() {}; func f() {}").unwrap();
+        assert_matches!(
+            collect_symbols(&mut ir),
+            Err(SymbolsError::SymbolAlreadyExistsInScope(_))
+        )
+    }
+}

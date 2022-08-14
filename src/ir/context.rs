@@ -136,7 +136,10 @@ impl<'a> IrCtx<'a> {
             return *found_type;
         }
 
-        self.types.alloc(type_sig).into()
+        let type_sig_id = self.types.alloc(type_sig.clone()).into();
+        self.types_lookup.insert(type_sig, type_sig_id);
+
+        type_sig_id
     }
 
     pub fn get_builtin_type_sig(&self, builtin: BuiltinType) -> TypeSignature<'a> {

@@ -1,5 +1,3 @@
-
-
 use crate::{
     ir::{
         context::IrCtx,
@@ -100,84 +98,83 @@ pub fn check_assignment<'a>(
     Ok(())
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::assert_matches::assert_matches;
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
 
-//     use crate::ir::test_utils::utils::type_check;
-//     use crate::parser::parse_ast;
+    use crate::ir::test_utils::utils::{lowered_ir, type_check};
 
-//     use super::*;
+    use super::*;
 
-//     #[test]
-//     fn test_assign_variable() {
-//         let mut ast = parse_ast("let mut foo = 1; foo = 2").unwrap();
-//         assert_matches!(type_check(&mut ast), Ok(()))
-//     }
+    #[test]
+    fn test_assign_variable() {
+        let mut ir = lowered_ir("let mut foo = 1; foo = 2").unwrap();
+        assert_matches!(type_check(&mut ir), Ok(()))
+    }
 
-//     #[test]
-//     fn test_assign_variable_immutable() {
-//         let mut ast = parse_ast("let foo = 1; foo = 2").unwrap();
-//         assert_matches!(
-//             type_check(&mut ast),
-//             Err(TypeCheckerError::AssignmentError(
-//                 AssignmentError::ImmutableAssignment(_)
-//             ))
-//         );
-//     }
+    #[test]
+    fn test_assign_variable_immutable() {
+        let mut ir = lowered_ir("let foo = 1; foo = 2").unwrap();
+        assert_matches!(
+            type_check(&mut ir),
+            Err(TypeCheckerError::AssignmentError(
+                AssignmentError::ImmutableAssignment(_)
+            ))
+        );
+    }
 
-//     #[test]
-//     fn test_assign_variable_types_mismatch() {
-//         let mut ast = parse_ast("let mut foo = 1; foo = false").unwrap();
-//         assert_matches!(
-//             type_check(&mut ast),
-//             Err(TypeCheckerError::AssignmentError(
-//                 AssignmentError::TypesMismatch { lhs: _, rhs: _ }
-//             ))
-//         );
-//     }
+    #[test]
+    fn test_assign_variable_types_mismatch() {
+        let mut ir = lowered_ir("let mut foo = 1; foo = false").unwrap();
+        assert_matches!(
+            type_check(&mut ir),
+            Err(TypeCheckerError::AssignmentError(
+                AssignmentError::TypesMismatch { lhs: _, rhs: _ }
+            ))
+        );
+    }
 
-//     #[test]
-//     fn test_assign_struct() {
-//         let mut ast = parse_ast(
-//             "struct Foo { let mut attr: Number }
-//             let mut foo = Foo { attr: 1 }
-//             foo.attr = 2",
-//         )
-//         .unwrap();
+    #[test]
+    fn test_assign_struct() {
+        let mut ir = lowered_ir(
+            "struct Foo { let mut attr: Number }
+            let mut foo = Foo { attr: 1 }
+            foo.attr = 2",
+        )
+        .unwrap();
 
-//         assert_matches!(type_check(&mut ast), Ok(()));
-//     }
+        assert_matches!(type_check(&mut ir), Ok(()));
+    }
 
-//     #[test]
-//     fn test_assign_struct_immutable() {
-//         let mut ast = parse_ast(
-//             "struct Foo { let attr: Number }
-//             let mut foo = Foo { attr: 1 }
-//             foo.attr = 2",
-//         )
-//         .unwrap();
+    #[test]
+    fn test_assign_struct_immutable() {
+        let mut ir = lowered_ir(
+            "struct Foo { let attr: Number }
+            let mut foo = Foo { attr: 1 }
+            foo.attr = 2",
+        )
+        .unwrap();
 
-//         assert_matches!(type_check(&mut ast), Err(_));
-//     }
+        assert_matches!(type_check(&mut ir), Err(_));
+    }
 
-//     #[test]
-//     fn test_nested_struct_immutable() {
-//         let mut ast = parse_ast(
-//             "
-//         struct Deep {
-//             let mut inner = false
-//         }
+    #[test]
+    fn test_nested_struct_immutable() {
+        let mut ir = lowered_ir(
+            "
+        struct Deep {
+            let mut inner = false
+        }
 
-//         struct Foo {
-//             let bar: Deep
-//         }
+        struct Foo {
+            let bar: Deep
+        }
 
-//         let foo = Foo { bar: Deep {} }
-//         foo.bar.inner = true
-//         ",
-//         )
-//         .unwrap();
-//         assert_matches!(type_check(&mut ast), Err(_))
-//     }
-// }
+        let foo = Foo { bar: Deep {} }
+        foo.bar.inner = true
+        ",
+        )
+        .unwrap();
+        assert_matches!(type_check(&mut ir), Err(_))
+    }
+}

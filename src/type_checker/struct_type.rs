@@ -92,27 +92,28 @@ pub fn check_struct_init<'a>(
     Ok(())
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::assert_matches::assert_matches;
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
 
-//     use crate::{
-//         ir::test_utils::utils::type_check, parser::parse_ast, type_checker::TypeCheckerError,
-//     };
+    use crate::{
+        ir::test_utils::utils::{lowered_ir, type_check},
+        type_checker::TypeCheckerError,
+    };
 
-//     #[test]
-//     fn test_func_decl_inside_struct() {
-//         let mut ast = parse_ast(
-//             "struct Foo { let attr: () -> Number }
-//             let a = Foo { attr: () { return false } }",
-//         )
-//         .unwrap();
-//         assert_matches!(
-//             type_check(&mut ast),
-//             Err(TypeCheckerError::TypeSignatureMismatch {
-//                 type_sig: _,
-//                 expr_type: _
-//             })
-//         )
-//     }
-// }
+    #[test]
+    fn test_func_decl_inside_struct() {
+        let mut ir = lowered_ir(
+            "struct Foo { let attr: () -> Number }
+            let a = Foo { attr: () { return false } }",
+        )
+        .unwrap();
+        assert_matches!(
+            type_check(&mut ir),
+            Err(TypeCheckerError::TypeSignatureMismatch {
+                type_sig: _,
+                expr_type: _
+            })
+        )
+    }
+}

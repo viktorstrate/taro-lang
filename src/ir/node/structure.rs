@@ -101,17 +101,7 @@ impl<'a> Typed<'a> for NodeRef<'a, StructAttr<'a>> {
                     .clone()
                     .expect("struct should have at least a type signature or a default value");
 
-                // TODO: Resolve in symbol_resolver
-                let type_sig = if let TypeSignatureValue::Unresolved(type_ident) = ctx[type_sig] {
-                    println!("Lookup st_attr type ident: {:?}", ctx[type_ident]);
-                    symbols
-                        .lookup(ctx, type_ident)
-                        .ok_or(TypeEvalError::UnknownIdentifier(type_ident))?
-                        .clone()
-                        .eval_type(symbols, ctx)?
-                } else {
-                    type_sig
-                };
+                debug_assert!(!matches!(ctx[type_sig], TypeSignatureValue::Unresolved(_)));
 
                 Ok(type_sig)
             }
@@ -232,29 +222,32 @@ impl<'a> NodeRef<'a, StructAccess<'a>> {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::assert_matches::assert_matches;
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
 
-//     use crate::{ir::test_utils::utils::type_check, parser::parse_ast};
+    use crate::ir::test_utils::utils::{lowered_ir, type_check};
 
-//     #[test]
-//     fn test_nested_struct() {
-//         let mut ast = parse_ast(
-//             "
-//         struct Deep {
-//             let mut inner = false
-//         }
+    #[test]
+    fn test_nested_struct() {
+        let mut ir = lowered_ir(
+            "
+        struct Deep {
+            let mut inner = false
+        }
 
-//         struct Foo {
-//             let mut bar: Deep
-//         }
+        struct Foo {
+            let mut bar: Deep
+        }
 
-//         let foo = Foo { bar: Deep {} }
-//         foo.bar.inner = true
-//         ",
-//         )
-//         .unwrap();
-//         assert_matches!(type_check(&mut ast), Ok(()))
-//     }
-// }
+        let foo = Foo { bar: Deep {} }
+        foo.bar.inner = true
+        ",
+        )
+        .unwrap();
+
+        let tc = type_check(&mut ir);
+
+        assert_matches!(tc, Ok(()))
+    }
+}

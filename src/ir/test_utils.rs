@@ -7,7 +7,11 @@ pub mod utils {
             IR,
         },
         parser::{parse_ast, ParserError},
-        symbols::{symbol_collector::SymbolCollector, symbol_resolver::SymbolResolver},
+        symbols::{
+            symbol_collector::SymbolCollector,
+            symbol_resolver::SymbolResolver,
+            symbol_table::{SymbolTable, SymbolsError},
+        },
         type_checker::{types_walker::TypeChecker, TypeCheckerError},
     };
 
@@ -30,12 +34,18 @@ pub mod utils {
         Ok(result.ir)
     }
 
+    pub fn collect_symbols<'a>(
+        ir_result: &mut LowerAstResult<'a>,
+    ) -> Result<SymbolTable<'a>, SymbolsError<'a>> {
+        let mut sym_collector = SymbolCollector {};
+        walk_ir(&mut sym_collector, &mut ir_result.ctx, &mut ir_result.ir)
+    }
+
     pub fn type_check<'a>(ir_result: &mut LowerAstResult<'a>) -> Result<(), TypeCheckerError<'a>> {
+        let symbols = collect_symbols(ir_result).unwrap();
+
         let ctx = &mut ir_result.ctx;
         let ir = &mut ir_result.ir;
-
-        let mut sym_collector = SymbolCollector {};
-        let symbols = walk_ir(&mut sym_collector, ctx, ir).unwrap();
 
         let mut sym_resolver = SymbolResolver::new(symbols);
         walk_ir(&mut sym_resolver, ctx, ir).unwrap();

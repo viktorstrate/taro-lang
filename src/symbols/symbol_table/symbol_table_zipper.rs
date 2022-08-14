@@ -116,8 +116,6 @@ impl<'a> SymbolTableZipper<'a> {
             .take(visited_symbols)
             .rev()
             .find(|sym| IdentKey::idents_eq(ctx, ctx[**sym].name(ctx), ident))
-        // .map(|(_key, sym)| sym)
-        // .find(|sym| ctx[**sym].name(ctx) == ident)
     }
 
     pub fn lookup_current_scope(

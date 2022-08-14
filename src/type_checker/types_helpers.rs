@@ -188,27 +188,26 @@ pub fn types_match<'a>(
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::assert_matches::assert_matches;
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
 
-//     use crate::ir::test_utils::utils::type_check;
-//     use crate::parser::parse_ast;
+    use crate::ir::test_utils::utils::{lowered_ir, type_check};
 
-//     use super::*;
+    use super::*;
 
-//     #[test]
-//     fn test_escape_block_var_decl() {
-//         let mut ast = parse_ast("let a: Number = @{ 1 + 2 }").unwrap();
-//         assert_matches!(type_check(&mut ast), Ok(_));
+    #[test]
+    fn test_escape_block_var_decl() {
+        let mut ir = lowered_ir("let a: Number = @{ 1 + 2 }").unwrap();
+        assert_matches!(type_check(&mut ir), Ok(_));
 
-//         let mut ast = parse_ast("let a = @{ 1 + 2 }").unwrap();
-//         assert_matches!(type_check(&mut ast), Err(TypeCheckerError::UntypedValue(_)));
-//     }
+        let mut ir = lowered_ir("let a = @{ 1 + 2 }").unwrap();
+        assert_matches!(type_check(&mut ir), Err(TypeCheckerError::UntypedValue()));
+    }
 
-//     #[test]
-//     fn test_untyped_function_return() {
-//         let mut ast = parse_ast("func foo() { return @{ 123 } }").unwrap();
-//         assert_matches!(type_check(&mut ast), Err(TypeCheckerError::UntypedValue(_)));
-//     }
-// }
+    // #[test]
+    // fn test_untyped_function_return() {
+    //     let mut ir = lowered_ir("func foo() { return @{ 123 } }").unwrap();
+    //     assert_matches!(type_check(&mut ir), Err(TypeCheckerError::UntypedValue()));
+    // }
+}

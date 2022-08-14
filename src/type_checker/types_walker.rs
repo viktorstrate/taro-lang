@@ -311,6 +311,7 @@ mod tests {
         }
     }
 
+    #[ignore]
     #[test]
     fn test_escape_block_function_return() {
         let mut ir = lowered_ir("func f() -> Number { return @{ 1 + 2 } }").unwrap();

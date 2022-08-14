@@ -212,31 +212,34 @@ impl<'a> SymbolTable<'a> {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::assert_matches::assert_matches;
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
 
-//     use crate::{
-//         ir::{ast_walker::walk_ast, node::expression::Expr},
-//         parser::parse_ast,
-//         symbols::symbol_walker::SymbolCollector,
-//     };
+    use crate::ir::{
+        node::expression::Expr,
+        test_utils::utils::{collect_symbols, lowered_ir},
+    };
 
-//     use super::*;
+    use super::*;
 
-//     #[test]
-//     fn test_locate_ordered_symbol() {
-//         let mut ast = parse_ast("let x: Boolean = true").unwrap();
-//         let mut collector = SymbolCollector::default();
-//         let symtable = walk_ast(&mut collector, &mut ast).unwrap();
-//         let sym_val = symtable.ordered_symbols.front().unwrap();
+    #[test]
+    fn test_locate_ordered_symbol() {
+        let mut ir = lowered_ir("let x: Boolean = true").unwrap();
+        let symtable = collect_symbols(&mut ir).unwrap();
 
-//         assert_eq!(*sym_val.name(), Ident::new_unplaced("x"));
-//         match sym_val {
-//             SymbolValue::VarDecl(var_decl) => {
-//                 assert_matches!(var_decl.value, Expr::BoolLiteral(true));
-//             }
-//             _ => assert!(false),
-//         }
-//     }
-// }
+        let sym_val = *symtable.ordered_symbols.front().unwrap();
+
+        assert_eq!(
+            IdentKey::from_ident(&ir.ctx, ir.ctx[sym_val].name(&ir.ctx)),
+            IdentKey::Named("x")
+        );
+
+        match ir.ctx[sym_val] {
+            SymbolValueItem::VarDecl(var_decl) => {
+                assert_matches!(ir.ctx[ir.ctx[var_decl].value], Expr::BoolLiteral(true));
+            }
+            _ => assert!(false),
+        }
+    }
+}
