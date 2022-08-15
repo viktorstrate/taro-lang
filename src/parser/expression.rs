@@ -19,8 +19,9 @@ use crate::ast::node::{
 };
 
 use super::{
-    escape_block::escape_block, function::function_expr, identifier::identifier, span,
-    structure::struct_init_expr, surround_brackets, token, BracketType, Input, Res, Span,
+    enumeration::enum_init, escape_block::escape_block, function::function_expr,
+    identifier::identifier, span, structure::struct_init_expr, surround_brackets, token,
+    BracketType, Input, Res, Span,
 };
 
 pub fn expression(i: Input<'_>) -> Res<Input<'_>, Expr<'_>> {
@@ -28,6 +29,7 @@ pub fn expression(i: Input<'_>) -> Res<Input<'_>, Expr<'_>> {
         "expression",
         map(
             span(alt((
+                map(enum_init, ExprValue::EnumInit),
                 map(struct_init_expr, ExprValue::StructInit),
                 map(identifier, ExprValue::Identifier),
                 expr_string_literal,
@@ -184,7 +186,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::test_utils::test_ident,
+        ast::{node::enumeration::EnumInit, test_utils::test_ident},
         parser::{new_input, Span},
     };
 
@@ -331,6 +333,29 @@ mod tests {
                 assert_eq!(values[1].span.fragment, "42");
             }
             _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_expr_enum_init() {
+        let expr = expression(new_input("IPAddress.v4(192, 168, 0, 1)"))
+            .unwrap()
+            .1;
+        match expr {
+            Expr {
+                span: _,
+                value:
+                    ExprValue::EnumInit(EnumInit {
+                        enum_name,
+                        enum_value,
+                        items,
+                    }),
+            } => {
+                assert_eq!(enum_name, Some(test_ident("IPAddress")));
+                assert_eq!(enum_value, test_ident("v4"));
+                assert_matches!(items.len(), 4);
+            }
+            expr => assert!(false, "Expected EnumInit expression, got {expr:?}"),
         }
     }
 }

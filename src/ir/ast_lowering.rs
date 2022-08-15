@@ -4,7 +4,7 @@ use super::{
     context::IrCtx,
     node::{
         assignment::Assignment,
-        enumeration::{Enum, EnumValue},
+        enumeration::{Enum, EnumInit, EnumValue},
         escape_block::EscapeBlock,
         expression::Expr,
         function::{Function, FunctionArg, FunctionCall},
@@ -264,6 +264,20 @@ impl<'a> IrCtx<'a> {
                         .map(|val| self.lower_expr(val))
                         .collect(),
                     type_sig: tup.type_sig.map(|t| t.into_ir_type(self)),
+                }
+                .allocate(self),
+            ),
+            crate::ast::node::expression::ExprValue::EnumInit(enm_init) => Expr::EnumInit(
+                EnumInit {
+                    enum_name: enm_init
+                        .enum_name
+                        .map(|ident| self.make_unresolved_ident(ident)),
+                    enum_value: self.make_unresolved_ident(enm_init.enum_value),
+                    items: enm_init
+                        .items
+                        .into_iter()
+                        .map(|item| self.lower_expr(item))
+                        .collect(),
                 }
                 .allocate(self),
             ),

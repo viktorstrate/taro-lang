@@ -301,6 +301,41 @@ fn format_expr<'a, 'ctx, W: Write>(
             gen.write(gen.ctx[tup_acc].attr.to_string().as_str())?;
             gen.write("]")
         }
+        Expr::EnumInit(enm_init) => {
+            gen.write("[")?;
+            let enm_name = gen.ctx[enm_init]
+                .enum_name
+                .expect("Enum name should have been resolved by now");
+
+            let enm_sym = *gen
+                .symbols
+                .lookup(gen.ctx, enm_name)
+                .expect("Symbol should exist");
+
+            let enm = match gen.ctx[enm_sym] {
+                SymbolValueItem::EnumDecl(enm) => enm,
+                _ => panic!("Expected symbol to be enum"),
+            };
+
+            let (idx, _enm_val) = enm
+                .lookup_value(&gen.ctx, gen.ctx[enm_init].enum_value)
+                .expect("Expected to find enum value");
+
+            gen.write(format!("{idx}, ").as_str())?;
+
+            gen.write("[")?;
+
+            format_with_separator(
+                gen,
+                ", ",
+                gen.ctx[enm_init].items.clone().into_iter(),
+                |gen, item| format_expr(gen, item),
+            )?;
+
+            gen.write("]")?;
+
+            gen.write("]")
+        }
     }
 }
 
@@ -361,36 +396,36 @@ mod tests {
 
     #[test]
     fn test_assign_func_call() {
-        let ast1 = final_codegen("func f() -> Boolean { return true }; let x: Boolean = f()");
-        let ast2 = final_codegen("let f = () { return true }; let x: Boolean = f()");
-        assert_matches!(ast1, Ok(_));
-        assert_matches!(ast2, Ok(_));
+        let output1 = final_codegen("func f() -> Boolean { return true }; let x: Boolean = f()");
+        let output2 = final_codegen("let f = () { return true }; let x: Boolean = f()");
+        assert_matches!(output1, Ok(_));
+        assert_matches!(output2, Ok(_));
         assert_eq!(
-            ast1.unwrap(),
+            output1.unwrap(),
             "function f() {return true;}\nconst x = f();\n"
         );
         assert_eq!(
-            ast2.unwrap(),
+            output2.unwrap(),
             "const f = () => {return true;};\nconst x = f();\n"
         );
     }
 
     #[test]
     fn test_assign_func_call_mismatched_types() {
-        let ast = final_codegen("func f() { return 123 }; let x: Boolean = f()");
-        assert_matches!(ast, Err(TranspilerError::TypeCheck(_)));
+        let output = final_codegen("func f() { return 123 }; let x: Boolean = f()");
+        assert_matches!(output, Err(TranspilerError::TypeCheck(_)));
     }
 
     #[test]
     fn test_struct() {
-        let ast = final_codegen(
+        let output = final_codegen(
             "struct Test { let defaultVal = 123; let mut noDefault: Boolean }\
             let testVar = Test { noDefault: false }
             let val: Number = testVar.defaultVal
         ",
         );
         assert_eq!(
-            ast.unwrap(),
+            output.unwrap(),
             "function Test (defaultVal, noDefault) {\n\
             this.defaultVal = defaultVal ?? 123;\n\
             this.noDefault = noDefault}\n\
@@ -401,26 +436,29 @@ mod tests {
 
     #[test]
     fn test_tuple() {
-        let ast = final_codegen(
+        let output = final_codegen(
             "let val: (Boolean, Number) = (true, 42)\
             let val2: Number = val.1",
         );
         assert_eq!(
-            ast.unwrap(),
+            output.unwrap(),
             "const val = [true, 42];\n\
             const val2 = val[1];\n"
         );
     }
 
-    // #[test]
-    // fn test_enum() {
-    //     let ast = final_codegen(
-    //         "enum IPAddress {\n\
-    //             v4(Number, Number, Number, Number)\n\
-    //             v6(String)\n\
-    //           }\n
-    //           let ipValue: IPAddress = .v4(192, 168, 0, 1)",
-    //     );
-    //     assert_eq!(ast.unwrap(), "\n");
-    // }
+    #[test]
+    fn test_enum() {
+        let output = final_codegen(
+            "enum IPAddress {\n\
+                v4(Number, Number, Number, Number)\n\
+                v6(String)\n\
+              }\n
+              let ipValue = IPAddress.v4(192, 168, 0, 1)",
+        );
+        assert_eq!(
+            output.unwrap(),
+            "\nconst ipValue = [0, [192, 168, 0, 1]];\n"
+        );
+    }
 }

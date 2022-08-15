@@ -52,6 +52,9 @@ impl<'a> IrWalker<'a> for SymbolCollector {
             }
             ScopeValue::Enum(enm) => {
                 parent.insert(ctx, SymbolValueItem::EnumDecl(enm))?;
+                for val in ctx[enm].values.clone() {
+                    new_scope.insert(ctx, SymbolValueItem::EnumValue(val))?;
+                }
             }
         }
 

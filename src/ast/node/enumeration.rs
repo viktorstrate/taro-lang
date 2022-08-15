@@ -12,6 +12,7 @@ pub struct EnumValue<'a> {
     pub items: Vec<TypeSignature<'a>>,
 }
 
+#[derive(Debug, Clone)]
 pub struct EnumInit<'a> {
     pub enum_name: Option<Ident<'a>>,
     pub enum_value: Ident<'a>,

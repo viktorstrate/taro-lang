@@ -396,6 +396,29 @@ fn walk_expr<'a, W: IrWalker<'a>>(
             }
             Ok(())
         }
+        Expr::EnumInit(enm_init) => {
+            for item in ctx[enm_init].items.clone() {
+                walk_expr(walker, ctx, scope, item)?;
+            }
+
+            ctx[enm_init].enum_value = walker.visit_ident(
+                ctx,
+                scope,
+                IdentParent::EnumInitValueName(enm_init),
+                ctx[enm_init].enum_value,
+            )?;
+
+            if let Some(enm_name) = ctx[enm_init].enum_name {
+                ctx[enm_init].enum_name = Some(walker.visit_ident(
+                    ctx,
+                    scope,
+                    IdentParent::EnumInitEnumName(enm_init),
+                    enm_name,
+                )?);
+            }
+
+            Ok(())
+        }
     }?;
 
     walker.visit_expr(ctx, scope, expr)

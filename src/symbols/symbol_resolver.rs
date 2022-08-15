@@ -7,7 +7,9 @@ use crate::ir::{
     },
 };
 
-use super::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolTable, SymbolValueItem};
+use super::symbol_table::{
+    symbol_table_zipper::SymbolTableZipper, SymbolTable, SymbolValue, SymbolValueItem,
+};
 
 pub struct SymbolResolver<'a> {
     pub symbols: SymbolTableZipper<'a>,
@@ -25,6 +27,11 @@ impl<'a> SymbolResolver<'a> {
 pub enum SymbolResolutionError<'a> {
     UnknownIdentifier(Ident<'a>),
     TypeEval(TypeEvalError<'a>),
+    InitNonEnum(SymbolValue<'a>),
+    UnknownEnumValue {
+        enum_name: Ident<'a>,
+        enum_value: Ident<'a>,
+    },
 }
 
 impl<'a> IrWalker<'a> for SymbolResolver<'a> {
@@ -71,6 +78,7 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
         parent: IdentParent<'a>,
         ident: Ident<'a>,
     ) -> Result<Ident<'a>, Self::Error> {
+        println!("Resolve ident {parent:?}");
         let resolved_ident = match &ctx[ident] {
             IdentValue::Unresolved(_) => match parent {
                 IdentParent::StructInitValueName(st_init) => {
@@ -117,11 +125,43 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
 
                     Some(ctx[st_attr].name)
                 }
-                _ => {
+                IdentParent::EnumInitValueName(enm_init) => {
+                    let enm_name = ctx[enm_init]
+                        .enum_name
+                        .expect("TODO: handle type inference for enums");
+
+                    println!("Lookup enm name");
+
+                    let enm_sym = *self
+                        .symbols
+                        .lookup(ctx, enm_name)
+                        .ok_or(SymbolResolutionError::UnknownIdentifier(enm_name))?;
+
+                    println!("Lookup enm name end");
+
+                    let enm = match ctx[enm_sym] {
+                        SymbolValueItem::EnumDecl(enm) => Ok(enm),
+                        _ => Err(SymbolResolutionError::InitNonEnum(enm_sym)),
+                    }?;
+
+                    let (_, enm_val) = enm.lookup_value(ctx, ctx[enm_init].enum_value).ok_or(
+                        SymbolResolutionError::UnknownEnumValue {
+                            enum_name: enm_name,
+                            enum_value: ctx[enm_init].enum_value,
+                        },
+                    )?;
+
+                    Some(ctx[enm_val].name)
+                }
+                val => {
+                    println!("Lookup other, parent: {val:?}");
+
                     let sym_id = *self
                         .symbols
                         .lookup(ctx, ident)
                         .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
+
+                    println!("Lookup other done");
 
                     let sym = *&ctx[sym_id];
                     Some(sym.name(ctx))
@@ -129,6 +169,8 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
             },
             IdentValue::Resolved(_) => None,
         };
+
+        println!("Resolve ident done");
 
         if let Some(sym_ident) = resolved_ident {
             debug_assert!(matches!(ctx[sym_ident], IdentValue::Resolved(_)));

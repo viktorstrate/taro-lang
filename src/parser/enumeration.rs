@@ -4,14 +4,17 @@ use nom::{
     combinator::{map, opt},
     error::context,
     multi::{separated_list0, separated_list1},
-    sequence::{pair, preceded},
+    sequence::{pair, preceded, tuple},
 };
 
-use crate::ast::node::enumeration::{Enum, EnumValue};
+use crate::ast::node::{
+    enumeration::{Enum, EnumInit, EnumValue},
+    expression::Expr,
+};
 
 use super::{
-    identifier::identifier, surround_brackets, token, type_signature::type_signature, BracketType,
-    Input, Res,
+    expression::expression, identifier::identifier, surround_brackets, token,
+    type_signature::type_signature, BracketType, Input, Res,
 };
 
 pub fn enumeration(i: Input<'_>) -> Res<Input<'_>, Enum<'_>> {
@@ -28,15 +31,12 @@ pub fn enumeration(i: Input<'_>) -> Res<Input<'_>, Enum<'_>> {
 
 fn enum_values(i: Input<'_>) -> Res<Input<'_>, Vec<EnumValue<'_>>> {
     // IDENT [ "(" TYPE_SIG+ ")" ]
-    // let (i, name) = identifier(i)?;
-    // let (i, items) = opt(surround_brackets(BracketType::Round, many1(type_signature)))(i)?;
-
     let enum_value = map(
         pair(
             identifier,
             opt(surround_brackets(
                 BracketType::Round,
-                separated_list1(tag(","), type_signature),
+                separated_list1(token(tag(",")), type_signature),
             )),
         ),
         |(name, items)| EnumValue {
@@ -51,6 +51,42 @@ fn enum_values(i: Input<'_>) -> Res<Input<'_>, Vec<EnumValue<'_>>> {
     )(i)
 }
 
+pub fn enum_init(i: Input<'_>) -> Res<Input<'_>, EnumInit<'_>> {
+    // IDENT "." IDENT "(" EXPR+ ")"
+    // "." IDENT [ "(" EXPR+ ")" ]
+
+    fn enum_values(i: Input<'_>) -> Res<Input<'_>, Vec<Expr<'_>>> {
+        surround_brackets(
+            BracketType::Round,
+            separated_list0(token(tag(",")), expression),
+        )(i)
+    }
+
+    let first = map(
+        tuple((
+            identifier,
+            preceded(token(tag(".")), identifier),
+            enum_values,
+        )),
+        |(enum_name, enum_value, items)| EnumInit {
+            enum_name: Some(enum_name),
+            enum_value,
+            items,
+        },
+    );
+
+    let second = map(
+        pair(preceded(token(tag(".")), identifier), opt(enum_values)),
+        |(enum_value, items)| EnumInit {
+            enum_name: None,
+            enum_value,
+            items: items.unwrap_or_default(),
+        },
+    );
+
+    alt((first, second))(i)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -63,7 +99,7 @@ mod tests {
     #[test]
     fn test_enum() {
         let enm = enumeration(new_input(
-            "enum Test { numbers(Number, Number); string(String) }",
+            "enum Test { numbers(Number, Number); string(String); empty }",
         ))
         .unwrap()
         .1;
@@ -79,6 +115,10 @@ mod tests {
                 EnumValue {
                     name: test_ident("string"),
                     items: vec![test_type_sig("String")]
+                },
+                EnumValue {
+                    name: test_ident("empty"),
+                    items: vec![]
                 }
             ]
         );

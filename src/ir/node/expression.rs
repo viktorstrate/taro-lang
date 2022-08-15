@@ -2,6 +2,7 @@ use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::Symb
 
 use super::{
     assignment::Assignment,
+    enumeration::EnumInit,
     escape_block::EscapeBlock,
     function::{Function, FunctionCall},
     identifier::Ident,
@@ -25,6 +26,7 @@ pub enum Expr<'a> {
     EscapeBlock(NodeRef<'a, EscapeBlock<'a>>),
     Assignment(NodeRef<'a, Assignment<'a>>),
     Tuple(NodeRef<'a, Tuple<'a>>),
+    EnumInit(NodeRef<'a, EnumInit<'a>>),
 }
 
 impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
@@ -55,6 +57,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
             }
             Expr::Tuple(tup) => tup.eval_type(symbols, ctx),
             Expr::TupleAccess(tup_acc) => tup_acc.eval_type(symbols, ctx),
+            Expr::EnumInit(enm_init) => enm_init.eval_type(symbols, ctx),
         }
     }
 
@@ -72,6 +75,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
             Expr::Assignment(_) => None,
             Expr::Tuple(tup) => tup.specified_type(ctx),
             Expr::TupleAccess(tup_acc) => tup_acc.specified_type(ctx),
+            Expr::EnumInit(enm_init) => enm_init.specified_type(ctx),
         }
     }
 
@@ -93,6 +97,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
             Expr::Assignment(_) => Ok(()),
             Expr::Tuple(tup) => tup.specify_type(ctx, new_type),
             Expr::TupleAccess(tup_acc) => tup_acc.specify_type(ctx, new_type),
+            Expr::EnumInit(enm_init) => enm_init.specify_type(ctx, new_type),
         }
     }
 }

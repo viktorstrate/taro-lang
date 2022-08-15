@@ -66,7 +66,7 @@ extend Point: Equatable where T: Equatable {
   }
 }
 
-let a: Point<Number> = Point { x: 2, y: 5 }
+let a: Point = { x: 2, y: 5 }
 let b = a // copy
 
 ```

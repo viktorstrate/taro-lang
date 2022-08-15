@@ -4,7 +4,7 @@ use crate::{ir::context::IrCtx, parser::Span};
 use std::fmt::Debug;
 
 use super::{
-    enumeration::{Enum, EnumValue},
+    enumeration::{Enum, EnumInit, EnumValue},
     expression::Expr,
     function::{Function, FunctionArg},
     statement::VarDecl,
@@ -83,6 +83,8 @@ pub enum IdentParent<'a> {
     StructAccessAttrName(NodeRef<'a, StructAccess<'a>>),
     EnumDeclName(NodeRef<'a, Enum<'a>>),
     EnumDeclValueName(NodeRef<'a, EnumValue<'a>>),
+    EnumInitValueName(NodeRef<'a, EnumInit<'a>>),
+    EnumInitEnumName(NodeRef<'a, EnumInit<'a>>),
     VarDeclName(NodeRef<'a, VarDecl<'a>>),
     FuncDeclName(NodeRef<'a, Function<'a>>),
     FuncDeclArgName(NodeRef<'a, FunctionArg<'a>>),

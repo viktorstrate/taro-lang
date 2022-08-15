@@ -50,6 +50,7 @@ pub enum TypeEvalError<'a> {
     CallNonFunction(TypeSignature<'a>),
     AccessNonStruct(TypeSignature<'a>),
     AccessNonTuple(TypeSignature<'a>),
+    AccessNonEnum(TypeSignature<'a>),
     TupleAccessOutOfBounds {
         tuple_len: usize,
         access_item: usize,

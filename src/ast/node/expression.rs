@@ -2,6 +2,7 @@ use crate::parser::Span;
 
 use super::{
     assignment::Assignment,
+    enumeration::EnumInit,
     escape_block::EscapeBlock,
     function::{Function, FunctionCall},
     identifier::Ident,
@@ -29,4 +30,5 @@ pub enum ExprValue<'a> {
     EscapeBlock(EscapeBlock<'a>),
     Assignment(Box<Assignment<'a>>),
     Tuple(Tuple<'a>),
+    EnumInit(EnumInit<'a>),
 }

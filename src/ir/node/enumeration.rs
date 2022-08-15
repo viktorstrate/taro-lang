@@ -1,25 +1,44 @@
-use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
+use crate::{
+    ir::context::IrCtx,
+    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolValueItem},
+};
 
 use super::{
     expression::Expr,
-    identifier::{Ident, Identifiable},
+    identifier::{Ident, IdentKey, Identifiable},
     type_signature::{TypeEvalError, TypeSignature, TypeSignatureValue, Typed},
     NodeRef,
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Enum<'a> {
     pub name: Ident<'a>,
     pub values: Vec<NodeRef<'a, EnumValue<'a>>>,
     pub type_sig: TypeSignature<'a>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct EnumValue<'a> {
     pub name: Ident<'a>,
     pub items: Vec<TypeSignature<'a>>,
 }
 
+impl<'a> NodeRef<'a, Enum<'a>> {
+    pub fn lookup_value(
+        self,
+        ctx: &IrCtx<'a>,
+        ident: Ident<'a>,
+    ) -> Option<(usize, NodeRef<'a, EnumValue<'a>>)> {
+        ctx[self]
+            .values
+            .iter()
+            .enumerate()
+            .find(|(_, val)| IdentKey::idents_eq(ctx, ctx[**val].name, ident))
+            .map(|(i, val)| (i, *val))
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct EnumInit<'a> {
     pub enum_name: Option<Ident<'a>>,
     pub enum_value: Ident<'a>,
@@ -79,5 +98,19 @@ impl<'a> Typed<'a> for NodeRef<'a, EnumValue<'a>> {
 
         ctx[*self].items = tuple.clone();
         Ok(())
+    }
+}
+
+impl<'a> Typed<'a> for NodeRef<'a, EnumInit<'a>> {
+    fn eval_type(
+        &self,
+        _symbols: &mut SymbolTableZipper<'a>,
+        ctx: &mut IrCtx<'a>,
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
+        let enm_name = ctx[*self]
+            .enum_name
+            .ok_or(TypeEvalError::UndeterminableType(ctx[*self].enum_value))?;
+
+        Ok(ctx.get_type_sig(TypeSignatureValue::Enum { name: enm_name }))
     }
 }

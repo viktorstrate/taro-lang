@@ -2,7 +2,7 @@ use id_arena::{Arena, Id};
 
 use self::{
     assignment::Assignment,
-    enumeration::{Enum, EnumValue},
+    enumeration::{Enum, EnumInit, EnumValue},
     escape_block::EscapeBlock,
     expression::Expr,
     function::{Function, FunctionArg, FunctionCall},
@@ -96,6 +96,7 @@ pub struct IrNodeArena<'a> {
     pub st_attrs: Arena<StructAttr<'a>>,
     pub enms: Arena<Enum<'a>>,
     pub enm_vals: Arena<EnumValue<'a>>,
+    pub enm_inits: Arena<EnumInit<'a>>,
     pub funcs: Arena<Function<'a>>,
     pub func_calls: Arena<FunctionCall<'a>>,
     pub st_decls: Arena<Struct<'a>>,
@@ -118,6 +119,7 @@ impl<'a> IrNodeArena<'a> {
             st_attrs: Arena::new(),
             enms: Arena::new(),
             enm_vals: Arena::new(),
+            enm_inits: Arena::new(),
             funcs: Arena::new(),
             func_calls: Arena::new(),
             st_decls: Arena::new(),
@@ -219,6 +221,18 @@ impl<'a> IrArenaType<'a> for EnumValue<'a> {
     #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.enm_vals
+    }
+}
+
+impl<'a> IrArenaType<'a> for EnumInit<'a> {
+    #[inline]
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.enm_inits
+    }
+
+    #[inline]
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.enm_inits
     }
 }
 
