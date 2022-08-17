@@ -38,11 +38,27 @@ pub struct SymbolTable<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+/// A value returned from a symbol lookup
 pub struct SymbolValue<'a> {
     id: Id<SymbolValueItem<'a>>,
 }
 
-/// A value returned from a symbol lookup
+impl<'a> SymbolValue<'a> {
+    pub fn unwrap_struct(&self, ctx: &IrCtx<'a>) -> NodeRef<'a, Struct<'a>> {
+        match ctx[*self] {
+            SymbolValueItem::StructDecl(st) => st,
+            sym => panic!("Expected symbol to be struct: {sym:?}"),
+        }
+    }
+
+    pub fn unwrap_enum(&self, ctx: &IrCtx<'a>) -> NodeRef<'a, Enum<'a>> {
+        match ctx[*self] {
+            SymbolValueItem::EnumDecl(enm) => enm,
+            sym => panic!("Expected symbol to be enum: {sym:?}"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum SymbolValueItem<'a> {
     BuiltinType(Ident<'a>),

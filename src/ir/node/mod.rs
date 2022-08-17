@@ -6,6 +6,7 @@ use self::{
     escape_block::EscapeBlock,
     expression::Expr,
     function::{Function, FunctionArg, FunctionCall},
+    member_access::UnresolvedMemberAccess,
     statement::{Stmt, VarDecl},
     structure::{Struct, StructAccess, StructAttr, StructInit, StructInitValue},
     tuple::{Tuple, TupleAccess},
@@ -20,6 +21,7 @@ pub mod escape_block;
 pub mod expression;
 pub mod function;
 pub mod identifier;
+pub mod member_access;
 pub mod module;
 pub mod statement;
 pub mod structure;
@@ -41,6 +43,7 @@ pub enum IrNode<'a> {
     Tuple(Tuple<'a>),
     Assignment(Assignment<'a>),
     EscapeBlock(EscapeBlock<'a>),
+    MemberAccess(UnresolvedMemberAccess<'a>),
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -108,6 +111,7 @@ pub struct IrNodeArena<'a> {
     pub asgns: Arena<Assignment<'a>>,
     pub esc_blks: Arena<EscapeBlock<'a>>,
     pub var_decls: Arena<VarDecl<'a>>,
+    pub mem_accs: Arena<UnresolvedMemberAccess<'a>>,
 }
 
 impl<'a> IrNodeArena<'a> {
@@ -131,6 +135,7 @@ impl<'a> IrNodeArena<'a> {
             asgns: Arena::new(),
             esc_blks: Arena::new(),
             var_decls: Arena::new(),
+            mem_accs: Arena::new(),
         }
     }
 }
@@ -365,5 +370,17 @@ impl<'a> IrArenaType<'a> for VarDecl<'a> {
     #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
         &mut ctx.nodes.var_decls
+    }
+}
+
+impl<'a> IrArenaType<'a> for UnresolvedMemberAccess<'a> {
+    #[inline]
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.mem_accs
+    }
+
+    #[inline]
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.mem_accs
     }
 }

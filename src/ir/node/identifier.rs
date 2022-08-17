@@ -7,6 +7,7 @@ use super::{
     enumeration::{Enum, EnumInit, EnumValue},
     expression::Expr,
     function::{Function, FunctionArg},
+    member_access::UnresolvedMemberAccess,
     statement::VarDecl,
     structure::{Struct, StructAccess, StructAttr, StructInit, StructInitValue},
     type_signature::{BuiltinType, TypeSignature},
@@ -90,4 +91,5 @@ pub enum IdentParent<'a> {
     FuncDeclArgName(NodeRef<'a, FunctionArg<'a>>),
     IdentExpr(NodeRef<'a, Expr<'a>>),
     TypeSigName(TypeSignature<'a>),
+    MemberAccessMemberName(NodeRef<'a, UnresolvedMemberAccess<'a>>),
 }

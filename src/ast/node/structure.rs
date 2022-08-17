@@ -34,8 +34,9 @@ pub struct StructInitValue<'a> {
     pub span: Span<'a>,
 }
 
-#[derive(Debug, Clone)]
-pub struct StructAccess<'a> {
-    pub struct_expr: Box<Expr<'a>>,
-    pub attr_name: Ident<'a>,
-}
+// Replaced with member access
+// #[derive(Debug, Clone)]
+// pub struct StructAccess<'a> {
+//     pub struct_expr: Box<Expr<'a>>,
+//     pub attr_name: Ident<'a>,
+// }

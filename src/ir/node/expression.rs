@@ -6,6 +6,7 @@ use super::{
     escape_block::EscapeBlock,
     function::{Function, FunctionCall},
     identifier::Ident,
+    member_access::UnresolvedMemberAccess,
     structure::{StructAccess, StructInit},
     tuple::{Tuple, TupleAccess},
     type_signature::{BuiltinType, TypeEvalError, TypeSignature, Typed},
@@ -27,6 +28,7 @@ pub enum Expr<'a> {
     Assignment(NodeRef<'a, Assignment<'a>>),
     Tuple(NodeRef<'a, Tuple<'a>>),
     EnumInit(NodeRef<'a, EnumInit<'a>>),
+    UnresolvedMemberAccess(NodeRef<'a, UnresolvedMemberAccess<'a>>),
 }
 
 impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
@@ -58,6 +60,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
             Expr::Tuple(tup) => tup.eval_type(symbols, ctx),
             Expr::TupleAccess(tup_acc) => tup_acc.eval_type(symbols, ctx),
             Expr::EnumInit(enm_init) => enm_init.eval_type(symbols, ctx),
+            Expr::UnresolvedMemberAccess(_) => panic!(),
         }
     }
 
@@ -76,6 +79,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
             Expr::Tuple(tup) => tup.specified_type(ctx),
             Expr::TupleAccess(tup_acc) => tup_acc.specified_type(ctx),
             Expr::EnumInit(enm_init) => enm_init.specified_type(ctx),
+            Expr::UnresolvedMemberAccess(_) => panic!(),
         }
     }
 
@@ -98,6 +102,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
             Expr::Tuple(tup) => tup.specify_type(ctx, new_type),
             Expr::TupleAccess(tup_acc) => tup_acc.specify_type(ctx, new_type),
             Expr::EnumInit(enm_init) => enm_init.specify_type(ctx, new_type),
+            Expr::UnresolvedMemberAccess(_) => panic!(),
         }
     }
 }

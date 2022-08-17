@@ -14,14 +14,13 @@ use crate::ast::node::{
     expression::{Expr, ExprValue},
     function::FunctionCall,
     identifier::Ident,
-    structure::StructAccess,
+    member_access::MemberAccess,
     tuple::{Tuple, TupleAccess},
 };
 
 use super::{
-    enumeration::enum_init, escape_block::escape_block, function::function_expr,
-    identifier::identifier, span, structure::struct_init_expr, surround_brackets, token,
-    BracketType, Input, Res, Span,
+    escape_block::escape_block, function::function_expr, identifier::identifier, span,
+    structure::struct_init_expr, surround_brackets, token, BracketType, Input, Res, Span,
 };
 
 pub fn expression(i: Input<'_>) -> Res<Input<'_>, Expr<'_>> {
@@ -29,9 +28,9 @@ pub fn expression(i: Input<'_>) -> Res<Input<'_>, Expr<'_>> {
         "expression",
         map(
             span(alt((
-                map(enum_init, ExprValue::EnumInit),
                 map(struct_init_expr, ExprValue::StructInit),
                 map(identifier, ExprValue::Identifier),
+                expr_anon_member_access,
                 expr_string_literal,
                 expr_number_literal,
                 expr_boolean_literal,
@@ -48,7 +47,7 @@ pub fn expression(i: Input<'_>) -> Res<Input<'_>, Expr<'_>> {
 
 enum ExprTailChain<'a> {
     FuncCall(Vec<Expr<'a>>),
-    StructAccess(Ident<'a>),
+    MemberAccess(Ident<'a>, Vec<Expr<'a>>),
     TupleAccess(usize),
 }
 
@@ -80,7 +79,7 @@ fn expr_tail_chain<'a>(
 ) -> Res<Input<'a>, Expr<'a>> {
     fold_many0(
         pair(
-            alt((tail_func_call, tail_struct_access, tail_tuple_access)),
+            alt((tail_func_call, tail_member_access, tail_tuple_access)),
             position,
         ),
         || base.clone(),
@@ -92,10 +91,13 @@ fn expr_tail_chain<'a>(
                         params: func_args,
                     }))
                 }
-                ExprTailChain::StructAccess(attr_name) => ExprValue::StructAccess(StructAccess {
-                    struct_expr: Box::new(acc),
-                    attr_name,
-                }),
+                ExprTailChain::MemberAccess(member_name, items) => {
+                    ExprValue::MemberAccess(Box::new(MemberAccess {
+                        object: Some(acc),
+                        member_name,
+                        items,
+                    }))
+                }
                 ExprTailChain::TupleAccess(attr) => ExprValue::TupleAccess(TupleAccess {
                     tuple_expr: Box::new(acc),
                     attr,
@@ -110,19 +112,22 @@ fn expr_tail_chain<'a>(
     )(i)
 }
 
-fn tail_func_call(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
-    let func_params = separated_list0(token(tag(",")), expression);
-
-    map(
-        surround_brackets(BracketType::Round, func_params),
-        ExprTailChain::FuncCall,
+pub fn expr_args(i: Input<'_>) -> Res<Input<'_>, Vec<Expr<'_>>> {
+    // "(" EXPR+ ")"
+    surround_brackets(
+        BracketType::Round,
+        separated_list0(token(tag(",")), expression),
     )(i)
 }
 
-fn tail_struct_access(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
+fn tail_func_call(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
+    map(expr_args, ExprTailChain::FuncCall)(i)
+}
+
+fn tail_member_access(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
     map(
-        preceded(token(tag(".")), identifier),
-        ExprTailChain::StructAccess,
+        pair(preceded(token(tag(".")), identifier), opt(expr_args)),
+        |(member_name, items)| ExprTailChain::MemberAccess(member_name, items.unwrap_or_default()),
     )(i)
 }
 
@@ -166,18 +171,27 @@ pub fn expr_boolean_literal(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
 pub fn expr_tuple(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
     context(
         "tuple expression",
-        map(
-            surround_brackets(
-                BracketType::Round,
-                separated_list0(token(tag(",")), expression),
-            ),
-            |exprs| {
-                ExprValue::Tuple(Tuple {
-                    values: exprs,
-                    type_sig: None,
-                })
-            },
-        ),
+        map(expr_args, |exprs| {
+            ExprValue::Tuple(Tuple {
+                values: exprs,
+                type_sig: None,
+            })
+        }),
+    )(i)
+}
+
+pub fn expr_anon_member_access(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
+    // "." IDENT [ "(" EXPR+ ")" ]
+
+    map(
+        pair(preceded(token(tag(".")), identifier), opt(expr_args)),
+        |(member_name, items)| {
+            ExprValue::MemberAccess(Box::new(MemberAccess {
+                object: None,
+                member_name,
+                items: items.unwrap_or_default(),
+            }))
+        },
     )(i)
 }
 
@@ -186,7 +200,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        ast::{node::enumeration::EnumInit, test_utils::test_ident},
+        ast::test_utils::test_ident,
         parser::{new_input, Span},
     };
 
@@ -263,11 +277,18 @@ mod tests {
         match expr {
             Expr {
                 span,
-                value: ExprValue::FunctionCall(call),
-            } => {
-                assert_eq!(call.params.len(), 1);
-                assert_eq!(span.fragment, "base()().first.next(123)")
-            }
+                value: ExprValue::MemberAccess(mem_acc),
+            } => match *mem_acc {
+                MemberAccess {
+                    object: _,
+                    member_name,
+                    items,
+                } => {
+                    assert_eq!(items.len(), 1);
+                    assert_eq!(member_name, test_ident("next"));
+                    assert_eq!(span.fragment, "base()().first.next(123)");
+                }
+            },
             _ => assert!(false),
         }
     }
@@ -344,16 +365,20 @@ mod tests {
         match expr {
             Expr {
                 span: _,
-                value:
-                    ExprValue::EnumInit(EnumInit {
-                        enum_name,
-                        enum_value,
-                        items,
-                    }),
+                value: ExprValue::MemberAccess(mem_acc),
             } => {
-                assert_eq!(enum_name, Some(test_ident("IPAddress")));
-                assert_eq!(enum_value, test_ident("v4"));
-                assert_matches!(items.len(), 4);
+                match mem_acc.object {
+                    Some(Expr {
+                        span: _,
+                        value: ExprValue::Identifier(enum_name),
+                    }) => {
+                        assert_eq!(enum_name.value, "IPAddress");
+                    }
+                    _ => assert!(false),
+                };
+
+                assert_eq!(mem_acc.member_name, test_ident("v4"));
+                assert_matches!(mem_acc.items.len(), 4);
             }
             expr => assert!(false, "Expected EnumInit expression, got {expr:?}"),
         }

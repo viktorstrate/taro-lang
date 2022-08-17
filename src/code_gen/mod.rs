@@ -15,7 +15,7 @@ use crate::{
         },
         IR,
     },
-    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolValueItem},
+    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper},
 };
 
 pub fn format_ir<'a, 'ctx, W: Write>(
@@ -241,14 +241,11 @@ fn format_expr<'a, 'ctx, W: Write>(
             gen.write_ident(gen.ctx[st_init].struct_name)?;
             gen.write("(")?;
 
-            let st = *gen
+            let st = gen
                 .symbols
                 .lookup(&gen.ctx, gen.ctx[st_init].struct_name)
-                .unwrap();
-            let st = match &gen.ctx[st] {
-                SymbolValueItem::StructDecl(st) => *st,
-                _ => unreachable!(),
-            };
+                .unwrap()
+                .unwrap_struct(&gen.ctx);
 
             let attr_names = gen.ctx[st]
                 .attrs
@@ -303,19 +300,13 @@ fn format_expr<'a, 'ctx, W: Write>(
         }
         Expr::EnumInit(enm_init) => {
             gen.write("[")?;
-            let enm_name = gen.ctx[enm_init]
-                .enum_name
-                .expect("Enum name should have been resolved by now");
+            let enm_name = gen.ctx[enm_init].enum_name;
 
-            let enm_sym = *gen
+            let enm = gen
                 .symbols
                 .lookup(gen.ctx, enm_name)
-                .expect("Symbol should exist");
-
-            let enm = match gen.ctx[enm_sym] {
-                SymbolValueItem::EnumDecl(enm) => enm,
-                _ => panic!("Expected symbol to be enum"),
-            };
+                .expect("Symbol should exist")
+                .unwrap_enum(&gen.ctx);
 
             let (idx, _enm_val) = enm
                 .lookup_value(&gen.ctx, gen.ctx[enm_init].enum_value)
@@ -335,6 +326,9 @@ fn format_expr<'a, 'ctx, W: Write>(
             gen.write("]")?;
 
             gen.write("]")
+        }
+        Expr::UnresolvedMemberAccess(_) => {
+            unreachable!("Unresolved member access should have been handled by now")
         }
     }
 }

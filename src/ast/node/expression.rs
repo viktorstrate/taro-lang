@@ -2,11 +2,11 @@ use crate::parser::Span;
 
 use super::{
     assignment::Assignment,
-    enumeration::EnumInit,
     escape_block::EscapeBlock,
     function::{Function, FunctionCall},
     identifier::Ident,
-    structure::{StructAccess, StructInit},
+    member_access::MemberAccess,
+    structure::StructInit,
     tuple::{Tuple, TupleAccess},
 };
 
@@ -21,14 +21,15 @@ pub enum ExprValue<'a> {
     StringLiteral(&'a str),
     NumberLiteral(f64),
     BoolLiteral(bool),
+    MemberAccess(Box<MemberAccess<'a>>),
     Function(Function<'a>),
     FunctionCall(Box<FunctionCall<'a>>),
     Identifier(Ident<'a>),
     StructInit(StructInit<'a>),
-    StructAccess(StructAccess<'a>),
+    // StructAccess(StructAccess<'a>),
     TupleAccess(TupleAccess<'a>),
     EscapeBlock(EscapeBlock<'a>),
     Assignment(Box<Assignment<'a>>),
     Tuple(Tuple<'a>),
-    EnumInit(EnumInit<'a>),
+    // EnumInit(EnumInit<'a>),
 }

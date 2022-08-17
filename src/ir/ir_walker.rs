@@ -147,7 +147,7 @@ pub fn walk_ir<'a, W: IrWalker<'a>>(
     Ok(global_scope)
 }
 
-fn walk_module<'a, W: IrWalker<'a>>(
+pub fn walk_module<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
@@ -160,7 +160,7 @@ fn walk_module<'a, W: IrWalker<'a>>(
     Ok(())
 }
 
-fn walk_struct<'a, W: IrWalker<'a>>(
+pub fn walk_struct<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
@@ -200,7 +200,7 @@ fn walk_struct<'a, W: IrWalker<'a>>(
     Ok(())
 }
 
-fn walk_enum<'a, W: IrWalker<'a>>(
+pub fn walk_enum<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
@@ -227,7 +227,7 @@ fn walk_enum<'a, W: IrWalker<'a>>(
     Ok(())
 }
 
-fn walk_stmt<'a, W: IrWalker<'a>>(
+pub fn walk_stmt<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
@@ -282,7 +282,7 @@ fn walk_stmt<'a, W: IrWalker<'a>>(
     Ok(())
 }
 
-fn walk_func_decl<'a, W: IrWalker<'a>>(
+pub fn walk_func_decl<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
@@ -320,7 +320,7 @@ fn walk_func_decl<'a, W: IrWalker<'a>>(
     Ok(())
 }
 
-fn walk_expr<'a, W: IrWalker<'a>>(
+pub fn walk_expr<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
@@ -408,14 +408,30 @@ fn walk_expr<'a, W: IrWalker<'a>>(
                 ctx[enm_init].enum_value,
             )?;
 
-            if let Some(enm_name) = ctx[enm_init].enum_name {
-                ctx[enm_init].enum_name = Some(walker.visit_ident(
-                    ctx,
-                    scope,
-                    IdentParent::EnumInitEnumName(enm_init),
-                    enm_name,
-                )?);
+            ctx[enm_init].enum_name = walker.visit_ident(
+                ctx,
+                scope,
+                IdentParent::EnumInitEnumName(enm_init),
+                ctx[enm_init].enum_name,
+            )?;
+
+            Ok(())
+        }
+        Expr::UnresolvedMemberAccess(mem_acc) => {
+            for item in ctx[mem_acc].items.clone() {
+                walk_expr(walker, ctx, scope, item)?;
             }
+
+            if let Some(obj) = ctx[mem_acc].object {
+                walk_expr(walker, ctx, scope, obj)?;
+            }
+
+            ctx[mem_acc].member_name = walker.visit_ident(
+                ctx,
+                scope,
+                IdentParent::MemberAccessMemberName(mem_acc),
+                ctx[mem_acc].member_name,
+            )?;
 
             Ok(())
         }
@@ -424,7 +440,7 @@ fn walk_expr<'a, W: IrWalker<'a>>(
     walker.visit_expr(ctx, scope, expr)
 }
 
-fn walk_struct_init<'a, W: IrWalker<'a>>(
+pub fn walk_struct_init<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,
@@ -464,7 +480,7 @@ fn walk_struct_init<'a, W: IrWalker<'a>>(
     Ok(())
 }
 
-fn walk_type_sig<'a, W: IrWalker<'a>>(
+pub fn walk_type_sig<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
     scope: &mut W::Scope,

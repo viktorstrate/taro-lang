@@ -4,13 +4,14 @@ use super::{
     context::IrCtx,
     node::{
         assignment::Assignment,
-        enumeration::{Enum, EnumInit, EnumValue},
+        enumeration::{Enum, EnumValue},
         escape_block::EscapeBlock,
         expression::Expr,
         function::{Function, FunctionArg, FunctionCall},
+        member_access::UnresolvedMemberAccess,
         module::Module,
         statement::{Stmt, VarDecl},
-        structure::{Struct, StructAccess, StructAttr, StructInit, StructInitValue},
+        structure::{Struct, StructAttr, StructInit, StructInitValue},
         tuple::{Tuple, TupleAccess},
         type_signature::TypeSignatureValue,
         IrAlloc, NodeRef,
@@ -228,13 +229,13 @@ impl<'a> IrCtx<'a> {
 
                 Expr::StructInit(struct_init)
             }
-            crate::ast::node::expression::ExprValue::StructAccess(st_acc) => Expr::StructAccess(
-                StructAccess {
-                    struct_expr: self.lower_expr(*st_acc.struct_expr),
-                    attr_name: self.make_unresolved_ident(st_acc.attr_name),
-                }
-                .allocate(self),
-            ),
+            // crate::ast::node::expression::ExprValue::StructAccess(st_acc) => Expr::StructAccess(
+            //     StructAccess {
+            //         struct_expr: self.lower_expr(*st_acc.struct_expr),
+            //         attr_name: self.make_unresolved_ident(st_acc.attr_name),
+            //     }
+            //     .allocate(self),
+            // ),
             crate::ast::node::expression::ExprValue::TupleAccess(tup_acc) => Expr::TupleAccess(
                 TupleAccess {
                     tuple_expr: self.lower_expr(*tup_acc.tuple_expr),
@@ -267,20 +268,22 @@ impl<'a> IrCtx<'a> {
                 }
                 .allocate(self),
             ),
-            crate::ast::node::expression::ExprValue::EnumInit(enm_init) => Expr::EnumInit(
-                EnumInit {
-                    enum_name: enm_init
-                        .enum_name
-                        .map(|ident| self.make_unresolved_ident(ident)),
-                    enum_value: self.make_unresolved_ident(enm_init.enum_value),
-                    items: enm_init
-                        .items
-                        .into_iter()
-                        .map(|item| self.lower_expr(item))
-                        .collect(),
-                }
-                .allocate(self),
-            ),
+            crate::ast::node::expression::ExprValue::MemberAccess(mem_acc) => {
+                let object = mem_acc.object.map(|obj| self.lower_expr(obj));
+                let items = mem_acc
+                    .items
+                    .into_iter()
+                    .map(|item| self.lower_expr(item))
+                    .collect();
+                Expr::UnresolvedMemberAccess(
+                    UnresolvedMemberAccess {
+                        object,
+                        member_name: self.make_unresolved_ident(mem_acc.member_name),
+                        items,
+                    }
+                    .allocate(self),
+                )
+            }
         };
 
         ir_expr.allocate(self)

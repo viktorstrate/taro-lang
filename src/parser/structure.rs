@@ -107,7 +107,8 @@ mod tests {
         ast::{
             node::{
                 expression::{Expr, ExprValue},
-                structure::StructAccess,
+                identifier::Ident,
+                member_access::MemberAccess,
                 type_signature::Mutability,
             },
             test_utils::{test_ident, test_type_sig},
@@ -168,12 +169,26 @@ mod tests {
             .value;
 
         match struct_access {
-            ExprValue::StructAccess(StructAccess {
-                struct_expr: _,
-                attr_name,
-            }) => {
-                assert_eq!(attr_name, test_ident("attribute"));
-            }
+            ExprValue::MemberAccess(mem_acc) => match *mem_acc {
+                MemberAccess {
+                    object,
+                    member_name,
+                    items,
+                } => {
+                    assert_matches!(
+                        object,
+                        Some(Expr {
+                            span: _,
+                            value: ExprValue::Identifier(Ident {
+                                span: _,
+                                value: "struct_name"
+                            })
+                        })
+                    );
+                    assert_eq!(member_name, test_ident("attribute"));
+                    assert!(items.is_empty());
+                }
+            },
             _ => assert!(false),
         }
     }

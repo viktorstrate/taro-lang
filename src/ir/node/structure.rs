@@ -1,6 +1,6 @@
 use crate::{
     ir::context::IrCtx,
-    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolValueItem},
+    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper},
 };
 
 use super::{
@@ -128,12 +128,9 @@ impl<'a> NodeRef<'a, StructInit<'a>> {
         ctx: &IrCtx<'a>,
         symbols: &SymbolTableZipper<'a>,
     ) -> Option<NodeRef<'a, Struct<'a>>> {
-        let sym_val = symbols.lookup(ctx, ctx[*self].struct_name);
-
-        match sym_val.map(|val| &ctx[*val]) {
-            Some(SymbolValueItem::StructDecl(st)) => Some(*st),
-            _ => None,
-        }
+        symbols
+            .lookup(ctx, ctx[*self].struct_name)
+            .map(|val| val.unwrap_struct(ctx))
     }
 }
 
@@ -173,14 +170,10 @@ impl<'a> NodeRef<'a, StructAccess<'a>> {
             _ => return Err(TypeEvalError::AccessNonStruct(st_type)),
         };
 
-        let st_sym = symbols
+        let st = symbols
             .lookup(ctx, struct_name)
-            .ok_or(TypeEvalError::UnknownIdentifier(struct_name))?;
-
-        let st = match ctx[*st_sym] {
-            SymbolValueItem::StructDecl(st) => st,
-            _ => unreachable!("symbol type should match up with expr eval"),
-        };
+            .ok_or(TypeEvalError::UnknownIdentifier(struct_name))?
+            .unwrap_struct(ctx);
 
         let attr_name = ctx[*self].attr_name;
         st.lookup_attr(attr_name, ctx)

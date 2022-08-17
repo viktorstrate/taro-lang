@@ -1,14 +1,19 @@
 use crate::ir::{
     context::IrCtx,
-    ir_walker::{IrWalker, ScopeValue},
+    ir_walker::{walk_expr, IrWalker, ScopeValue},
     node::{
+        enumeration::EnumInit,
+        expression::Expr,
+        function::FunctionCall,
         identifier::{Ident, IdentParent, IdentValue, Identifiable},
+        structure::StructAccess,
         type_signature::{TypeEvalError, TypeSignatureValue, Typed},
+        IrAlloc, NodeRef,
     },
 };
 
 use super::symbol_table::{
-    symbol_table_zipper::SymbolTableZipper, SymbolTable, SymbolValue, SymbolValueItem,
+    symbol_table_zipper::SymbolTableZipper, SymbolTable, SymbolValue,
 };
 
 pub struct SymbolResolver<'a> {
@@ -84,15 +89,11 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                 IdentParent::StructInitValueName(st_init) => {
                     let st_name = ctx[ctx[st_init].parent].struct_name;
 
-                    let st_sym_val = *self
+                    let st = self
                         .symbols
                         .lookup(ctx, st_name)
-                        .ok_or(SymbolResolutionError::UnknownIdentifier(st_name))?;
-
-                    let st = match ctx[st_sym_val] {
-                        SymbolValueItem::StructDecl(st) => st,
-                        _ => unreachable!("expected to find struct"),
-                    };
+                        .ok_or(SymbolResolutionError::UnknownIdentifier(st_name))?
+                        .unwrap_struct(ctx);
 
                     let attr = st
                         .lookup_attr(ident, ctx)
@@ -126,23 +127,13 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                     Some(ctx[st_attr].name)
                 }
                 IdentParent::EnumInitValueName(enm_init) => {
-                    let enm_name = ctx[enm_init]
-                        .enum_name
-                        .expect("TODO: handle type inference for enums");
+                    let enm_name = ctx[enm_init].enum_name;
 
-                    println!("Lookup enm name");
-
-                    let enm_sym = *self
+                    let enm = self
                         .symbols
                         .lookup(ctx, enm_name)
-                        .ok_or(SymbolResolutionError::UnknownIdentifier(enm_name))?;
-
-                    println!("Lookup enm name end");
-
-                    let enm = match ctx[enm_sym] {
-                        SymbolValueItem::EnumDecl(enm) => Ok(enm),
-                        _ => Err(SymbolResolutionError::InitNonEnum(enm_sym)),
-                    }?;
+                        .ok_or(SymbolResolutionError::UnknownIdentifier(enm_name))?
+                        .unwrap_enum(ctx);
 
                     let (_, enm_val) = enm.lookup_value(ctx, ctx[enm_init].enum_value).ok_or(
                         SymbolResolutionError::UnknownEnumValue {
@@ -153,6 +144,7 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
 
                     Some(ctx[enm_val].name)
                 }
+                IdentParent::MemberAccessMemberName(_) => None,
                 val => {
                     println!("Lookup other, parent: {val:?}");
 
@@ -161,16 +153,12 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                         .lookup(ctx, ident)
                         .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
 
-                    println!("Lookup other done");
-
                     let sym = *&ctx[sym_id];
                     Some(sym.name(ctx))
                 }
             },
             IdentValue::Resolved(_) => None,
         };
-
-        println!("Resolve ident done");
 
         if let Some(sym_ident) = resolved_ident {
             debug_assert!(matches!(ctx[sym_ident], IdentValue::Resolved(_)));
@@ -204,5 +192,58 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
         };
 
         Ok(updated_type_sig)
+    }
+
+    fn visit_expr(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        scope: &mut Self::Scope,
+        expr: NodeRef<'a, Expr<'a>>,
+    ) -> Result<(), Self::Error> {
+        match ctx[expr] {
+            Expr::UnresolvedMemberAccess(mem_acc) => {
+                let obj = match ctx[mem_acc].object {
+                    Some(obj) => obj,
+                    None => todo!("Type inference not implemented yet"),
+                };
+
+                let obj_type = obj
+                    .eval_type(&mut self.symbols, ctx)
+                    .map_err(SymbolResolutionError::TypeEval)?;
+
+                let new_expr = match &ctx[obj_type] {
+                    TypeSignatureValue::Function { args: _, return_type: _ } => Expr::FunctionCall(
+                        FunctionCall {
+                            func: obj,
+                            params: ctx[mem_acc].items.clone(),
+                        }
+                        .allocate(ctx),
+                    ),
+                    TypeSignatureValue::Struct { name: _ } => Expr::StructAccess(
+                        StructAccess {
+                            struct_expr: obj,
+                            attr_name: ctx[mem_acc].member_name,
+                        }
+                        .allocate(ctx),
+                    ),
+                    TypeSignatureValue::Enum { name } => Expr::EnumInit(
+                        EnumInit {
+                            enum_name: *name,
+                            enum_value: ctx[mem_acc].member_name,
+                            items: ctx[mem_acc].items.clone(),
+                        }
+                        .allocate(ctx),
+                    ),
+                    _ => unreachable!("Expression can never be a member access"),
+                };
+
+                ctx[expr] = new_expr;
+                // walk the new expression
+                walk_expr(self, ctx, scope, expr)?;
+
+                Ok(())
+            }
+            _ => Ok(()),
+        }
     }
 }
