@@ -9,7 +9,7 @@ use super::{
 #[derive(Debug)]
 pub struct Tuple<'a> {
     pub values: Vec<NodeRef<'a, Expr<'a>>>,
-    pub type_sig: Option<TypeSignature<'a>>,
+    pub type_sig: TypeSignature<'a>,
 }
 
 #[derive(Debug)]
@@ -35,7 +35,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Tuple<'a>> {
     }
 
     fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
-        ctx[*self].type_sig
+        Some(ctx[*self].type_sig)
     }
 
     fn specify_type(
@@ -50,7 +50,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Tuple<'a>> {
             _ => assert!(false),
         }
 
-        ctx[*self].type_sig = Some(new_type);
+        ctx[*self].type_sig = new_type;
         Ok(())
     }
 }

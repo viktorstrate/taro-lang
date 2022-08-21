@@ -5,7 +5,7 @@ use crate::{
         node::{
             expression::Expr,
             statement::Stmt,
-            type_signature::{BuiltinType, TypeSignatureValue, Typed},
+            type_signature::{TypeSignatureValue, Typed},
             NodeRef,
         },
     },
@@ -67,42 +67,42 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
         Ok(())
     }
 
-    fn pre_visit_stmt(
-        &mut self,
-        ctx: &mut IrCtx<'a>,
-        _scope: &mut Self::Scope,
-        stmt: NodeRef<'a, Stmt<'a>>,
-    ) -> Result<(), Self::Error> {
-        match ctx[stmt] {
-            Stmt::VariableDecl(var_decl) => match ctx[ctx[var_decl].value] {
-                Expr::Function(func) => match ctx[var_decl].type_sig {
-                    Some(type_sig) => match &ctx[type_sig] {
-                        TypeSignatureValue::Function {
-                            args: _,
-                            return_type: _,
-                        } => {
-                            func.specify_type(ctx, type_sig)
-                                .map_err(TypeCheckerError::TypeEvalError)?;
-                        }
-                        _ => {
-                            return Err(TypeCheckerError::TypeSignatureMismatch {
-                                type_sig,
-                                expr_type: ctx.get_type_sig(TypeSignatureValue::Function {
-                                    args: vec![],
-                                    return_type: ctx.get_builtin_type_sig(BuiltinType::Void),
-                                }),
-                            });
-                        }
-                    },
-                    None => {}
-                },
-                _ => {}
-            },
-            _ => {}
-        }
+    // fn pre_visit_stmt(
+    //     &mut self,
+    //     ctx: &mut IrCtx<'a>,
+    //     _scope: &mut Self::Scope,
+    //     stmt: NodeRef<'a, Stmt<'a>>,
+    // ) -> Result<(), Self::Error> {
+    //     match ctx[stmt] {
+    //         Stmt::VariableDecl(var_decl) => match ctx[ctx[var_decl].value] {
+    //             Expr::Function(func) => match ctx[var_decl].type_sig {
+    //                 Some(type_sig) => match &ctx[type_sig] {
+    //                     TypeSignatureValue::Function {
+    //                         args: _,
+    //                         return_type: _,
+    //                     } => {
+    //                         func.specify_type(ctx, type_sig)
+    //                             .map_err(TypeCheckerError::TypeEvalError)?;
+    //                     }
+    //                     _ => {
+    //                         return Err(TypeCheckerError::TypeSignatureMismatch {
+    //                             type_sig,
+    //                             expr_type: ctx.get_type_sig(TypeSignatureValue::Function {
+    //                                 args: vec![],
+    //                                 return_type: ctx.get_builtin_type_sig(BuiltinType::Void),
+    //                             }),
+    //                         });
+    //                     }
+    //                 },
+    //                 None => {}
+    //             },
+    //             _ => {}
+    //         },
+    //         _ => {}
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     fn visit_stmt(
         &mut self,

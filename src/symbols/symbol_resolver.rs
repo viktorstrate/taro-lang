@@ -12,9 +12,7 @@ use crate::ir::{
     },
 };
 
-use super::symbol_table::{
-    symbol_table_zipper::SymbolTableZipper, SymbolTable, SymbolValue,
-};
+use super::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolTable, SymbolValue};
 
 pub struct SymbolResolver<'a> {
     pub symbols: SymbolTableZipper<'a>,
@@ -106,21 +104,18 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                         .lookup_attr(ctx, &mut self.symbols)
                         .map_err(|_| SymbolResolutionError::UnknownIdentifier(ident))?;
 
-                    match ctx[st_attr].type_sig {
-                        Some(type_sig) => match ctx[type_sig] {
-                            TypeSignatureValue::Unresolved(type_ident) => {
-                                let resolved_type_sig = self
-                                    .symbols
-                                    .lookup(ctx, type_ident)
-                                    .ok_or(SymbolResolutionError::UnknownIdentifier(type_ident))?
-                                    .clone()
-                                    .eval_type(&mut self.symbols, ctx)
-                                    .map_err(SymbolResolutionError::TypeEval)?;
+                    match ctx[ctx[st_attr].type_sig] {
+                        TypeSignatureValue::Unresolved(type_ident) => {
+                            let resolved_type_sig = self
+                                .symbols
+                                .lookup(ctx, type_ident)
+                                .ok_or(SymbolResolutionError::UnknownIdentifier(type_ident))?
+                                .clone()
+                                .eval_type(&mut self.symbols, ctx)
+                                .map_err(SymbolResolutionError::TypeEval)?;
 
-                                ctx[st_attr].type_sig = Some(resolved_type_sig);
-                            }
-                            _ => {}
-                        },
+                            ctx[st_attr].type_sig = resolved_type_sig;
+                        }
                         _ => {}
                     }
 
@@ -212,7 +207,10 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                     .map_err(SymbolResolutionError::TypeEval)?;
 
                 let new_expr = match &ctx[obj_type] {
-                    TypeSignatureValue::Function { args: _, return_type: _ } => Expr::FunctionCall(
+                    TypeSignatureValue::Function {
+                        args: _,
+                        return_type: _,
+                    } => Expr::FunctionCall(
                         FunctionCall {
                             func: obj,
                             params: ctx[mem_acc].items.clone(),

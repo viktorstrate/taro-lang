@@ -37,18 +37,14 @@ pub fn eval_func_body_type_sig<'a>(
     let func_body = ctx[func].body;
     let body_type = stmt_type(ctx, symbols, func, func_body)?;
 
-    if let Some(return_type) = ctx[func].return_type {
-        if let Some(coerced_type) = coerce(body_type, return_type, ctx) {
-            Ok(coerced_type)
-        } else {
-            Err(FunctionTypeError::ConflictingReturnTypes(
-                func,
-                return_type,
-                body_type,
-            ))
-        }
+    if let Some(coerced_type) = coerce(body_type, ctx[func].return_type, ctx) {
+        Ok(coerced_type)
     } else {
-        Ok(body_type)
+        Err(FunctionTypeError::ConflictingReturnTypes(
+            func,
+            ctx[func].return_type,
+            body_type,
+        ))
     }
 }
 

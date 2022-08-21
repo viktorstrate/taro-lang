@@ -30,6 +30,7 @@ impl<'a> From<Id<TypeSignatureValue<'a>>> for TypeSignature<'a> {
 pub enum TypeSignatureValue<'a> {
     Builtin(BuiltinType),
     Unresolved(Ident<'a>),
+    TypeVariable,
     Function {
         args: Vec<TypeSignature<'a>>,
         return_type: TypeSignature<'a>,
@@ -113,7 +114,7 @@ pub enum BuiltinType {
     Number,
     Boolean,
     Void,
-    Untyped,
+    // Untyped,
 }
 
 pub const BUILTIN_TYPES: &'static [BuiltinType] = &[
@@ -121,7 +122,7 @@ pub const BUILTIN_TYPES: &'static [BuiltinType] = &[
     BuiltinType::Number,
     BuiltinType::Boolean,
     BuiltinType::Void,
-    BuiltinType::Untyped,
+    // BuiltinType::Untyped,
 ];
 
 impl BuiltinType {
@@ -131,7 +132,7 @@ impl BuiltinType {
             BuiltinType::Number => "Number",
             BuiltinType::Boolean => "Boolean",
             BuiltinType::Void => "Void",
-            BuiltinType::Untyped => "Untyped",
+            // BuiltinType::Untyped => "Untyped",
         }
     }
 }

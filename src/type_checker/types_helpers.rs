@@ -2,7 +2,7 @@ use crate::{
     ir::{
         context::{IrArenaType, IrCtx},
         node::{
-            type_signature::{BuiltinType, TypeSignature, TypeSignatureValue, Typed},
+            type_signature::{TypeSignature, Typed},
             NodeRef,
         },
     },
@@ -27,11 +27,11 @@ where
         .map_err(TypeCheckerError::TypeEvalError)?;
 
     // don't allow user to specify type signatures as the Untyped type
-    if let Some(type_sig) = specified_type {
-        if type_sig == ctx.get_builtin_type_sig(BuiltinType::Untyped) {
-            return Err(TypeCheckerError::UntypedValue());
-        }
-    }
+    // if let Some(type_sig) = specified_type {
+    //     if type_sig == ctx.get_builtin_type_sig(BuiltinType::Untyped) {
+    //         return Err(TypeCheckerError::UntypedValue());
+    //     }
+    // }
 
     if let Some(type_sig) = specified_type {
         let coerced_type = types_match(ctx, type_sig, eval_type)?;
@@ -43,18 +43,18 @@ where
             .map_err(TypeCheckerError::TypeEvalError)?;
     }
 
-    let type_sig = specified_type.unwrap_or(eval_type);
-    if type_sig == ctx.get_builtin_type_sig(BuiltinType::Untyped) {
-        return Err(TypeCheckerError::UntypedValue());
-    } else if let TypeSignatureValue::Function {
-        args: _,
-        return_type,
-    } = &ctx[type_sig]
-    {
-        if *return_type == ctx.get_builtin_type_sig(BuiltinType::Untyped) {
-            return Err(TypeCheckerError::UntypedValue());
-        }
-    }
+    // let type_sig = specified_type.unwrap_or(eval_type);
+    // if type_sig == ctx.get_builtin_type_sig(BuiltinType::Untyped) {
+    //     return Err(TypeCheckerError::UntypedValue());
+    // } else if let TypeSignatureValue::Function {
+    //     args: _,
+    //     return_type,
+    // } = &ctx[type_sig]
+    // {
+    //     if *return_type == ctx.get_builtin_type_sig(BuiltinType::Untyped) {
+    //         return Err(TypeCheckerError::UntypedValue());
+    //     }
+    // }
 
     Ok(())
 }

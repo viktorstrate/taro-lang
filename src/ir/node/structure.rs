@@ -1,7 +1,4 @@
-use crate::{
-    ir::context::IrCtx,
-    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper},
-};
+use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
 
 use super::{
     expression::Expr,
@@ -20,7 +17,7 @@ pub struct Struct<'a> {
 pub struct StructAttr<'a> {
     pub name: Ident<'a>,
     pub mutability: Mutability,
-    pub type_sig: Option<TypeSignature<'a>>,
+    pub type_sig: TypeSignature<'a>,
     pub default_value: Option<NodeRef<'a, Expr<'a>>>,
 }
 
@@ -96,20 +93,15 @@ impl<'a> Typed<'a> for NodeRef<'a, StructAttr<'a>> {
         match ctx[*self].default_value {
             Some(value) => value.eval_type(symbols, ctx),
             None => {
-                let type_sig = ctx[*self]
-                    .type_sig
-                    .clone()
-                    .expect("struct should have at least a type signature or a default value");
-
+                let type_sig = ctx[*self].type_sig;
                 debug_assert!(!matches!(ctx[type_sig], TypeSignatureValue::Unresolved(_)));
-
                 Ok(type_sig)
             }
         }
     }
 
     fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
-        ctx[*self].type_sig
+        Some(ctx[*self].type_sig)
     }
 
     fn specify_type(
@@ -117,7 +109,7 @@ impl<'a> Typed<'a> for NodeRef<'a, StructAttr<'a>> {
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
-        ctx[*self].type_sig = Some(new_type);
+        ctx[*self].type_sig = new_type;
         Ok(())
     }
 }

@@ -1,6 +1,6 @@
 use crate::ir::{
     context::IrCtx,
-    node::type_signature::{BuiltinType, TypeSignature, TypeSignatureValue},
+    node::type_signature::{TypeSignature, TypeSignatureValue},
 };
 
 pub fn can_coerce_to<'a>(
@@ -18,8 +18,8 @@ pub fn can_coerce_to<'a>(
             .iter()
             .zip(others.iter())
             .all(|(slf, other)| can_coerce_to(*slf, *other, ctx))
-    } else if type_sig == ctx.get_builtin_type_sig(BuiltinType::Untyped) {
-        true
+    // } else if type_sig == ctx.get_builtin_type_sig(BuiltinType::Untyped) {
+    //     true
     } else {
         type_sig == other
     }

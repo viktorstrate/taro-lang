@@ -49,7 +49,8 @@ impl<'a> IrCtx<'a> {
                     mutability: var_decl.mutability,
                     type_sig: var_decl
                         .type_sig
-                        .map(|type_sig| type_sig.into_ir_type(self)),
+                        .map(|type_sig| type_sig.into_ir_type(self))
+                        .unwrap_or_else(|| self.make_type_var()),
                     value: self.lower_expr(var_decl.value),
                 }
                 .allocate(self),
@@ -61,7 +62,10 @@ impl<'a> IrCtx<'a> {
                     ir_args.push(
                         FunctionArg {
                             name: self.make_ident(arg.name),
-                            type_sig: arg.type_sig.map(|t| t.into_ir_type(self)),
+                            type_sig: arg
+                                .type_sig
+                                .map(|t| t.into_ir_type(self))
+                                .unwrap_or_else(|| self.make_type_var()),
                         }
                         .allocate(self),
                     )
@@ -72,7 +76,10 @@ impl<'a> IrCtx<'a> {
                     .map(|name| self.make_ident(name))
                     .unwrap_or_else(|| self.make_anon_ident());
 
-                let return_type = func_decl.return_type.map(|t| t.into_ir_type(self));
+                let return_type = func_decl
+                    .return_type
+                    .map(|t| t.into_ir_type(self))
+                    .unwrap_or_else(|| self.make_type_var());
 
                 let body = self.lower_stmt(*func_decl.body);
 
@@ -94,7 +101,10 @@ impl<'a> IrCtx<'a> {
                         StructAttr {
                             name: self.make_ident(attr.name),
                             mutability: attr.mutability,
-                            type_sig: attr.type_sig.map(|t| t.into_ir_type(self)),
+                            type_sig: attr
+                                .type_sig
+                                .map(|t| t.into_ir_type(self))
+                                .unwrap_or_else(|| self.make_type_var()),
                             default_value: attr.default_value.map(|val| self.lower_expr(val)),
                         }
                         .allocate(self),
@@ -170,13 +180,19 @@ impl<'a> IrCtx<'a> {
                     .map(|arg| {
                         FunctionArg {
                             name: self.make_ident(arg.name),
-                            type_sig: arg.type_sig.map(|t| t.into_ir_type(self)),
+                            type_sig: arg
+                                .type_sig
+                                .map(|t| t.into_ir_type(self))
+                                .unwrap_or_else(|| self.make_type_var()),
                         }
                         .allocate(self)
                     })
                     .collect();
 
-                let return_type = func.return_type.map(|t| t.into_ir_type(self));
+                let return_type = func
+                    .return_type
+                    .map(|t| t.into_ir_type(self))
+                    .unwrap_or_else(|| self.make_type_var());
 
                 let body = self.lower_stmt(*func.body);
 
@@ -246,7 +262,10 @@ impl<'a> IrCtx<'a> {
             crate::ast::node::expression::ExprValue::EscapeBlock(esc) => Expr::EscapeBlock(
                 EscapeBlock {
                     content: esc.content,
-                    type_sig: esc.type_sig.map(|t| t.into_ir_type(self)),
+                    type_sig: esc
+                        .type_sig
+                        .map(|t| t.into_ir_type(self))
+                        .unwrap_or_else(|| self.make_type_var()),
                 }
                 .allocate(self),
             ),
@@ -264,7 +283,10 @@ impl<'a> IrCtx<'a> {
                         .into_iter()
                         .map(|val| self.lower_expr(val))
                         .collect(),
-                    type_sig: tup.type_sig.map(|t| t.into_ir_type(self)),
+                    type_sig: tup
+                        .type_sig
+                        .map(|t| t.into_ir_type(self))
+                        .unwrap_or_else(|| self.make_type_var()),
                 }
                 .allocate(self),
             ),
