@@ -28,28 +28,28 @@ pub mod structure;
 pub mod tuple;
 pub mod type_signature;
 
-pub enum IrNode<'a> {
-    Stmt(Stmt<'a>),
-    Expr(Expr<'a>),
-    FunctionArg(FunctionArg<'a>),
-    StructAttr(StructAttr<'a>),
-    EnumValue(EnumValue<'a>),
-    Function(Function<'a>),
-    FunctionCall(FunctionCall<'a>),
-    StructInitValue(StructInitValue<'a>),
-    StructInit(StructInit<'a>),
-    StructAccess(StructAccess<'a>),
-    TupleAccess(TupleAccess<'a>),
-    Tuple(Tuple<'a>),
-    Assignment(Assignment<'a>),
-    EscapeBlock(EscapeBlock<'a>),
-    MemberAccess(UnresolvedMemberAccess<'a>),
-}
+// pub enum IrNode<'a> {
+//     Stmt(Stmt<'a>),
+//     Expr(Expr<'a>),
+//     FunctionArg(FunctionArg<'a>),
+//     StructAttr(StructAttr<'a>),
+//     EnumValue(EnumValue<'a>),
+//     Function(Function<'a>),
+//     FunctionCall(FunctionCall<'a>),
+//     StructInitValue(StructInitValue<'a>),
+//     StructInit(StructInit<'a>),
+//     StructAccess(StructAccess<'a>),
+//     TupleAccess(TupleAccess<'a>),
+//     Tuple(Tuple<'a>),
+//     Assignment(Assignment<'a>),
+//     EscapeBlock(EscapeBlock<'a>),
+//     MemberAccess(UnresolvedMemberAccess<'a>),
+// }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct NodeRef<'a, T>
 where
-    T: IrArenaType<'a>,
+    T: IrArenaType<'a> + ?Sized,
 {
     id: Id<T>,
     _marker: PhantomData<&'a str>,

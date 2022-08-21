@@ -62,11 +62,10 @@ pub trait IrWalker<'a> {
         Ok(())
     }
 
-    fn pre_visit_stmt(
+    fn visit_end(
         &mut self,
         ctx: &mut IrCtx<'a>,
         scope: &mut Self::Scope,
-        stmt: NodeRef<'a, Stmt<'a>>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
@@ -139,11 +138,12 @@ pub trait IrWalker<'a> {
 pub fn walk_ir<'a, W: IrWalker<'a>>(
     walker: &mut W,
     ctx: &mut IrCtx<'a>,
-    ast: &mut IR<'a>,
+    ir: &mut IR<'a>,
 ) -> Result<W::Scope, W::Error> {
     let mut global_scope = W::Scope::default();
     walker.visit_begin(ctx, &mut global_scope)?;
-    walk_module(walker, ctx, &mut global_scope, &mut ast.0)?;
+    walk_module(walker, ctx, &mut global_scope, &mut ir.0)?;
+    walker.visit_end(ctx, &mut global_scope)?;
     Ok(global_scope)
 }
 
@@ -228,7 +228,6 @@ pub fn walk_stmt<'a, W: IrWalker<'a>>(
     scope: &mut W::Scope,
     stmt: NodeRef<'a, Stmt<'a>>,
 ) -> Result<(), W::Error> {
-    walker.pre_visit_stmt(ctx, scope, stmt)?;
     let stmt_val = &ctx[stmt];
     match stmt_val {
         Stmt::VariableDecl(decl) => {
@@ -488,7 +487,7 @@ pub fn walk_type_sig<'a, W: IrWalker<'a>>(
 
             TypeSignatureValue::Tuple(new_items)
         }
-        TypeSignatureValue::TypeVariable => return Ok(type_sig),
+        TypeSignatureValue::TypeVariable(_) => return Ok(type_sig),
     };
 
     let new_type_sig = ctx.get_type_sig(new_type_sig);

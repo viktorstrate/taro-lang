@@ -40,7 +40,7 @@ pub fn check_assignment<'a>(
                 .lookup(ctx, ident)
                 .ok_or(TypeCheckerError::LookupError(ident.clone()))?;
 
-            match &ctx[*sym] {
+            match &ctx[sym] {
                 SymbolValueItem::VarDecl(var_decl) => {
                     if ctx[*var_decl].mutability == Mutability::Immutable {
                         return Err(TypeCheckerError::AssignmentError(

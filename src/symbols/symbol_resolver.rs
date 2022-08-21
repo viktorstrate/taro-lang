@@ -143,7 +143,7 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                 val => {
                     println!("Lookup other, parent: {val:?}");
 
-                    let sym_id = *self
+                    let sym_id = self
                         .symbols
                         .lookup(ctx, ident)
                         .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
@@ -172,7 +172,7 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
     ) -> Result<crate::ir::node::type_signature::TypeSignature<'a>, Self::Error> {
         let updated_type_sig = match ctx[type_sig] {
             TypeSignatureValue::Unresolved(ident) => {
-                let sym_val = *self
+                let sym_val = self
                     .symbols
                     .lookup(ctx, ident)
                     .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;

@@ -134,7 +134,7 @@ impl<'a> Typed<'a> for NodeRef<'a, StructInit<'a>> {
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let st = self
             .lookup_struct(ctx, symbols)
-            .ok_or(TypeEvalError::UnknownIdentifier(ctx[*self].struct_name))?;
+            .ok_or(TypeEvalError::UnknownIdent(ctx[*self].struct_name))?;
 
         Ok(ctx.get_type_sig(TypeSignatureValue::Struct { name: ctx[st].name }))
     }
@@ -164,12 +164,12 @@ impl<'a> NodeRef<'a, StructAccess<'a>> {
 
         let st = symbols
             .lookup(ctx, struct_name)
-            .ok_or(TypeEvalError::UnknownIdentifier(struct_name))?
+            .ok_or(TypeEvalError::UnknownIdent(struct_name))?
             .unwrap_struct(ctx);
 
         let attr_name = ctx[*self].attr_name;
         st.lookup_attr(attr_name, ctx)
-            .ok_or(TypeEvalError::UnknownIdentifier(attr_name))
+            .ok_or(TypeEvalError::UnknownIdent(attr_name))
     }
 
     pub fn lookup_attr_chain<'c>(

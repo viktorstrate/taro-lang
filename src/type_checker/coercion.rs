@@ -25,7 +25,7 @@ pub fn can_coerce_to<'a>(
     }
 }
 
-pub fn coerce<'a, 'b>(
+pub fn coerce<'a>(
     a: TypeSignature<'a>,
     b: TypeSignature<'a>,
     ctx: &IrCtx<'a>,

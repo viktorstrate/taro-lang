@@ -15,8 +15,8 @@ use crate::{
 };
 
 use super::{
-    assignment::check_assignment, struct_type::check_struct_init, types_helpers::type_check,
-    TypeCheckerError,
+    assignment::check_assignment, struct_type::check_struct_init, type_inference::TypeInferrer,
+    types_helpers::type_check, TypeCheckerError,
 };
 
 pub struct TypeChecker<'a> {
@@ -24,8 +24,8 @@ pub struct TypeChecker<'a> {
 }
 
 impl<'a> TypeChecker<'a> {
-    pub fn new(ctx: &IrCtx<'a>, sym_resolver: SymbolResolver<'a>) -> Self {
-        let mut symbols = sym_resolver.symbols;
+    pub fn new(ctx: &IrCtx<'a>, type_inferrer: TypeInferrer<'a>) -> Self {
+        let mut symbols = type_inferrer.symbols;
         symbols.reset(ctx);
         TypeChecker { symbols }
     }

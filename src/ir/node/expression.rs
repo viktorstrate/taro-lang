@@ -44,9 +44,9 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
             Expr::Function(func) => func.eval_type(symbols, ctx),
             Expr::FunctionCall(call) => call.eval_type(symbols, ctx),
             Expr::Identifier(ident) => {
-                let sym_val = *symbols
+                let sym_val = symbols
                     .lookup(ctx, ident)
-                    .ok_or(TypeEvalError::UnknownIdentifier(ident))?;
+                    .ok_or(TypeEvalError::UnknownIdent(ident))?;
 
                 sym_val.eval_type(symbols, ctx)
             }

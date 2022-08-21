@@ -30,7 +30,7 @@ impl<'a> From<Id<TypeSignatureValue<'a>>> for TypeSignature<'a> {
 pub enum TypeSignatureValue<'a> {
     Builtin(BuiltinType),
     Unresolved(Ident<'a>),
-    TypeVariable,
+    TypeVariable(Id<TypeSignatureValue<'a>>),
     Function {
         args: Vec<TypeSignature<'a>>,
         return_type: TypeSignature<'a>,
@@ -56,7 +56,7 @@ pub enum TypeEvalError<'a> {
         tuple_len: usize,
         access_item: usize,
     },
-    UnknownIdentifier(Ident<'a>),
+    UnknownIdent(Ident<'a>),
     UndeterminableType(Ident<'a>),
 }
 

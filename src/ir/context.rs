@@ -129,7 +129,7 @@ impl<'a> IrCtx<'a> {
     pub fn get_type_sig(&mut self, type_sig: TypeSignatureValue<'a>) -> TypeSignature<'a> {
         match type_sig {
             TypeSignatureValue::Builtin(builtin) => return self.get_builtin_type_sig(builtin),
-            TypeSignatureValue::TypeVariable => {
+            TypeSignatureValue::TypeVariable(_) => {
                 panic!("cannot get type signature from type variable")
             }
             _ => {}
@@ -146,7 +146,9 @@ impl<'a> IrCtx<'a> {
     }
 
     pub fn make_type_var(&mut self) -> TypeSignature<'a> {
-        self.types.alloc(TypeSignatureValue::TypeVariable).into()
+        self.types
+            .alloc_with_id(|id| TypeSignatureValue::TypeVariable(id))
+            .into()
     }
 
     pub fn get_builtin_type_sig(&self, builtin: BuiltinType) -> TypeSignature<'a> {

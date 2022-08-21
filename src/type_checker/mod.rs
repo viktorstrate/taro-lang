@@ -12,6 +12,7 @@ pub mod assignment;
 pub mod coercion;
 pub mod function_body_type_eval;
 pub mod struct_type;
+pub mod type_inference;
 pub mod types_helpers;
 pub mod types_walker;
 

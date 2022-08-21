@@ -12,7 +12,7 @@ pub mod utils {
             symbol_resolver::SymbolResolver,
             symbol_table::{SymbolCollectionError, SymbolTable},
         },
-        type_checker::{types_walker::TypeChecker, TypeCheckerError},
+        type_checker::{type_inference::TypeInferrer, types_walker::TypeChecker, TypeCheckerError},
         TranspilerError,
     };
 
@@ -62,7 +62,10 @@ pub mod utils {
         let mut sym_resolver = SymbolResolver::new(symbols);
         walk_ir(&mut sym_resolver, ctx, ir).unwrap();
 
-        let mut checker = TypeChecker::new(ctx, sym_resolver);
+        let mut type_inferrer = TypeInferrer::new(&ctx, sym_resolver);
+        walk_ir(&mut type_inferrer, ctx, ir).unwrap();
+
+        let mut checker = TypeChecker::new(ctx, type_inferrer);
         let result = walk_ir(&mut checker, ctx, ir);
 
         match result {
@@ -90,29 +93,23 @@ pub mod utils {
         let ast = parse_ast(&input).map_err(TranspilerError::Parse)?;
         let mut lowered_ast = lower_ast(ast);
 
-        let sym_table = walk_ir(
-            &mut SymbolCollector {},
-            &mut lowered_ast.ctx,
-            &mut lowered_ast.ir,
-        )
-        .map_err(TranspilerError::SymbolCollectError)?;
+        let ctx = &mut lowered_ast.ctx;
+        let ir = &mut lowered_ast.ir;
+
+        let sym_table = walk_ir(&mut SymbolCollector {}, ctx, ir)
+            .map_err(TranspilerError::SymbolCollectError)?;
 
         let mut sym_resolver = SymbolResolver::new(sym_table);
-        walk_ir(&mut sym_resolver, &mut lowered_ast.ctx, &mut lowered_ast.ir)
-            .map_err(TranspilerError::SymbolResolveError)?;
+        walk_ir(&mut sym_resolver, ctx, ir).map_err(TranspilerError::SymbolResolveError)?;
 
-        let mut type_checker = TypeChecker::new(&mut lowered_ast.ctx, sym_resolver);
-        walk_ir(&mut type_checker, &mut lowered_ast.ctx, &mut lowered_ast.ir)
-            .map_err(TranspilerError::TypeCheck)?;
+        let mut type_inferrer = TypeInferrer::new(&ctx, sym_resolver);
+        walk_ir(&mut type_inferrer, ctx, ir).unwrap();
+
+        let mut type_checker = TypeChecker::new(ctx, type_inferrer);
+        walk_ir(&mut type_checker, ctx, ir).map_err(TranspilerError::TypeCheck)?;
 
         let mut buf = Vec::new();
-        format_ir(
-            &mut buf,
-            &mut lowered_ast.ctx,
-            type_checker.symbols,
-            &mut lowered_ast.ir,
-        )
-        .map_err(TranspilerError::Write)?;
+        format_ir(&mut buf, ctx, type_checker.symbols, ir).map_err(TranspilerError::Write)?;
         let out = String::from_utf8(buf).unwrap();
 
         Ok(out)
