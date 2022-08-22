@@ -76,24 +76,24 @@ pub fn check_assignment<'a>(
         }
     }
 
-    let lhs = ctx[asg].lhs;
-    let rhs = ctx[asg].rhs;
+    // let lhs = ctx[asg].lhs;
+    // let rhs = ctx[asg].rhs;
 
-    let lhs_type = lhs
-        .eval_type(symbols, ctx)
-        .map_err(TypeCheckerError::TypeEvalError)?;
-    let rhs_type = rhs
-        .eval_type(symbols, ctx)
-        .map_err(TypeCheckerError::TypeEvalError)?;
+    // let lhs_type = lhs
+    //     .eval_type(symbols, ctx)
+    //     .map_err(TypeCheckerError::TypeEvalError)?;
+    // let rhs_type = rhs
+    //     .eval_type(symbols, ctx)
+    //     .map_err(TypeCheckerError::TypeEvalError)?;
 
-    if !can_coerce_to(rhs_type, lhs_type, ctx) {
-        return Err(TypeCheckerError::AssignmentError(
-            AssignmentError::TypesMismatch {
-                lhs: lhs_type,
-                rhs: rhs_type,
-            },
-        ));
-    }
+    // if !can_coerce_to(rhs_type, lhs_type, ctx) {
+    //     return Err(TypeCheckerError::AssignmentError(
+    //         AssignmentError::TypesMismatch {
+    //             lhs: lhs_type,
+    //             rhs: rhs_type,
+    //         },
+    //     ));
+    // }
 
     Ok(())
 }

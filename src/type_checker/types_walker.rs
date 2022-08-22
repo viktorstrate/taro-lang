@@ -9,9 +9,7 @@ use crate::{
             NodeRef,
         },
     },
-    symbols::{
-        symbol_resolver::SymbolResolver, symbol_table::symbol_table_zipper::SymbolTableZipper,
-    },
+    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
 use super::{
@@ -200,60 +198,6 @@ mod tests {
     }
 
     #[test]
-    fn test_var_decl_mismatched_types() {
-        let mut ir = lowered_ir("let x: String = 2").unwrap();
-
-        match type_check(&mut ir) {
-            Err(TypeCheckerError::TypeSignatureMismatch {
-                type_sig,
-                expr_type,
-            }) => {
-                assert_eq!(type_sig, ir.ctx.get_builtin_type_sig(BuiltinType::String));
-                assert_eq!(expr_type, ir.ctx.get_builtin_type_sig(BuiltinType::Number));
-            }
-            _ => assert!(false),
-        }
-    }
-
-    #[test]
-    fn test_struct_decl_attr_mismatched_types() {
-        let mut ir = lowered_ir("struct Test { let attr: String = true }").unwrap();
-
-        match type_check(&mut ir) {
-            Err(TypeCheckerError::TypeSignatureMismatch {
-                type_sig,
-                expr_type,
-            }) => {
-                assert_eq!(type_sig, ir.ctx.get_builtin_type_sig(BuiltinType::String));
-                assert_eq!(expr_type, ir.ctx.get_builtin_type_sig(BuiltinType::Boolean));
-            }
-            _ => assert!(false),
-        }
-    }
-
-    #[test]
-    fn test_struct_access_mismatched_types() {
-        let mut ir = lowered_ir(
-            "\
-        struct Test { let attr: Number }
-        let test = Test { attr: 123 }
-        let wrong: Boolean = test.attr",
-        )
-        .unwrap();
-
-        match type_check(&mut ir) {
-            Err(TypeCheckerError::TypeSignatureMismatch {
-                type_sig,
-                expr_type,
-            }) => {
-                assert_eq!(type_sig, ir.ctx.get_builtin_type_sig(BuiltinType::Boolean));
-                assert_eq!(expr_type, ir.ctx.get_builtin_type_sig(BuiltinType::Number));
-            }
-            res => assert!(false, "wrong result: {:?}", res),
-        }
-    }
-
-    #[test]
     fn test_struct_init_default() {
         let mut ir = lowered_ir(
             "\
@@ -275,39 +219,6 @@ mod tests {
         .unwrap();
 
         assert!(type_check(&mut ir).is_err());
-    }
-
-    #[test]
-    fn test_var_assign_var() {
-        let mut ir = lowered_ir("let a = true; let b: Boolean = a").unwrap();
-        assert_matches!(type_check(&mut ir), Ok(_));
-
-        let mut ir = lowered_ir("let a = true; let b: Number = a").unwrap();
-        match type_check(&mut ir) {
-            Err(TypeCheckerError::TypeSignatureMismatch {
-                type_sig,
-                expr_type,
-            }) => {
-                assert_eq!(type_sig, ir.ctx.get_builtin_type_sig(BuiltinType::Number));
-                assert_eq!(expr_type, ir.ctx.get_builtin_type_sig(BuiltinType::Boolean));
-            }
-            _ => assert!(false),
-        }
-    }
-
-    #[test]
-    fn test_call_non_function() {
-        let mut ir = lowered_ir("let val = true; val()").unwrap();
-
-        match type_check(&mut ir) {
-            Err(TypeCheckerError::CallNonFunction { ident_type }) => {
-                assert_eq!(
-                    ident_type,
-                    ir.ctx.get_builtin_type_sig(BuiltinType::Boolean)
-                )
-            }
-            _ => assert!(false),
-        }
     }
 
     #[test]

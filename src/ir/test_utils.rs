@@ -12,7 +12,11 @@ pub mod utils {
             symbol_resolver::SymbolResolver,
             symbol_table::{SymbolCollectionError, SymbolTable},
         },
-        type_checker::{type_inference::TypeInferrer, types_walker::TypeChecker, TypeCheckerError},
+        type_checker::{
+            type_inference::{TypeInferenceError, TypeInferrer},
+            types_walker::TypeChecker,
+            TypeCheckerError,
+        },
         TranspilerError,
     };
 
@@ -53,7 +57,9 @@ pub mod utils {
         }
     }
 
-    pub fn type_check<'a>(ir_result: &mut LowerAstResult<'a>) -> Result<(), TypeCheckerError<'a>> {
+    pub fn type_infer<'a>(
+        ir_result: &mut LowerAstResult<'a>,
+    ) -> Result<TypeInferrer<'a>, TypeInferenceError<'a>> {
         let symbols = collect_symbols(ir_result).unwrap();
 
         let ctx = &mut ir_result.ctx;
@@ -63,7 +69,19 @@ pub mod utils {
         walk_ir(&mut sym_resolver, ctx, ir).unwrap();
 
         let mut type_inferrer = TypeInferrer::new(&ctx, sym_resolver);
-        walk_ir(&mut type_inferrer, ctx, ir).unwrap();
+        let result = walk_ir(&mut type_inferrer, ctx, ir);
+
+        match result {
+            Ok(()) => Ok(type_inferrer),
+            Err(err) => Err(err),
+        }
+    }
+
+    pub fn type_check<'a>(ir_result: &mut LowerAstResult<'a>) -> Result<(), TypeCheckerError<'a>> {
+        let type_inferrer = type_infer(ir_result).unwrap();
+
+        let ctx = &mut ir_result.ctx;
+        let ir = &mut ir_result.ir;
 
         let mut checker = TypeChecker::new(ctx, type_inferrer);
         let result = walk_ir(&mut checker, ctx, ir);

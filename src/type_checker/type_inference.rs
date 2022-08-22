@@ -3,10 +3,9 @@ use std::collections::HashMap;
 use crate::{
     ir::{
         context::IrCtx,
-        ir_walker::IrWalker,
+        ir_walker::{IrWalker, ScopeValue},
         node::{
             expression::Expr,
-            function::Function,
             statement::Stmt,
             type_signature::{TypeEvalError, TypeSignature, TypeSignatureValue, Typed},
             NodeRef,
@@ -17,10 +16,7 @@ use crate::{
     },
 };
 
-use super::{
-    coercion::{can_coerce_to, coerce},
-    types_helpers::types_match,
-};
+use super::coercion::coerce;
 
 #[derive(Debug)]
 pub struct TypeConstraint<'a>(TypeSignature<'a>, TypeSignature<'a>);
@@ -35,6 +31,7 @@ pub struct TypeInferrer<'a> {
 #[derive(Debug)]
 pub enum TypeInferenceError<'a> {
     ConflictingTypes(TypeSignature<'a>, TypeSignature<'a>),
+    UndeterminableTypes,
     TypeEval(TypeEvalError<'a>),
 }
 
@@ -59,6 +56,39 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
     type Error = TypeInferenceError<'a>;
     type Scope = ();
 
+    fn visit_scope_begin(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        _parent: &mut Self::Scope,
+        value: ScopeValue<'a>,
+    ) -> Result<(), TypeInferenceError<'a>> {
+        value.visit_scope_begin(ctx, &mut self.symbols);
+        Ok(())
+    }
+
+    fn visit_scope_end(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        _parent: &mut Self::Scope,
+        _child: Self::Scope,
+        _value: ScopeValue<'a>,
+    ) -> Result<(), TypeInferenceError<'a>> {
+        self.symbols
+            .exit_scope(ctx)
+            .expect("scope should not be global scope");
+
+        Ok(())
+    }
+
+    fn visit_ordered_symbol(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        _scope: &mut Self::Scope,
+    ) -> Result<(), Self::Error> {
+        self.symbols.visit_next_symbol(ctx);
+        Ok(())
+    }
+
     fn visit_end(
         &mut self,
         ctx: &mut IrCtx<'a>,
@@ -66,6 +96,9 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
     ) -> Result<(), Self::Error> {
         while let Some(TypeConstraint(type_a, type_b)) = self.constraints.pop() {
             match (ctx[type_a].clone(), ctx[type_b].clone()) {
+                (TypeSignatureValue::TypeVariable(_), TypeSignatureValue::TypeVariable(_)) => {
+                    return Err(TypeInferenceError::UndeterminableTypes);
+                }
                 (TypeSignatureValue::TypeVariable(_), _) => {
                     self.substitutions.insert(type_b, type_a);
                 }
@@ -208,5 +241,96 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
+
+    use crate::ir::{
+        node::type_signature::BuiltinType,
+        test_utils::utils::{lowered_ir, type_infer},
+    };
+
+    use super::*;
+
+    fn assert_type_mismatch<'a>(
+        infer_result: Result<TypeInferrer<'a>, TypeInferenceError<'a>>,
+        type_a: TypeSignature<'a>,
+        type_b: TypeSignature<'a>,
+    ) {
+        match infer_result {
+            Err(TypeInferenceError::ConflictingTypes(a, b)) => {
+                assert!(type_a == a || type_a == b, "expected A did not match");
+                assert!(type_b == a || type_b == b, "expected B did not match");
+                assert!((a == type_a && b == type_b) || (a == type_b && b == type_a));
+            }
+            val => assert!(false, "expected conflicting type error, got {val:?}"),
+        }
+    }
+
+    #[test]
+    fn test_var_decl_mismatched_types() {
+        let mut ir = lowered_ir("let x: String = 2").unwrap();
+
+        assert_type_mismatch(
+            type_infer(&mut ir),
+            ir.ctx.get_builtin_type_sig(BuiltinType::String),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Number),
+        );
+    }
+
+    #[test]
+    fn test_var_decl_var() {
+        let mut ir = lowered_ir("let a = true; let b: Boolean = a").unwrap();
+        assert_matches!(type_infer(&mut ir), Ok(_));
+
+        let mut ir = lowered_ir("let a = true; let b: Number = a").unwrap();
+        assert_type_mismatch(
+            type_infer(&mut ir),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Number),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Boolean),
+        );
+    }
+
+    #[test]
+    fn test_struct_access_mismatched_types() {
+        let mut ir = lowered_ir(
+            "\
+        struct Test { let attr: Number }
+        let test = Test { attr: 123 }
+        let wrong: Boolean = test.attr",
+        )
+        .unwrap();
+
+        assert_type_mismatch(
+            type_infer(&mut ir),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Boolean),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Number),
+        );
+    }
+
+    #[test]
+    fn test_struct_decl_attr_mismatched_types() {
+        let mut ir = lowered_ir("struct Test { let attr: String = true }").unwrap();
+
+        assert_type_mismatch(
+            type_infer(&mut ir),
+            ir.ctx.get_builtin_type_sig(BuiltinType::String),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Boolean),
+        );
+    }
+
+    #[test]
+    fn test_call_non_function() {
+        let mut ir = lowered_ir("let val = true; val()").unwrap();
+
+        match type_infer(&mut ir) {
+            Err(TypeInferenceError::TypeEval(TypeEvalError::CallNonFunction(expr_type))) => {
+                assert_eq!(expr_type, ir.ctx.get_builtin_type_sig(BuiltinType::Boolean))
+            }
+            _ => assert!(false),
+        }
     }
 }
