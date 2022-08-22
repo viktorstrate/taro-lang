@@ -5,7 +5,6 @@ use crate::{
         node::{
             expression::Expr,
             statement::Stmt,
-            type_signature::{TypeSignatureValue, Typed},
             NodeRef,
         },
     },
@@ -13,17 +12,18 @@ use crate::{
 };
 
 use super::{
-    assignment::check_assignment, struct_type::check_struct_init, type_inference::TypeInferrer,
-    types_helpers::type_check, TypeCheckerError,
+    assignment::check_assignment, struct_type::check_struct_init, type_resolver::TypeResolver,
+    TypeCheckerError,
 };
 
+#[derive(Debug)]
 pub struct TypeChecker<'a> {
     pub symbols: SymbolTableZipper<'a>,
 }
 
 impl<'a> TypeChecker<'a> {
-    pub fn new(ctx: &IrCtx<'a>, type_inferrer: TypeInferrer<'a>) -> Self {
-        let mut symbols = type_inferrer.symbols;
+    pub fn new(ctx: &IrCtx<'a>, type_resolver: TypeResolver<'a>) -> Self {
+        let mut symbols = type_resolver.symbols;
         symbols.reset(ctx);
         TypeChecker { symbols }
     }
@@ -109,18 +109,18 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
         stmt: NodeRef<'a, Stmt<'a>>,
     ) -> Result<(), TypeCheckerError<'a>> {
         match ctx[stmt].clone() {
-            Stmt::VariableDecl(var_decl) => type_check(ctx, &mut self.symbols, var_decl),
-            Stmt::FunctionDecl(func_decl) => type_check(ctx, &mut self.symbols, func_decl),
-            Stmt::StructDecl(st) => {
-                for attr in ctx[st].attrs.clone() {
-                    type_check(ctx, &mut self.symbols, attr)?;
-                }
-                Ok(())
-            }
-            Stmt::EnumDecl(enm) => {
-                type_check(ctx, &mut self.symbols, enm)?;
-                Ok(())
-            }
+            // Stmt::VariableDecl(var_decl) => type_check(ctx, &mut self.symbols, var_decl),
+            // Stmt::FunctionDecl(func_decl) => type_check(ctx, &mut self.symbols, func_decl),
+            // Stmt::StructDecl(st) => {
+            //     for attr in ctx[st].attrs.clone() {
+            //         type_check(ctx, &mut self.symbols, attr)?;
+            //     }
+            //     Ok(())
+            // }
+            // Stmt::EnumDecl(enm) => {
+            //     type_check(ctx, &mut self.symbols, enm)?;
+            //     Ok(())
+            // }
             _ => Ok(()),
         }
     }
@@ -132,46 +132,46 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
         expr: NodeRef<'a, Expr<'a>>,
     ) -> Result<(), TypeCheckerError<'a>> {
         match ctx[expr].clone() {
-            Expr::FunctionCall(call) => {
-                let type_sig = ctx[call]
-                    .func
-                    .clone()
-                    .eval_type(&mut self.symbols, ctx)
-                    .map_err(TypeCheckerError::TypeEvalError)?;
+            // Expr::FunctionCall(call) => {
+            //     let type_sig = ctx[call]
+            //         .func
+            //         .clone()
+            //         .eval_type(&mut self.symbols, ctx)
+            //         .map_err(TypeCheckerError::TypeEval)?;
 
-                let (args, return_type) = match &ctx[type_sig] {
-                    TypeSignatureValue::Function { args, return_type } => {
-                        Ok((args.clone(), *return_type))
-                    }
-                    _ => Err(TypeCheckerError::CallNonFunction {
-                        ident_type: type_sig,
-                    }),
-                }?;
+            //     let (args, return_type) = match &ctx[type_sig] {
+            //         TypeSignatureValue::Function { args, return_type } => {
+            //             Ok((args.clone(), *return_type))
+            //         }
+            //         _ => Err(TypeCheckerError::CallNonFunction {
+            //             ident_type: type_sig,
+            //         }),
+            //     }?;
 
-                let param_types = ctx[call]
-                    .params
-                    .clone()
-                    .into_iter()
-                    .map(|param| param.eval_type(&mut self.symbols, ctx).unwrap())
-                    .collect::<Vec<_>>();
+            //     let param_types = ctx[call]
+            //         .params
+            //         .clone()
+            //         .into_iter()
+            //         .map(|param| param.eval_type(&mut self.symbols, ctx).unwrap())
+            //         .collect::<Vec<_>>();
 
-                let arg_count_match = ctx[call].params.len() == args.len();
-                let args_match = param_types.iter().zip(args.iter()).all(|(a, b)| *a == *b);
+            //     let arg_count_match = ctx[call].params.len() == args.len();
+            //     let args_match = param_types.iter().zip(args.iter()).all(|(a, b)| *a == *b);
 
-                if !arg_count_match || !args_match {
-                    return Err(TypeCheckerError::TypeSignatureMismatch {
-                        type_sig: ctx
-                            .get_type_sig(TypeSignatureValue::Function { args, return_type }),
-                        expr_type: ctx.get_type_sig(TypeSignatureValue::Function {
-                            args: param_types,
-                            return_type,
-                        }),
-                    });
-                }
+            //     if !arg_count_match || !args_match {
+            //         return Err(TypeCheckerError::TypeSignatureMismatch {
+            //             type_sig: ctx
+            //                 .get_type_sig(TypeSignatureValue::Function { args, return_type }),
+            //             expr_type: ctx.get_type_sig(TypeSignatureValue::Function {
+            //                 args: param_types,
+            //                 return_type,
+            //             }),
+            //         });
+            //     }
 
-                Ok(())
-            }
-            Expr::Function(func) => type_check(ctx, &mut self.symbols, func),
+            //     Ok(())
+            // }
+            // Expr::Function(func) => type_check(ctx, &mut self.symbols, func),
             Expr::Assignment(asg) => check_assignment(ctx, &mut self.symbols, asg),
             Expr::StructInit(st_init) => check_struct_init(ctx, &mut self.symbols, st_init),
             _ => Ok(()),
@@ -183,18 +183,12 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::{
-        ir::{
-            node::type_signature::BuiltinType,
-            test_utils::utils::{lowered_ir, type_check},
-        },
-        type_checker::TypeCheckerError,
-    };
+    use crate::ir::test_utils::utils::{lowered_ir, type_check};
 
     #[test]
     fn test_var_decl_matching_types() {
         let mut ir = lowered_ir("let x: String = \"hello\"").unwrap();
-        assert_matches!(type_check(&mut ir), Ok(()));
+        assert_matches!(type_check(&mut ir), Ok(_));
     }
 
     #[test]

@@ -5,14 +5,14 @@ use crate::{
             assignment::Assignment,
             expression::Expr,
             identifier::Ident,
-            type_signature::{Mutability, TypeSignature, Typed},
+            type_signature::{Mutability, TypeSignature},
             NodeRef,
         },
     },
     symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolValueItem},
 };
 
-use super::{coercion::can_coerce_to, TypeCheckerError};
+use super::TypeCheckerError;
 
 #[derive(Debug)]
 pub enum AssignmentError<'a> {
@@ -58,7 +58,7 @@ pub fn check_assignment<'a>(
         Expr::StructAccess(st_access) => {
             let attrs = st_access
                 .lookup_attr_chain(ctx, symbols)
-                .map_err(TypeCheckerError::TypeEvalError)?;
+                .map_err(TypeCheckerError::TypeEval)?;
 
             if !attrs
                 .iter()
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn test_assign_variable() {
         let mut ir = lowered_ir("let mut foo = 1; foo = 2").unwrap();
-        assert_matches!(type_check(&mut ir), Ok(()))
+        assert_matches!(type_check(&mut ir), Ok(_))
     }
 
     #[test]
@@ -143,7 +143,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_matches!(type_check(&mut ir), Ok(()));
+        assert_matches!(type_check(&mut ir), Ok(_));
     }
 
     #[test]

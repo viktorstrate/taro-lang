@@ -4,14 +4,13 @@ use crate::{
         node::{
             identifier::{Ident, IdentKey},
             structure::StructInit,
-            type_signature::Typed,
             NodeRef,
         },
     },
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
-use super::{types_helpers::types_match, TypeCheckerError};
+use super::TypeCheckerError;
 
 #[derive(Debug)]
 pub enum StructTypeError<'a> {
@@ -94,26 +93,26 @@ pub fn check_struct_init<'a>(
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
+    
 
     use crate::{
-        ir::test_utils::utils::{lowered_ir, type_check},
-        type_checker::TypeCheckerError,
+        ir::test_utils::utils::{lowered_ir},
     };
 
     #[test]
     fn test_func_decl_inside_struct() {
-        let mut ir = lowered_ir(
+        let _ir = lowered_ir(
             "struct Foo { let attr: () -> Number }
             let a = Foo { attr: () { return false } }",
         )
         .unwrap();
-        assert_matches!(
-            type_check(&mut ir),
-            Err(TypeCheckerError::TypeSignatureMismatch {
-                type_sig: _,
-                expr_type: _
-            })
-        )
+        // assert_matches!(
+        //     type_check(&mut ir),
+        //     Err(TypeCheckerError::TypeSignatureMismatch {
+        //         type_sig: _,
+        //         expr_type: _
+        //     })
+        // )
+        todo!()
     }
 }

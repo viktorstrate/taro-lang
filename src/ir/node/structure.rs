@@ -227,6 +227,6 @@ mod tests {
 
         let tc = type_check(&mut ir);
 
-        assert_matches!(tc, Ok(()))
+        assert_matches!(tc, Ok(_))
     }
 }

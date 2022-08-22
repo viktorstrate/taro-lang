@@ -1,8 +1,7 @@
 use crate::{
-    ir::context::IrCtx,
-    ir::node::type_signature::TypeSignatureValue,
+    ir::context::IrCtx, ir::node::type_signature::TypeSignatureValue,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
-    type_checker::function_body_type_eval::{eval_func_body_type_sig, FunctionTypeError},
+    type_checker::function_body_type_eval::FunctionTypeError,
 };
 
 use super::{
@@ -77,18 +76,18 @@ impl<'a> Typed<'a> for NodeRef<'a, Function<'a>> {
             .map(|arg| arg.eval_type(symbols, ctx))
             .collect::<Result<Vec<_>, _>>()?;
 
-        symbols
-            .enter_scope(ctx, ctx[*self].name)
-            .expect("function should be located in current scope");
+        // symbols
+        //     .enter_scope(ctx, ctx[*self].name)
+        //     .expect("function should be located in current scope");
 
-        let return_type =
-            eval_func_body_type_sig(ctx, symbols, *self).map_err(TypeEvalError::FunctionType)?;
+        // let return_type =
+        //     eval_func_body_type_sig(ctx, symbols, *self).map_err(TypeEvalError::FunctionType)?;
 
-        symbols.exit_scope(ctx).unwrap();
+        // symbols.exit_scope(ctx).unwrap();
 
         Ok(ctx.get_type_sig(TypeSignatureValue::Function {
             args,
-            return_type: return_type,
+            return_type: ctx[*self].return_type,
         }))
     }
 
