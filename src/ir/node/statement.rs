@@ -11,12 +11,15 @@ use super::{
 };
 
 #[derive(Debug, Clone)]
+pub struct StmtBlock<'a>(pub Vec<NodeRef<'a, Stmt<'a>>>);
+
+#[derive(Debug, Clone)]
 pub enum Stmt<'a> {
     VariableDecl(NodeRef<'a, VarDecl<'a>>),
     FunctionDecl(NodeRef<'a, Function<'a>>),
     StructDecl(NodeRef<'a, Struct<'a>>),
     EnumDecl(NodeRef<'a, Enum<'a>>),
-    Compound(Vec<NodeRef<'a, Stmt<'a>>>),
+    // Compound(Vec<NodeRef<'a, Stmt<'a>>>),
     Expression(NodeRef<'a, Expr<'a>>),
     Return(NodeRef<'a, Expr<'a>>),
 }

@@ -98,7 +98,10 @@ mod tests {
             test_utils::{test_ident, test_type_sig},
         },
         ir::{
-            node::{identifier::IdentKey, statement::Stmt},
+            node::{
+                identifier::IdentKey,
+                statement::{Stmt},
+            },
             test_utils::utils::lowered_ir,
         },
         parser::{expression::expression, new_input},
@@ -152,10 +155,10 @@ mod tests {
     #[test]
     fn test_function_var_assignment() {
         let ir = lowered_ir("let f = (a: Number, b: Number) {}").unwrap();
-        assert_eq!(ir.ir.0.stmts.len(), 1);
-        let func_var_assignment = ir.ir.0.stmts[0];
+        let stmts = ir.ctx[ir.ir.0.stmt_block].0.clone();
+        assert_eq!(stmts.len(), 1);
 
-        match ir.ctx[func_var_assignment] {
+        match ir.ctx[stmts[0]] {
             Stmt::VariableDecl(var_decl) => {
                 assert_eq!(
                     IdentKey::from_ident(&ir.ctx, ir.ctx[var_decl].name),

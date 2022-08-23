@@ -2,11 +2,7 @@ use crate::{
     ir::{
         context::IrCtx,
         ir_walker::{IrWalker, ScopeValue},
-        node::{
-            expression::Expr,
-            statement::Stmt,
-            NodeRef,
-        },
+        node::{expression::Expr, NodeRef},
     },
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
@@ -102,28 +98,28 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
     //     Ok(())
     // }
 
-    fn visit_stmt(
-        &mut self,
-        ctx: &mut IrCtx<'a>,
-        _scope: &mut Self::Scope,
-        stmt: NodeRef<'a, Stmt<'a>>,
-    ) -> Result<(), TypeCheckerError<'a>> {
-        match ctx[stmt].clone() {
-            // Stmt::VariableDecl(var_decl) => type_check(ctx, &mut self.symbols, var_decl),
-            // Stmt::FunctionDecl(func_decl) => type_check(ctx, &mut self.symbols, func_decl),
-            // Stmt::StructDecl(st) => {
-            //     for attr in ctx[st].attrs.clone() {
-            //         type_check(ctx, &mut self.symbols, attr)?;
-            //     }
-            //     Ok(())
-            // }
-            // Stmt::EnumDecl(enm) => {
-            //     type_check(ctx, &mut self.symbols, enm)?;
-            //     Ok(())
-            // }
-            _ => Ok(()),
-        }
-    }
+    // fn visit_stmt(
+    //     &mut self,
+    //     ctx: &mut IrCtx<'a>,
+    //     _scope: &mut Self::Scope,
+    //     stmt: NodeRef<'a, Stmt<'a>>,
+    // ) -> Result<(), TypeCheckerError<'a>> {
+    //     match ctx[stmt].clone() {
+    //         // Stmt::VariableDecl(var_decl) => type_check(ctx, &mut self.symbols, var_decl),
+    //         // Stmt::FunctionDecl(func_decl) => type_check(ctx, &mut self.symbols, func_decl),
+    //         // Stmt::StructDecl(st) => {
+    //         //     for attr in ctx[st].attrs.clone() {
+    //         //         type_check(ctx, &mut self.symbols, attr)?;
+    //         //     }
+    //         //     Ok(())
+    //         // }
+    //         // Stmt::EnumDecl(enm) => {
+    //         //     type_check(ctx, &mut self.symbols, enm)?;
+    //         //     Ok(())
+    //         // }
+    //         _ => Ok(()),
+    //     }
+    // }
 
     fn visit_expr(
         &mut self,

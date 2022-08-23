@@ -7,10 +7,8 @@ use crate::{
         node::{
             expression::Expr,
             function::Function,
-            statement::Stmt,
-            type_signature::{
-                TypeEvalError, TypeSignature, TypeSignatureValue, Typed,
-            },
+            statement::{Stmt},
+            type_signature::{TypeEvalError, TypeSignature, TypeSignatureValue, Typed},
             NodeRef,
         },
     },

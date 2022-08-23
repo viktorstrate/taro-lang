@@ -7,7 +7,7 @@ use crate::{
 use super::{
     expression::Expr,
     identifier::{Ident, Identifiable},
-    statement::Stmt,
+    statement::StmtBlock,
     type_signature::{TypeEvalError, TypeSignature, Typed},
     NodeRef,
 };
@@ -17,7 +17,7 @@ pub struct Function<'a> {
     pub name: Ident<'a>,
     pub args: Vec<NodeRef<'a, FunctionArg<'a>>>,
     pub return_type: TypeSignature<'a>,
-    pub body: NodeRef<'a, Stmt<'a>>,
+    pub body: NodeRef<'a, StmtBlock<'a>>,
 }
 
 impl<'a> Function<'a> {

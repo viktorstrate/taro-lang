@@ -8,14 +8,14 @@ use crate::{
             function::{Function, FunctionArg},
             identifier::{Ident, IdentValue, ResolvedIdentValue},
             module::Module,
-            statement::{Stmt, VarDecl},
+            statement::{Stmt, StmtBlock, VarDecl},
             structure::Struct,
             type_signature::Mutability,
             NodeRef,
         },
         IR,
     },
-    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper},
+    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
 pub fn format_ir<'a, 'ctx, W: Write>(
@@ -77,7 +77,7 @@ fn format_module<'a, 'ctx, W: Write>(
     gen: &mut CodeGenCtx<'a, 'ctx, W>,
     module: &Module<'a>,
 ) -> CodeGenResult {
-    format_with_separator(gen, "\n", module.stmts.clone().into_iter(), format_stmt)?;
+    format_stmt_block(gen, module.stmt_block)?;
     gen.write("\n")
 }
 
@@ -127,6 +127,18 @@ fn format_struct<'a, 'ctx, W: Write>(
     Ok(())
 }
 
+fn format_stmt_block<'a, 'ctx, W: Write>(
+    gen: &mut CodeGenCtx<'a, 'ctx, W>,
+    stmt_block: NodeRef<'a, StmtBlock<'a>>,
+) -> CodeGenResult {
+    format_with_separator(
+        gen,
+        "\n",
+        gen.ctx[stmt_block].0.clone().into_iter(),
+        format_stmt,
+    )
+}
+
 fn format_stmt<'a, 'ctx, W: Write>(
     gen: &mut CodeGenCtx<'a, 'ctx, W>,
     stmt: NodeRef<'a, Stmt<'a>>,
@@ -134,9 +146,9 @@ fn format_stmt<'a, 'ctx, W: Write>(
     match gen.ctx[stmt].clone() {
         Stmt::VariableDecl(var_decl) => format_var_decl(gen, var_decl),
         Stmt::FunctionDecl(func_decl) => format_func_decl(gen, func_decl),
-        Stmt::Compound(stmts) => {
-            format_with_separator(gen, "\n", stmts.clone().into_iter(), format_stmt)
-        }
+        // Stmt::Compound(stmts) => {
+        //     format_with_separator(gen, "\n", stmts.clone().into_iter(), format_stmt)
+        // }
         Stmt::Expression(expr) => {
             format_expr(gen, expr)?;
             gen.write(";")
@@ -186,7 +198,7 @@ fn format_func_decl<'a, 'ctx, W: Write>(
 
     gen.write(" {")?;
 
-    format_stmt(gen, gen.ctx[func].body)?;
+    format_stmt_block(gen, gen.ctx[func].body)?;
 
     gen.symbols.exit_scope(&gen.ctx).unwrap();
 
@@ -215,7 +227,7 @@ fn format_expr<'a, 'ctx, W: Write>(
             format_func_args(gen, gen.ctx[func].args.clone())?;
             gen.write(" => {")?;
 
-            format_stmt(gen, gen.ctx[func].body)?;
+            format_stmt_block(gen, gen.ctx[func].body)?;
 
             gen.symbols.exit_scope(&gen.ctx).unwrap();
 
