@@ -81,7 +81,6 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
         parent: IdentParent<'a>,
         ident: Ident<'a>,
     ) -> Result<Ident<'a>, Self::Error> {
-        println!("Resolve ident {parent:?}");
         let resolved_ident = match &ctx[ident] {
             IdentValue::Unresolved(_) => match parent {
                 IdentParent::StructInitValueName(st_init) => {
@@ -140,9 +139,7 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                     Some(ctx[enm_val].name)
                 }
                 IdentParent::MemberAccessMemberName(_) => None,
-                val => {
-                    println!("Lookup other, parent: {val:?}");
-
+                _ => {
                     let sym_id = self
                         .symbols
                         .lookup(ctx, ident)

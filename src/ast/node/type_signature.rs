@@ -17,12 +17,6 @@ pub enum TypeSignatureValue<'a> {
         args: Vec<TypeSignature<'a>>,
         return_type: Box<TypeSignature<'a>>,
     },
-    // Struct {
-    //     name: Ident<'a>,
-    // },
-    // Enum {
-    //     name: Ident<'a>,
-    // },
     Tuple(Vec<TypeSignature<'a>>),
 }
 
@@ -43,14 +37,7 @@ impl<'a> Hash for TypeSignatureValue<'a> {
             TypeSignatureValue::Tuple(types) => {
                 state.write_u8(3);
                 types.iter().for_each(|t| t.value.hash(state));
-            } // TypeSignatureValue::Struct { name } => {
-              //     state.write_u8(4);
-              //     name.hash(state);
-              // }
-              // TypeSignatureValue::Enum { name } => {
-              //     state.write_u8(5);
-              //     name.hash(state);
-              // }
+            }
         }
     }
 }

@@ -19,12 +19,6 @@ pub mod utils {
         TranspilerError,
     };
 
-    // #[derive(Debug)]
-    // pub enum FinalIrError<'a> {
-    //     Parser(ParserError<'a>),
-    //     TypeCheck(TypeCheckerError<'a>),
-    // }
-
     pub fn lowered_ir<'a>(input: &'a str) -> Result<LowerAstResult<'a>, ParserError<'a>> {
         let ast = parse_ast(input)?;
         Ok(lower_ast(ast))
@@ -56,26 +50,6 @@ pub mod utils {
         }
     }
 
-    // pub fn type_infer<'a>(
-    //     ir_result: &mut LowerAstResult<'a>,
-    // ) -> Result<TypeInferrer<'a>, TypeInferenceError<'a>> {
-    //     let symbols = collect_symbols(ir_result).unwrap();
-
-    //     let ctx = &mut ir_result.ctx;
-    //     let ir = &mut ir_result.ir;
-
-    //     let mut sym_resolver = SymbolResolver::new(symbols);
-    //     walk_ir(&mut sym_resolver, ctx, ir).unwrap();
-
-    //     let mut type_inferrer = TypeInferrer::new(&ctx, sym_resolver);
-    //     let result = walk_ir(&mut type_inferrer, ctx, ir);
-
-    //     match result {
-    //         Ok(()) => Ok(type_inferrer),
-    //         Err(err) => Err(err),
-    //     }
-    // }
-
     pub fn type_check<'a>(
         ir_result: &mut LowerAstResult<'a>,
     ) -> Result<TypeChecker<'a>, TypeCheckerError<'a>> {
@@ -89,13 +63,6 @@ pub mod utils {
 
         let mut type_inferrer = TypeInferrer::new(&ctx, sym_resolver);
         walk_ir(&mut type_inferrer, ctx, ir)?;
-
-        match walk_ir(&mut type_inferrer, ctx, ir) {
-            Err(TypeCheckerError::ConflictingTypes(a, b)) => {
-                println!("CONFLICTING TYPES: {:?} {:?}", ctx[a], ctx[b])
-            }
-            _ => {}
-        }
 
         let mut type_resolver = TypeResolver::new(ctx, type_inferrer);
         walk_ir(&mut type_resolver, ctx, ir)?;
@@ -117,18 +84,6 @@ pub mod utils {
 
         let ctx = &mut lowered_ast.ctx;
         let ir = &mut lowered_ast.ir;
-
-        // let sym_table = walk_ir(&mut SymbolCollector {}, ctx, ir)
-        //     .map_err(TranspilerError::SymbolCollectError)?;
-
-        // let mut sym_resolver = SymbolResolver::new(sym_table);
-        // walk_ir(&mut sym_resolver, ctx, ir).map_err(TranspilerError::SymbolResolveError)?;
-
-        // let mut type_inferrer = TypeInferrer::new(&ctx, sym_resolver);
-        // walk_ir(&mut type_inferrer, ctx, ir).unwrap();
-
-        // let mut type_checker = TypeChecker::new(ctx, type_inferrer);
-        // walk_ir(&mut type_checker, ctx, ir).map_err(TranspilerError::TypeCheck)?;
 
         let mut buf = Vec::new();
         format_ir(&mut buf, ctx, type_checker.symbols, ir).map_err(TranspilerError::Write)?;

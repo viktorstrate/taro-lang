@@ -18,8 +18,6 @@ pub fn can_coerce_to<'a>(
             .iter()
             .zip(others.iter())
             .all(|(slf, other)| can_coerce_to(*slf, *other, ctx))
-    // } else if type_sig == ctx.get_builtin_type_sig(BuiltinType::Untyped) {
-    //     true
     } else {
         type_sig == other
     }

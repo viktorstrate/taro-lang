@@ -6,16 +6,6 @@
 #![feature(hash_set_entry)]
 #![deny(rust_2018_idioms)]
 
-// use parser::ParserError;
-// use std::io::{BufRead, Write};
-// use symbols::symbol_table::SymbolsError;
-// use type_checker::{types_walker::TypeChecker, TypeCheckerError};
-
-// use crate::{
-//     code_gen::format_ast, ir::ast_walker::walk_ast, parser::parse_ast,
-//     symbols::symbol_walker::SymbolCollector,
-// };
-
 use std::io::{BufRead, Write};
 
 use code_gen::format_ir;

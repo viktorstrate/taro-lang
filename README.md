@@ -23,7 +23,7 @@ By making a completely new language, inconsistencies and complexities in Javascr
 - [x] Structures
 - [x] Tuples
 - [x] Functions
-- [ ] Enumerations
+- [x] Enumerations
 - [ ] Traits
 - [ ] Generics
 - [ ] Extensions
@@ -123,10 +123,8 @@ instead it will simply be inserted into the raw javascript output.
 let num = @{ 1 + 2 }
 ```
 
-This code will not compile however, this is because the type of `@{ 1 + 2 }` is evaluated to `Untyped`,
-a special type that can coerce to any other type but a variable is not allowed to be of this type directly.
-
-Instead the type this value should take must be explicitly stated immediately by explicitly stating the type signature of the variable.
+This code will not compile however, this is because the compiler cannot infer the type of the expression `@{ 1 + 2 }`.
+This can be solved by explicitly stating the type signature of the variable.
 
 ```
 let num: Number = @{ 1 + 2 }

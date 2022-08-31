@@ -3,7 +3,7 @@ use nom::{
     character::complete::{multispace0, multispace1},
     error::VerboseError,
     sequence::{delimited, preceded},
-    AsChar, Finish, IResult, InputTakeAtPosition,
+    AsChar, IResult, InputTakeAtPosition,
 };
 use nom_locate::{position, LocatedSpan};
 
@@ -20,8 +20,8 @@ pub mod structure;
 pub mod type_signature;
 
 pub fn parse_ast(input: &str) -> Result<AST<'_>, ParserError<'_>> {
-    match module::module(new_input(input)).finish() {
-        Ok((_, module)) => Ok(AST::from(module)),
+    match module::module(new_input(input)) {
+        Ok(module) => Ok(AST::from(module)),
         Err(err) => Err(err),
     }
 }
@@ -43,7 +43,7 @@ pub fn new_input(input: &str) -> Input<'_> {
     Input::new_extra(input, ParserContext::default())
 }
 
-pub fn token<F, I, O>(mut parser: F) -> impl FnMut(I) -> Res<I, O>
+pub fn spaced<F, I, O>(mut parser: F) -> impl FnMut(I) -> Res<I, O>
 where
     F: FnMut(I) -> Res<I, O>,
     I: InputTakeAtPosition,
@@ -90,7 +90,7 @@ where
     F: FnMut(Input<'a>) -> Res<Input<'a>, O>,
 {
     delimited(
-        token(tag(brackets.open())),
+        spaced(tag(brackets.open())),
         parser,
         preceded(multispace0, tag(brackets.close())),
     )

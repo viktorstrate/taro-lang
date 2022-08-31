@@ -19,7 +19,6 @@ pub enum Stmt<'a> {
     FunctionDecl(NodeRef<'a, Function<'a>>),
     StructDecl(NodeRef<'a, Struct<'a>>),
     EnumDecl(NodeRef<'a, Enum<'a>>),
-    // Compound(Vec<NodeRef<'a, Stmt<'a>>>),
     Expression(NodeRef<'a, Expr<'a>>),
     Return(NodeRef<'a, Expr<'a>>),
 }

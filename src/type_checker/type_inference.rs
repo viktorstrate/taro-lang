@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use crate::{
     ir::{
@@ -7,7 +7,7 @@ use crate::{
         node::{
             expression::Expr,
             function::Function,
-            statement::{Stmt},
+            statement::{Stmt, StmtBlock},
             type_signature::{TypeEvalError, TypeSignature, TypeSignatureValue, Typed},
             NodeRef,
         },
@@ -26,7 +26,7 @@ pub struct TypeConstraint<'a>(TypeSignature<'a>, TypeSignature<'a>);
 pub struct TypeInferrer<'a> {
     pub symbols: SymbolTableZipper<'a>,
     pub substitutions: HashMap<TypeSignature<'a>, TypeSignature<'a>>,
-    pub constraints: Vec<TypeConstraint<'a>>,
+    pub constraints: VecDeque<TypeConstraint<'a>>,
 }
 
 impl<'a> TypeInferrer<'a> {
@@ -36,13 +36,13 @@ impl<'a> TypeInferrer<'a> {
         TypeInferrer {
             symbols,
             substitutions: HashMap::new(),
-            constraints: Vec::new(),
+            constraints: VecDeque::new(),
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn add_constraint(&mut self, a: TypeSignature<'a>, b: TypeSignature<'a>) {
-        self.constraints.push(TypeConstraint(a, b))
+        self.constraints.push_back(TypeConstraint(a, b))
     }
 }
 
@@ -88,27 +88,70 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
         ctx: &mut IrCtx<'a>,
         _scope: &mut Self::Scope,
     ) -> Result<(), Self::Error> {
-        while let Some(TypeConstraint(type_a, type_b)) = self.constraints.pop() {
+        let mut unresolvable_count = 0;
+        while let Some(TypeConstraint(type_a, type_b)) = self.constraints.pop_front() {
+            let type_a = *self.substitutions.get(&type_a).unwrap_or(&type_a);
+            let type_b = *self.substitutions.get(&type_b).unwrap_or(&type_b);
+
+            // println!(
+            //     "TYPE CONSTRAINT :: {} == {}",
+            //     type_a.format(ctx),
+            //     type_b.format(ctx)
+            // );
+
             match (ctx[type_a].clone(), ctx[type_b].clone()) {
                 (TypeSignatureValue::TypeVariable(_), TypeSignatureValue::TypeVariable(_)) => {
-                    return Err(TypeCheckerError::UndeterminableTypes);
+                    if unresolvable_count < self.constraints.len() {
+                        unresolvable_count += 1;
+                        self.add_constraint(type_a, type_b);
+                    } else {
+                        return dbg!(Err(TypeCheckerError::UndeterminableTypes));
+                    }
                 }
                 (TypeSignatureValue::TypeVariable(_), _) => {
-                    self.substitutions.insert(type_b, type_a);
-                }
-                (_, TypeSignatureValue::TypeVariable(_)) => {
+                    unresolvable_count = 0;
                     self.substitutions.insert(type_a, type_b);
                 }
+                (_, TypeSignatureValue::TypeVariable(_)) => {
+                    unresolvable_count = 0;
+                    self.substitutions.insert(type_b, type_a);
+                }
                 (TypeSignatureValue::Tuple(tup_a), TypeSignatureValue::Tuple(tup_b)) => {
+                    unresolvable_count = 0;
                     if tup_a.len() != tup_b.len() {
                         return Err(TypeCheckerError::ConflictingTypes(type_a, type_b));
                     }
                     for (val_a, val_b) in tup_a.into_iter().zip(tup_b.into_iter()) {
-                        self.constraints.push(TypeConstraint(val_a, val_b));
+                        self.add_constraint(val_a, val_b);
+                    }
+                }
+                (
+                    TypeSignatureValue::Function {
+                        args: args_a,
+                        return_type: return_type_a,
+                    },
+                    TypeSignatureValue::Function {
+                        args: args_b,
+                        return_type: return_type_b,
+                    },
+                ) => {
+                    if args_a.len() != args_b.len() {
+                        return Err(TypeCheckerError::FuncArgCountMismatch(type_a, type_b));
+                    }
+
+                    self.add_constraint(return_type_a, return_type_b);
+                    for (arg_a, arg_b) in args_a.into_iter().zip(args_b.into_iter()) {
+                        self.add_constraint(arg_a, arg_b);
                     }
                 }
                 _ => {
+                    unresolvable_count = 0;
                     if coerce(type_a, type_b, ctx).is_none() {
+                        // println!(
+                        //     "CONFLICTING TYPES: {} /= {}",
+                        //     type_a.format(ctx),
+                        //     type_b.format(ctx)
+                        // );
                         return Err(TypeCheckerError::ConflictingTypes(type_a, type_b));
                     }
                 }
@@ -180,7 +223,13 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
                     }
                 };
 
-                for (arg, param) in args.into_iter().zip(ctx[call].params.clone().into_iter()) {
+                let func_params = ctx[call].params.clone();
+
+                if args.len() != func_params.len() {
+                    return Err(TypeCheckerError::FuncCallWrongArgAmount(call));
+                }
+
+                for (arg, param) in args.into_iter().zip(func_params.into_iter()) {
                     let param_type = param
                         .eval_type(&mut self.symbols, ctx)
                         .map_err(TypeCheckerError::TypeEval)?;
@@ -229,11 +278,15 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
                     .clone()
                     .eval_type(&mut self.symbols, ctx)
                     .map_err(TypeCheckerError::TypeEval)?;
+
                 self.add_constraint(lhs, rhs);
             }
             Expr::Tuple(_) => {}
             Expr::EnumInit(_) => {}
             Expr::UnresolvedMemberAccess(_) => {}
+            Expr::Function(func) => {
+                self.infer_function_body(ctx, func)?;
+            }
             _ => {}
         }
 
@@ -244,25 +297,38 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
 impl<'a> TypeInferrer<'a> {
     fn infer_function_body(
         &mut self,
-        _ctx: &mut IrCtx<'a>,
-        _func: NodeRef<'a, Function<'a>>,
+        ctx: &mut IrCtx<'a>,
+        func: NodeRef<'a, Function<'a>>,
     ) -> Result<(), TypeCheckerError<'a>> {
-        // fn infer_function_body_stmts<'a>(
-        //     inferrer: &mut TypeInferrer<'a>,
-        //     ctx: &mut IrCtx<'a>,
-        //     func: NodeRef<'a, Function<'a>>,
-        //     stmt: NodeRef<'a, Stmt<'a>>,
-        // ) -> Result<(), TypeCheckerError<'a>> {
-        //     let type_sig = match ctx[stmt] {
-        //         Stmt::Compound(_) => todo!(),
-        //         Stmt::Return(_) => todo!(),
-        //         _ => ctx.get_builtin_type_sig(BuiltinType::Void),
-        //     };
+        fn collect_return_types<'a>(
+            inferrer: &mut TypeInferrer<'a>,
+            ctx: &mut IrCtx<'a>,
+            stmt_block: NodeRef<'a, StmtBlock<'a>>,
+            acc: &mut Vec<TypeSignature<'a>>,
+        ) -> Result<(), TypeCheckerError<'a>> {
+            for stmt in ctx[stmt_block].0.clone() {
+                match ctx[stmt] {
+                    Stmt::Return(expr) => {
+                        let expr_type = expr
+                            .eval_type(&mut inferrer.symbols, ctx)
+                            .map_err(TypeCheckerError::TypeEval)?;
+                        acc.push(expr_type)
+                    }
+                    _ => {}
+                };
+            }
 
-        //     Ok(())
-        // }
+            Ok(())
+        }
 
-        // infer_function_body_stmts(self, ctx, func, ctx[func].body)
+        let mut return_types = Vec::new();
+        return_types.push(ctx[func].return_type);
+        collect_return_types(self, ctx, ctx[func].body, &mut return_types)?;
+
+        for i in 1..return_types.len() {
+            self.add_constraint(return_types[i - 1], return_types[i]);
+        }
+
         Ok(())
     }
 }
@@ -308,16 +374,19 @@ mod tests {
     }
 
     #[test]
-    fn test_var_decl_var() {
-        let mut ir = lowered_ir("let a = true; let b: Boolean = a").unwrap();
-        assert_matches!(type_check(&mut ir), Ok(_));
-
-        let mut ir = lowered_ir("let a = true; let b: Number = a").unwrap();
+    fn test_assign_variable_types_mismatch() {
+        let mut ir = lowered_ir("let mut foo = 1; foo = false").unwrap();
         assert_type_mismatch(
             type_check(&mut ir),
             ir.ctx.get_builtin_type_sig(BuiltinType::Number),
             ir.ctx.get_builtin_type_sig(BuiltinType::Boolean),
         );
+    }
+
+    #[test]
+    fn test_var_decl_var() {
+        let mut ir = lowered_ir("let a = true; let b: Boolean = a").unwrap();
+        assert_matches!(type_check(&mut ir), Ok(_));
     }
 
     #[test]
@@ -349,6 +418,21 @@ mod tests {
     }
 
     #[test]
+    fn test_func_decl_inside_struct() {
+        let mut ir = lowered_ir(
+            "struct Foo { let attr: () -> Number }
+            let a = Foo { attr: () { return false } }",
+        )
+        .unwrap();
+
+        assert_type_mismatch(
+            type_check(&mut ir),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Number),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Boolean),
+        );
+    }
+
+    #[test]
     fn test_call_non_function() {
         let mut ir = lowered_ir("let val = true; val()").unwrap();
 
@@ -361,13 +445,65 @@ mod tests {
     }
 
     #[test]
-    fn test_func_call_wrong_arg_type() {
-        let mut ir = lowered_ir("func f(a: Number) {}; f(true)").unwrap();
-
+    fn test_assign_func_call_mismatched_types() {
+        let mut ir = lowered_ir("func f() { return 123 }; let x: Boolean = f()").unwrap();
         assert_type_mismatch(
             type_check(&mut ir),
             ir.ctx.get_builtin_type_sig(BuiltinType::Number),
             ir.ctx.get_builtin_type_sig(BuiltinType::Boolean),
+        );
+    }
+
+    #[test]
+    fn test_func_call_wrong_arg_type() {
+        let mut ir = lowered_ir("func f(a: Number) {}; f(true)").unwrap();
+        assert_type_mismatch(
+            type_check(&mut ir),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Number),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Boolean),
+        );
+    }
+
+    #[test]
+    fn test_func_call_wrong_arg_amount() {
+        let mut ir = lowered_ir("func f(a: Number) {}; f(2, 3)").unwrap();
+        assert_matches!(
+            type_check(&mut ir),
+            Err(TypeCheckerError::FuncCallWrongArgAmount(_))
+        );
+    }
+
+    #[test]
+    fn test_func_return_typecheck() {
+        let mut ir = lowered_ir("func test() -> Number { return false }").unwrap();
+        assert_type_mismatch(
+            type_check(&mut ir),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Number),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Boolean),
+        );
+    }
+
+    #[test]
+    fn test_escape_block_typed() {
+        let mut ir = lowered_ir("let a: Number = @{ 1 + 2 }").unwrap();
+        assert_matches!(type_check(&mut ir), Ok(_));
+    }
+
+    #[test]
+    fn test_escape_block_untyped() {
+        let mut ir = lowered_ir("let a = @{ 1 + 2 }").unwrap();
+        assert_matches!(
+            type_check(&mut ir),
+            Err(TypeCheckerError::UndeterminableTypes)
+        );
+    }
+
+    #[test]
+    fn test_escape_block_untyped_func() {
+        let mut ir = lowered_ir("func foo() { return @{ 123 } }").unwrap();
+        assert_matches!(
+            type_check(&mut ir),
+            Err(TypeCheckerError::UndeterminableTypes)
         );
     }
 }

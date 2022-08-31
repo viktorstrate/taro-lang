@@ -2,12 +2,9 @@ use std::fmt::Debug;
 
 use id_arena::Id;
 
-use crate::{
-    ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
-    type_checker::function_body_type_eval::FunctionTypeError,
-};
+use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
 
-use super::{expression::Expr, identifier::Ident};
+use super::{expression::Expr, function::Function, identifier::Ident, NodeRef};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TypeSignature<'a> {
@@ -26,7 +23,7 @@ impl<'a> From<Id<TypeSignatureValue<'a>>> for TypeSignature<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, Eq, Hash, Clone)]
 pub enum TypeSignatureValue<'a> {
     Builtin(BuiltinType),
     Unresolved(Ident<'a>),
@@ -47,8 +44,12 @@ pub enum TypeSignatureValue<'a> {
 #[derive(Debug)]
 pub enum TypeEvalError<'a> {
     Expression(Expr<'a>),
-    FunctionType(FunctionTypeError<'a>),
     CallNonFunction(TypeSignature<'a>),
+    FuncWrongNumberOfArgs {
+        func: NodeRef<'a, Function<'a>>,
+        expected: usize,
+        actual: usize,
+    },
     AccessNonStruct(TypeSignature<'a>),
     AccessNonTuple(TypeSignature<'a>),
     AccessNonEnum(TypeSignature<'a>),
@@ -58,6 +59,33 @@ pub enum TypeEvalError<'a> {
     },
     UnknownIdent(Ident<'a>),
     UndeterminableType(Ident<'a>),
+}
+
+impl<'a> PartialEq for TypeSignatureValue<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Builtin(l0), Self::Builtin(r0)) => l0 == r0,
+            (Self::Unresolved(l0), Self::Unresolved(r0)) => l0 == r0,
+            (Self::TypeVariable(l0), Self::TypeVariable(r0)) => l0 == r0,
+            (
+                Self::Function {
+                    args: l_args,
+                    return_type: l_return_type,
+                },
+                Self::Function {
+                    args: r_args,
+                    return_type: r_return_type,
+                },
+            ) => {
+                l_args.into_iter().zip(r_args).all(|(l, r)| l == r)
+                    && l_return_type == r_return_type
+            }
+            (Self::Struct { name: l_name }, Self::Struct { name: r_name }) => l_name == r_name,
+            (Self::Enum { name: l_name }, Self::Enum { name: r_name }) => l_name == r_name,
+            (Self::Tuple(l0), Self::Tuple(r0)) => l0.into_iter().zip(r0).all(|(l, r)| l == r),
+            _ => false,
+        }
+    }
 }
 
 impl<'a> crate::ast::node::type_signature::TypeSignature<'a> {
@@ -82,6 +110,33 @@ impl<'a> crate::ast::node::type_signature::TypeSignature<'a> {
         };
 
         ctx.get_type_sig(val)
+    }
+}
+
+impl<'a> TypeSignature<'a> {
+    pub fn format(&self, ctx: &IrCtx<'a>) -> String {
+        match ctx[*self].clone() {
+            TypeSignatureValue::Builtin(builtin) => builtin.name().to_owned(),
+            TypeSignatureValue::Unresolved(id) => format!("UNRESOLVED [{:?}]", ctx[id]),
+            TypeSignatureValue::TypeVariable(var) => format!("TYPE_VAR [{:?}]", var.index()),
+            TypeSignatureValue::Function { args, return_type } => format!(
+                "({}) -> {}",
+                args.into_iter()
+                    .map(|arg| arg.format(ctx))
+                    .intersperse(", ".to_owned())
+                    .collect::<String>(),
+                return_type.format(ctx)
+            ),
+            TypeSignatureValue::Struct { name } => format!("STRUCT {:?}", ctx[name]),
+            TypeSignatureValue::Enum { name } => format!("ENUM {:?}", ctx[name]),
+            TypeSignatureValue::Tuple(vals) => format!(
+                "({})",
+                vals.into_iter()
+                    .map(|val| val.format(ctx))
+                    .intersperse(", ".to_owned())
+                    .collect::<String>()
+            ),
+        }
     }
 }
 
@@ -114,7 +169,6 @@ pub enum BuiltinType {
     Number,
     Boolean,
     Void,
-    // Untyped,
 }
 
 pub const BUILTIN_TYPES: &'static [BuiltinType] = &[
@@ -122,7 +176,6 @@ pub const BUILTIN_TYPES: &'static [BuiltinType] = &[
     BuiltinType::Number,
     BuiltinType::Boolean,
     BuiltinType::Void,
-    // BuiltinType::Untyped,
 ];
 
 impl BuiltinType {
@@ -132,7 +185,6 @@ impl BuiltinType {
             BuiltinType::Number => "Number",
             BuiltinType::Boolean => "Boolean",
             BuiltinType::Void => "Void",
-            // BuiltinType::Untyped => "Untyped",
         }
     }
 }

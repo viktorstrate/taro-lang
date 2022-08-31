@@ -61,66 +61,6 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
         Ok(())
     }
 
-    // fn pre_visit_stmt(
-    //     &mut self,
-    //     ctx: &mut IrCtx<'a>,
-    //     _scope: &mut Self::Scope,
-    //     stmt: NodeRef<'a, Stmt<'a>>,
-    // ) -> Result<(), Self::Error> {
-    //     match ctx[stmt] {
-    //         Stmt::VariableDecl(var_decl) => match ctx[ctx[var_decl].value] {
-    //             Expr::Function(func) => match ctx[var_decl].type_sig {
-    //                 Some(type_sig) => match &ctx[type_sig] {
-    //                     TypeSignatureValue::Function {
-    //                         args: _,
-    //                         return_type: _,
-    //                     } => {
-    //                         func.specify_type(ctx, type_sig)
-    //                             .map_err(TypeCheckerError::TypeEvalError)?;
-    //                     }
-    //                     _ => {
-    //                         return Err(TypeCheckerError::TypeSignatureMismatch {
-    //                             type_sig,
-    //                             expr_type: ctx.get_type_sig(TypeSignatureValue::Function {
-    //                                 args: vec![],
-    //                                 return_type: ctx.get_builtin_type_sig(BuiltinType::Void),
-    //                             }),
-    //                         });
-    //                     }
-    //                 },
-    //                 None => {}
-    //             },
-    //             _ => {}
-    //         },
-    //         _ => {}
-    //     }
-
-    //     Ok(())
-    // }
-
-    // fn visit_stmt(
-    //     &mut self,
-    //     ctx: &mut IrCtx<'a>,
-    //     _scope: &mut Self::Scope,
-    //     stmt: NodeRef<'a, Stmt<'a>>,
-    // ) -> Result<(), TypeCheckerError<'a>> {
-    //     match ctx[stmt].clone() {
-    //         // Stmt::VariableDecl(var_decl) => type_check(ctx, &mut self.symbols, var_decl),
-    //         // Stmt::FunctionDecl(func_decl) => type_check(ctx, &mut self.symbols, func_decl),
-    //         // Stmt::StructDecl(st) => {
-    //         //     for attr in ctx[st].attrs.clone() {
-    //         //         type_check(ctx, &mut self.symbols, attr)?;
-    //         //     }
-    //         //     Ok(())
-    //         // }
-    //         // Stmt::EnumDecl(enm) => {
-    //         //     type_check(ctx, &mut self.symbols, enm)?;
-    //         //     Ok(())
-    //         // }
-    //         _ => Ok(()),
-    //     }
-    // }
-
     fn visit_expr(
         &mut self,
         ctx: &mut IrCtx<'a>,
@@ -128,46 +68,6 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
         expr: NodeRef<'a, Expr<'a>>,
     ) -> Result<(), TypeCheckerError<'a>> {
         match ctx[expr].clone() {
-            // Expr::FunctionCall(call) => {
-            //     let type_sig = ctx[call]
-            //         .func
-            //         .clone()
-            //         .eval_type(&mut self.symbols, ctx)
-            //         .map_err(TypeCheckerError::TypeEval)?;
-
-            //     let (args, return_type) = match &ctx[type_sig] {
-            //         TypeSignatureValue::Function { args, return_type } => {
-            //             Ok((args.clone(), *return_type))
-            //         }
-            //         _ => Err(TypeCheckerError::CallNonFunction {
-            //             ident_type: type_sig,
-            //         }),
-            //     }?;
-
-            //     let param_types = ctx[call]
-            //         .params
-            //         .clone()
-            //         .into_iter()
-            //         .map(|param| param.eval_type(&mut self.symbols, ctx).unwrap())
-            //         .collect::<Vec<_>>();
-
-            //     let arg_count_match = ctx[call].params.len() == args.len();
-            //     let args_match = param_types.iter().zip(args.iter()).all(|(a, b)| *a == *b);
-
-            //     if !arg_count_match || !args_match {
-            //         return Err(TypeCheckerError::TypeSignatureMismatch {
-            //             type_sig: ctx
-            //                 .get_type_sig(TypeSignatureValue::Function { args, return_type }),
-            //             expr_type: ctx.get_type_sig(TypeSignatureValue::Function {
-            //                 args: param_types,
-            //                 return_type,
-            //             }),
-            //         });
-            //     }
-
-            //     Ok(())
-            // }
-            // Expr::Function(func) => type_check(ctx, &mut self.symbols, func),
             Expr::Assignment(asg) => check_assignment(ctx, &mut self.symbols, asg),
             Expr::StructInit(st_init) => check_struct_init(ctx, &mut self.symbols, st_init),
             _ => Ok(()),
@@ -196,7 +96,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(type_check(&mut ir).is_ok())
+        assert_matches!(type_check(&mut ir), Ok(_))
     }
 
     #[test]
@@ -221,5 +121,17 @@ mod tests {
     fn test_escape_block_function_return_coerce() {
         let mut ir = lowered_ir("func f() -> Number { return @{ 1 + 2 }; return 2 }").unwrap();
         assert_matches!(type_check(&mut ir), Ok(_));
+    }
+
+    #[test]
+    fn test_decl_inside_scope() {
+        let mut ir = lowered_ir("let f = () -> Boolean { let a = true; return a }").unwrap();
+        assert_matches!(type_check(&mut ir), Ok(_))
+    }
+
+    #[test]
+    fn test_func_type_deduce() {
+        let mut ir = lowered_ir("let f: (Boolean) -> Boolean = (val) { return val }").unwrap();
+        assert_matches!(type_check(&mut ir), Ok(_))
     }
 }

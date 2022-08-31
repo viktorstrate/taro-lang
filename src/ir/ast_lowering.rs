@@ -29,9 +29,6 @@ pub fn lower_ast<'a>(ast: AST<'a>) -> LowerAstResult<'a> {
     let module = ast.0;
 
     let stmt_block = ctx.lower_stmt(module.stmt);
-    // .into_iter()
-    // .map(|stmt| ctx.lower_stmt(stmt))
-    // .collect();
 
     LowerAstResult {
         ctx,
@@ -266,13 +263,6 @@ impl<'a> IrCtx<'a> {
 
                 Expr::StructInit(struct_init)
             }
-            // crate::ast::node::expression::ExprValue::StructAccess(st_acc) => Expr::StructAccess(
-            //     StructAccess {
-            //         struct_expr: self.lower_expr(*st_acc.struct_expr),
-            //         attr_name: self.make_unresolved_ident(st_acc.attr_name),
-            //     }
-            //     .allocate(self),
-            // ),
             crate::ast::node::expression::ExprValue::TupleAccess(tup_acc) => Expr::TupleAccess(
                 TupleAccess {
                     tuple_expr: self.lower_expr(*tup_acc.tuple_expr),

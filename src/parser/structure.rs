@@ -13,9 +13,9 @@ use crate::ast::node::structure::{Struct, StructAttr, StructInit, StructInitValu
 use super::{
     expression::expression,
     identifier::identifier,
-    span,
+    spaced, span,
     statement::{let_specifier, mut_specifier},
-    surround_brackets, token,
+    surround_brackets,
     type_signature::type_signature,
     ws, BracketType, Input, Res,
 };
@@ -27,7 +27,7 @@ pub fn structure<'a>(i: Input<'a>) -> Res<Input<'a>, Struct<'a>> {
         "structure declaration",
         map(
             tuple((
-                preceded(token(tuple((tag("struct"), ws))), identifier),
+                preceded(spaced(tuple((tag("struct"), ws))), identifier),
                 surround_brackets(BracketType::Curly, struct_attrs),
             )),
             move |(name, attrs)| Struct { name, attrs },
@@ -50,10 +50,10 @@ pub fn struct_attrs<'a>(i: Input<'a>) -> Res<Input<'a>, Vec<StructAttr<'a>>> {
                     context("attribute identifier", identifier),
                     context(
                         "attribute type signature",
-                        opt(preceded(token(char(':')), type_signature)),
+                        opt(preceded(spaced(char(':')), type_signature)),
                     ),
                     opt(preceded(
-                        token(char('=')),
+                        spaced(char('=')),
                         context("attribute default value", expression),
                     )),
                 ))),
@@ -82,9 +82,9 @@ pub fn struct_init_expr(i: Input<'_>) -> Res<Input<'_>, StructInit<'_>> {
     let (i, values) = surround_brackets(
         BracketType::Curly,
         separated_list0(
-            token(tag(",")),
+            spaced(tag(",")),
             map(
-                span(tuple((identifier, preceded(token(tag(":")), expression)))),
+                span(tuple((identifier, preceded(spaced(tag(":")), expression)))),
                 |(span, (name, value))| StructInitValue { name, value, span },
             ),
         ),

@@ -76,25 +76,6 @@ pub fn check_assignment<'a>(
         }
     }
 
-    // let lhs = ctx[asg].lhs;
-    // let rhs = ctx[asg].rhs;
-
-    // let lhs_type = lhs
-    //     .eval_type(symbols, ctx)
-    //     .map_err(TypeCheckerError::TypeEvalError)?;
-    // let rhs_type = rhs
-    //     .eval_type(symbols, ctx)
-    //     .map_err(TypeCheckerError::TypeEvalError)?;
-
-    // if !can_coerce_to(rhs_type, lhs_type, ctx) {
-    //     return Err(TypeCheckerError::AssignmentError(
-    //         AssignmentError::TypesMismatch {
-    //             lhs: lhs_type,
-    //             rhs: rhs_type,
-    //         },
-    //     ));
-    // }
-
     Ok(())
 }
 
@@ -119,17 +100,6 @@ mod tests {
             type_check(&mut ir),
             Err(TypeCheckerError::AssignmentError(
                 AssignmentError::ImmutableAssignment(_)
-            ))
-        );
-    }
-
-    #[test]
-    fn test_assign_variable_types_mismatch() {
-        let mut ir = lowered_ir("let mut foo = 1; foo = false").unwrap();
-        assert_matches!(
-            type_check(&mut ir),
-            Err(TypeCheckerError::AssignmentError(
-                AssignmentError::TypesMismatch { lhs: _, rhs: _ }
             ))
         );
     }

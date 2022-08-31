@@ -266,11 +266,6 @@ pub fn walk_stmt<'a, W: IrWalker<'a>>(
             let func = func;
             walk_func_decl(walker, ctx, scope, func)?;
         }
-        // Stmt::Compound(stmts) => {
-        //     for stmt in stmts.clone() {
-        //         walk_stmt(walker, ctx, scope, stmt)?;
-        //     }
-        // }
         Stmt::StructDecl(st) => {
             let st = st;
             walk_struct(walker, ctx, scope, st)?;

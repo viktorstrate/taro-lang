@@ -1,12 +1,6 @@
 use crate::parser::Span;
 use std::{fmt::Debug, hash::Hash};
 
-// #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-// pub enum IdentValue<'a> {
-//     Named(&'a str),
-//     Anonymous(RefID),
-// }
-
 #[derive(Clone, Debug)]
 pub struct Ident<'a> {
     pub span: Span<'a>,

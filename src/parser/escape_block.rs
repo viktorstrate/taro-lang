@@ -8,7 +8,7 @@ use nom::{
 
 use crate::ast::node::escape_block::EscapeBlock;
 
-use super::{surround_brackets, token, type_signature::type_signature, BracketType, Input, Res};
+use super::{spaced, surround_brackets, type_signature::type_signature, BracketType, Input, Res};
 
 pub fn escape_block(i: Input<'_>) -> Res<Input<'_>, EscapeBlock<'_>> {
     // "@" [TYPE_SIG] "{" CONTENT "}"
@@ -17,7 +17,7 @@ pub fn escape_block(i: Input<'_>) -> Res<Input<'_>, EscapeBlock<'_>> {
         "escape block",
         map(
             pair(
-                preceded(token(tag("@")), opt(type_signature)),
+                preceded(spaced(tag("@")), opt(type_signature)),
                 surround_brackets(BracketType::Curly, escape_block_content),
             ),
             |(type_sig, content)| EscapeBlock {

@@ -116,7 +116,7 @@ impl<'a> SymbolTableZipper<'a> {
     }
 
     pub fn visit_next_symbol(&mut self, _ctx: &IrCtx<'a>) {
-        debug_assert!(self.visited_symbols <= self.cursor.ordered_symbols.len());
+        debug_assert!(self.visited_symbols < self.cursor.ordered_symbols.len());
         self.visited_symbols += 1;
     }
 
