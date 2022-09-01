@@ -5,14 +5,14 @@ use crate::{
             assignment::Assignment,
             expression::Expr,
             identifier::Ident,
-            type_signature::{Mutability, TypeSignature, Typed},
+            type_signature::{Mutability, TypeSignature},
             NodeRef,
         },
     },
     symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolValueItem},
 };
 
-use super::{coercion::can_coerce_to, TypeCheckerError};
+use super::TypeCheckerError;
 
 #[derive(Debug)]
 pub enum AssignmentError<'a> {
@@ -40,7 +40,7 @@ pub fn check_assignment<'a>(
                 .lookup(ctx, ident)
                 .ok_or(TypeCheckerError::LookupError(ident.clone()))?;
 
-            match &ctx[*sym] {
+            match &ctx[sym] {
                 SymbolValueItem::VarDecl(var_decl) => {
                     if ctx[*var_decl].mutability == Mutability::Immutable {
                         return Err(TypeCheckerError::AssignmentError(
@@ -58,7 +58,7 @@ pub fn check_assignment<'a>(
         Expr::StructAccess(st_access) => {
             let attrs = st_access
                 .lookup_attr_chain(ctx, symbols)
-                .map_err(TypeCheckerError::TypeEvalError)?;
+                .map_err(TypeCheckerError::TypeEval)?;
 
             if !attrs
                 .iter()
@@ -76,25 +76,6 @@ pub fn check_assignment<'a>(
         }
     }
 
-    let lhs = ctx[asg].lhs;
-    let rhs = ctx[asg].rhs;
-
-    let lhs_type = lhs
-        .eval_type(symbols, ctx)
-        .map_err(TypeCheckerError::TypeEvalError)?;
-    let rhs_type = rhs
-        .eval_type(symbols, ctx)
-        .map_err(TypeCheckerError::TypeEvalError)?;
-
-    if !can_coerce_to(rhs_type, lhs_type, ctx) {
-        return Err(TypeCheckerError::AssignmentError(
-            AssignmentError::TypesMismatch {
-                lhs: lhs_type,
-                rhs: rhs_type,
-            },
-        ));
-    }
-
     Ok(())
 }
 
@@ -109,7 +90,7 @@ mod tests {
     #[test]
     fn test_assign_variable() {
         let mut ir = lowered_ir("let mut foo = 1; foo = 2").unwrap();
-        assert_matches!(type_check(&mut ir), Ok(()))
+        assert_matches!(type_check(&mut ir), Ok(_))
     }
 
     #[test]
@@ -124,17 +105,6 @@ mod tests {
     }
 
     #[test]
-    fn test_assign_variable_types_mismatch() {
-        let mut ir = lowered_ir("let mut foo = 1; foo = false").unwrap();
-        assert_matches!(
-            type_check(&mut ir),
-            Err(TypeCheckerError::AssignmentError(
-                AssignmentError::TypesMismatch { lhs: _, rhs: _ }
-            ))
-        );
-    }
-
-    #[test]
     fn test_assign_struct() {
         let mut ir = lowered_ir(
             "struct Foo { let mut attr: Number }
@@ -143,7 +113,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_matches!(type_check(&mut ir), Ok(()));
+        assert_matches!(type_check(&mut ir), Ok(_));
     }
 
     #[test]

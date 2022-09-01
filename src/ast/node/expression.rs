@@ -26,10 +26,8 @@ pub enum ExprValue<'a> {
     FunctionCall(Box<FunctionCall<'a>>),
     Identifier(Ident<'a>),
     StructInit(StructInit<'a>),
-    // StructAccess(StructAccess<'a>),
     TupleAccess(TupleAccess<'a>),
     EscapeBlock(EscapeBlock<'a>),
     Assignment(Box<Assignment<'a>>),
     Tuple(Tuple<'a>),
-    // EnumInit(EnumInit<'a>),
 }

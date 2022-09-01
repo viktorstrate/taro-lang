@@ -11,12 +11,14 @@ use super::{
 };
 
 #[derive(Debug, Clone)]
+pub struct StmtBlock<'a>(pub Vec<NodeRef<'a, Stmt<'a>>>);
+
+#[derive(Debug, Clone)]
 pub enum Stmt<'a> {
     VariableDecl(NodeRef<'a, VarDecl<'a>>),
     FunctionDecl(NodeRef<'a, Function<'a>>),
     StructDecl(NodeRef<'a, Struct<'a>>),
     EnumDecl(NodeRef<'a, Enum<'a>>),
-    Compound(Vec<NodeRef<'a, Stmt<'a>>>),
     Expression(NodeRef<'a, Expr<'a>>),
     Return(NodeRef<'a, Expr<'a>>),
 }
@@ -25,7 +27,7 @@ pub enum Stmt<'a> {
 pub struct VarDecl<'a> {
     pub name: Ident<'a>,
     pub mutability: Mutability,
-    pub type_sig: Option<TypeSignature<'a>>,
+    pub type_sig: TypeSignature<'a>,
     pub value: NodeRef<'a, Expr<'a>>,
 }
 
@@ -45,7 +47,7 @@ impl<'a> Typed<'a> for NodeRef<'a, VarDecl<'a>> {
     }
 
     fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
-        ctx[*self].type_sig
+        Some(ctx[*self].type_sig)
     }
 
     fn specify_type(
@@ -53,7 +55,7 @@ impl<'a> Typed<'a> for NodeRef<'a, VarDecl<'a>> {
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
-        ctx[*self].type_sig = Some(new_type);
+        ctx[*self].type_sig = new_type;
         Ok(())
     }
 }

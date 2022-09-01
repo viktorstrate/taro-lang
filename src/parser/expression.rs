@@ -19,8 +19,8 @@ use crate::ast::node::{
 };
 
 use super::{
-    escape_block::escape_block, function::function_expr, identifier::identifier, span,
-    structure::struct_init_expr, surround_brackets, token, BracketType, Input, Res, Span,
+    escape_block::escape_block, function::function_expr, identifier::identifier, spaced, span,
+    structure::struct_init_expr, surround_brackets, BracketType, Input, Res, Span,
 };
 
 pub fn expression(i: Input<'_>) -> Res<Input<'_>, Expr<'_>> {
@@ -63,7 +63,7 @@ fn tail_assignments<'a>(
     i_start: Input<'a>,
 ) -> Res<Input<'a>, Expr<'a>> {
     fold_many0(
-        pair(preceded(token(tag("=")), expression), position),
+        pair(preceded(spaced(tag("=")), expression), position),
         || base.clone(),
         |acc, (rhs, end)| Expr {
             span: Span::new(i_start.clone(), end),
@@ -116,7 +116,7 @@ pub fn expr_args(i: Input<'_>) -> Res<Input<'_>, Vec<Expr<'_>>> {
     // "(" EXPR+ ")"
     surround_brackets(
         BracketType::Round,
-        separated_list0(token(tag(",")), expression),
+        separated_list0(spaced(tag(",")), expression),
     )(i)
 }
 
@@ -126,13 +126,13 @@ fn tail_func_call(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
 
 fn tail_member_access(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
     map(
-        pair(preceded(token(tag(".")), identifier), opt(expr_args)),
+        pair(preceded(spaced(tag(".")), identifier), opt(expr_args)),
         |(member_name, items)| ExprTailChain::MemberAccess(member_name, items.unwrap_or_default()),
     )(i)
 }
 
 fn tail_tuple_access(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
-    let (i, digit) = preceded(token(tag(".")), digit1)(i)?;
+    let (i, digit) = preceded(spaced(tag(".")), digit1)(i)?;
     let num = digit.parse().unwrap();
 
     Ok((i, ExprTailChain::TupleAccess(num)))
@@ -184,7 +184,7 @@ pub fn expr_anon_member_access(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
     // "." IDENT [ "(" EXPR+ ")" ]
 
     map(
-        pair(preceded(token(tag(".")), identifier), opt(expr_args)),
+        pair(preceded(spaced(tag(".")), identifier), opt(expr_args)),
         |(member_name, items)| {
             ExprValue::MemberAccess(Box::new(MemberAccess {
                 object: None,

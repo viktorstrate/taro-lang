@@ -9,7 +9,7 @@ use nom::{
 
 use crate::ast::node::type_signature::{TypeSignature, TypeSignatureValue};
 
-use super::{identifier::identifier, span, surround_brackets, token, BracketType, Input, Res};
+use super::{identifier::identifier, spaced, span, surround_brackets, BracketType, Input, Res};
 
 pub fn type_signature(i: Input<'_>) -> Res<Input<'_>, TypeSignature<'_>> {
     context(
@@ -36,9 +36,9 @@ fn type_sig_func(i: Input<'_>) -> Res<Input<'_>, TypeSignatureValue<'_>> {
             tuple((
                 surround_brackets(
                     BracketType::Round,
-                    separated_list0(token(tag(",")), type_signature),
+                    separated_list0(spaced(tag(",")), type_signature),
                 ),
-                preceded(token(tag("->")), type_signature),
+                preceded(spaced(tag("->")), type_signature),
             )),
             |(args, return_type)| TypeSignatureValue::Function {
                 args,
@@ -56,7 +56,7 @@ fn type_sig_tuple(i: Input<'_>) -> Res<Input<'_>, TypeSignatureValue<'_>> {
         map(
             surround_brackets(
                 BracketType::Round,
-                separated_list0(token(tag(",")), type_signature),
+                separated_list0(spaced(tag(",")), type_signature),
             ),
             TypeSignatureValue::Tuple,
         ),

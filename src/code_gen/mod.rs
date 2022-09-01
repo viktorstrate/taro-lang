@@ -8,14 +8,14 @@ use crate::{
             function::{Function, FunctionArg},
             identifier::{Ident, IdentValue, ResolvedIdentValue},
             module::Module,
-            statement::{Stmt, VarDecl},
+            statement::{Stmt, StmtBlock, VarDecl},
             structure::Struct,
             type_signature::Mutability,
             NodeRef,
         },
         IR,
     },
-    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper},
+    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
 pub fn format_ir<'a, 'ctx, W: Write>(
@@ -49,7 +49,6 @@ impl<'a, 'ctx, W: Write> CodeGenCtx<'a, 'ctx, W> {
     }
 
     fn write_ident(&mut self, ident: Ident<'a>) -> CodeGenResult {
-        // ident.write(&mut self.writer, &self.symbols)
         match &self.ctx[ident] {
             IdentValue::Resolved(resolved_ident) => match resolved_ident {
                 ResolvedIdentValue::Named { def_span: _, name } => self.write(name),
@@ -77,7 +76,7 @@ fn format_module<'a, 'ctx, W: Write>(
     gen: &mut CodeGenCtx<'a, 'ctx, W>,
     module: &Module<'a>,
 ) -> CodeGenResult {
-    format_with_separator(gen, "\n", module.stmts.clone().into_iter(), format_stmt)?;
+    format_stmt_block(gen, module.stmt_block)?;
     gen.write("\n")
 }
 
@@ -127,6 +126,18 @@ fn format_struct<'a, 'ctx, W: Write>(
     Ok(())
 }
 
+fn format_stmt_block<'a, 'ctx, W: Write>(
+    gen: &mut CodeGenCtx<'a, 'ctx, W>,
+    stmt_block: NodeRef<'a, StmtBlock<'a>>,
+) -> CodeGenResult {
+    format_with_separator(
+        gen,
+        "\n",
+        gen.ctx[stmt_block].0.clone().into_iter(),
+        format_stmt,
+    )
+}
+
 fn format_stmt<'a, 'ctx, W: Write>(
     gen: &mut CodeGenCtx<'a, 'ctx, W>,
     stmt: NodeRef<'a, Stmt<'a>>,
@@ -134,9 +145,6 @@ fn format_stmt<'a, 'ctx, W: Write>(
     match gen.ctx[stmt].clone() {
         Stmt::VariableDecl(var_decl) => format_var_decl(gen, var_decl),
         Stmt::FunctionDecl(func_decl) => format_func_decl(gen, func_decl),
-        Stmt::Compound(stmts) => {
-            format_with_separator(gen, "\n", stmts.clone().into_iter(), format_stmt)
-        }
         Stmt::Expression(expr) => {
             format_expr(gen, expr)?;
             gen.write(";")
@@ -186,7 +194,7 @@ fn format_func_decl<'a, 'ctx, W: Write>(
 
     gen.write(" {")?;
 
-    format_stmt(gen, gen.ctx[func].body)?;
+    format_stmt_block(gen, gen.ctx[func].body)?;
 
     gen.symbols.exit_scope(&gen.ctx).unwrap();
 
@@ -215,7 +223,7 @@ fn format_expr<'a, 'ctx, W: Write>(
             format_func_args(gen, gen.ctx[func].args.clone())?;
             gen.write(" => {")?;
 
-            format_stmt(gen, gen.ctx[func].body)?;
+            format_stmt_block(gen, gen.ctx[func].body)?;
 
             gen.symbols.exit_scope(&gen.ctx).unwrap();
 
@@ -370,7 +378,7 @@ where
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::{ir::test_utils::utils::final_codegen, TranspilerError};
+    use crate::ir::test_utils::utils::final_codegen;
 
     #[test]
     fn test_let_assign_simple() {
@@ -405,15 +413,9 @@ mod tests {
     }
 
     #[test]
-    fn test_assign_func_call_mismatched_types() {
-        let output = final_codegen("func f() { return 123 }; let x: Boolean = f()");
-        assert_matches!(output, Err(TranspilerError::TypeCheck(_)));
-    }
-
-    #[test]
     fn test_struct() {
         let output = final_codegen(
-            "struct Test { let defaultVal = 123; let mut noDefault: Boolean }\
+            "struct Test { let defaultVal = 123; let mut noDefault: Boolean }\n\
             let testVar = Test { noDefault: false }
             let val: Number = testVar.defaultVal
         ",
@@ -431,7 +433,7 @@ mod tests {
     #[test]
     fn test_tuple() {
         let output = final_codegen(
-            "let val: (Boolean, Number) = (true, 42)\
+            "let val: (Boolean, Number) = (true, 42)\n\
             let val2: Number = val.1",
         );
         assert_eq!(

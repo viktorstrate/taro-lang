@@ -1,14 +1,12 @@
 use crate::{
-    ir::context::IrCtx,
-    ir::node::type_signature::TypeSignatureValue,
+    ir::context::IrCtx, ir::node::type_signature::TypeSignatureValue,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
-    type_checker::function_body_type_eval::{eval_func_body_type_sig, FunctionTypeError},
 };
 
 use super::{
     expression::Expr,
     identifier::{Ident, Identifiable},
-    statement::Stmt,
+    statement::StmtBlock,
     type_signature::{TypeEvalError, TypeSignature, Typed},
     NodeRef,
 };
@@ -17,35 +15,33 @@ use super::{
 pub struct Function<'a> {
     pub name: Ident<'a>,
     pub args: Vec<NodeRef<'a, FunctionArg<'a>>>,
-    pub return_type: Option<TypeSignature<'a>>,
-    pub body: NodeRef<'a, Stmt<'a>>,
+    pub return_type: TypeSignature<'a>,
+    pub body: NodeRef<'a, StmtBlock<'a>>,
 }
 
 impl<'a> Function<'a> {
     pub fn calculate_type_sig(
         ctx: &mut IrCtx<'a>,
         args: Vec<NodeRef<'a, FunctionArg<'a>>>,
-        return_type: Option<TypeSignature<'a>>,
-    ) -> Option<TypeSignature<'a>> {
+        return_type: TypeSignature<'a>,
+    ) -> TypeSignature<'a> {
         let arg_types = args
             .into_iter()
             .map(|arg| &ctx[arg])
             .map(|arg| arg.type_sig)
-            .collect::<Option<Vec<_>>>();
+            .collect::<Vec<_>>();
 
-        match (arg_types, return_type) {
-            (Some(args), Some(return_type)) => {
-                Some(ctx.get_type_sig(TypeSignatureValue::Function { args, return_type }))
-            }
-            _ => None,
-        }
+        ctx.get_type_sig(TypeSignatureValue::Function {
+            args: arg_types,
+            return_type,
+        })
     }
 }
 
 #[derive(Debug)]
 pub struct FunctionArg<'a> {
     pub name: Ident<'a>,
-    pub type_sig: Option<TypeSignature<'a>>,
+    pub type_sig: TypeSignature<'a>,
 }
 
 #[derive(Debug)]
@@ -79,23 +75,18 @@ impl<'a> Typed<'a> for NodeRef<'a, Function<'a>> {
             .map(|arg| arg.eval_type(symbols, ctx))
             .collect::<Result<Vec<_>, _>>()?;
 
-        symbols
-            .enter_scope(ctx, ctx[*self].name)
-            .expect("function should be located in current scope");
-
-        let return_type =
-            eval_func_body_type_sig(ctx, symbols, *self).map_err(TypeEvalError::FunctionType)?;
-
-        symbols.exit_scope(ctx).unwrap();
-
         Ok(ctx.get_type_sig(TypeSignatureValue::Function {
             args,
-            return_type: return_type,
+            return_type: ctx[*self].return_type,
         }))
     }
 
     fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
-        Function::calculate_type_sig(ctx, ctx[*self].args.clone(), ctx[*self].return_type)
+        Some(Function::calculate_type_sig(
+            ctx,
+            ctx[*self].args.clone(),
+            ctx[*self].return_type,
+        ))
     }
 
     fn specify_type(
@@ -110,20 +101,18 @@ impl<'a> Typed<'a> for NodeRef<'a, Function<'a>> {
 
         let func_args_len = ctx[*self].args.len();
         if new_args.len() != func_args_len {
-            return Err(TypeEvalError::FunctionType(
-                FunctionTypeError::WrongNumberOfArgs {
-                    func: *self,
-                    expected: new_args.len(),
-                    actual: func_args_len,
-                },
-            ));
+            return Err(TypeEvalError::FuncWrongNumberOfArgs {
+                func: *self,
+                expected: new_args.len(),
+                actual: func_args_len,
+            });
         }
 
         for (arg_type, arg) in new_args.iter().zip(ctx[*self].args.clone().into_iter()) {
-            ctx[arg].type_sig = Some(*arg_type);
+            ctx[arg].type_sig = *arg_type;
         }
 
-        ctx[*self].return_type = Some(new_return_type);
+        ctx[*self].return_type = new_return_type;
 
         Ok(())
     }
@@ -135,13 +124,11 @@ impl<'a> Typed<'a> for NodeRef<'a, FunctionArg<'a>> {
         _symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        let arg = &ctx[*self];
-        arg.type_sig
-            .ok_or(TypeEvalError::UndeterminableType(arg.name))
+        Ok(ctx[*self].type_sig)
     }
 
     fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
-        ctx[*self].type_sig
+        Some(ctx[*self].type_sig)
     }
 
     fn specify_type(
@@ -149,7 +136,7 @@ impl<'a> Typed<'a> for NodeRef<'a, FunctionArg<'a>> {
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
-        ctx[*self].type_sig = Some(new_type);
+        ctx[*self].type_sig = new_type;
         Ok(())
     }
 }

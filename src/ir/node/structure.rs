@@ -1,7 +1,4 @@
-use crate::{
-    ir::context::IrCtx,
-    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper},
-};
+use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
 
 use super::{
     expression::Expr,
@@ -20,7 +17,7 @@ pub struct Struct<'a> {
 pub struct StructAttr<'a> {
     pub name: Ident<'a>,
     pub mutability: Mutability,
-    pub type_sig: Option<TypeSignature<'a>>,
+    pub type_sig: TypeSignature<'a>,
     pub default_value: Option<NodeRef<'a, Expr<'a>>>,
 }
 
@@ -96,20 +93,15 @@ impl<'a> Typed<'a> for NodeRef<'a, StructAttr<'a>> {
         match ctx[*self].default_value {
             Some(value) => value.eval_type(symbols, ctx),
             None => {
-                let type_sig = ctx[*self]
-                    .type_sig
-                    .clone()
-                    .expect("struct should have at least a type signature or a default value");
-
+                let type_sig = ctx[*self].type_sig;
                 debug_assert!(!matches!(ctx[type_sig], TypeSignatureValue::Unresolved(_)));
-
                 Ok(type_sig)
             }
         }
     }
 
     fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
-        ctx[*self].type_sig
+        Some(ctx[*self].type_sig)
     }
 
     fn specify_type(
@@ -117,7 +109,7 @@ impl<'a> Typed<'a> for NodeRef<'a, StructAttr<'a>> {
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
-        ctx[*self].type_sig = Some(new_type);
+        ctx[*self].type_sig = new_type;
         Ok(())
     }
 }
@@ -142,7 +134,7 @@ impl<'a> Typed<'a> for NodeRef<'a, StructInit<'a>> {
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let st = self
             .lookup_struct(ctx, symbols)
-            .ok_or(TypeEvalError::UnknownIdentifier(ctx[*self].struct_name))?;
+            .ok_or(TypeEvalError::UnknownIdent(ctx[*self].struct_name))?;
 
         Ok(ctx.get_type_sig(TypeSignatureValue::Struct { name: ctx[st].name }))
     }
@@ -172,12 +164,12 @@ impl<'a> NodeRef<'a, StructAccess<'a>> {
 
         let st = symbols
             .lookup(ctx, struct_name)
-            .ok_or(TypeEvalError::UnknownIdentifier(struct_name))?
+            .ok_or(TypeEvalError::UnknownIdent(struct_name))?
             .unwrap_struct(ctx);
 
         let attr_name = ctx[*self].attr_name;
         st.lookup_attr(attr_name, ctx)
-            .ok_or(TypeEvalError::UnknownIdentifier(attr_name))
+            .ok_or(TypeEvalError::UnknownIdent(attr_name))
     }
 
     pub fn lookup_attr_chain<'c>(
@@ -235,6 +227,6 @@ mod tests {
 
         let tc = type_check(&mut ir);
 
-        assert_matches!(tc, Ok(()))
+        assert_matches!(tc, Ok(_))
     }
 }

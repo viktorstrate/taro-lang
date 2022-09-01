@@ -48,6 +48,8 @@ impl<'a> SymbolTableZipper<'a> {
             visited_symbols: self.visited_symbols,
         });
 
+        self.visited_symbols = 0;
+
         Ok(())
     }
 
@@ -66,14 +68,14 @@ impl<'a> SymbolTableZipper<'a> {
         Ok(())
     }
 
-    pub fn lookup(&self, ctx: &IrCtx<'a>, ident: Ident<'a>) -> Option<&SymbolValue<'a>> {
+    pub fn lookup(&self, ctx: &IrCtx<'a>, ident: Ident<'a>) -> Option<SymbolValue<'a>> {
         if let Some(value) = self.lookup_current_scope(ctx, ident) {
-            return Some(value);
+            return Some(*value);
         }
 
         for scope in self.breadcrumb.iter().rev() {
             if let Some(value) = scope.sym_table.lookup_global_table(ctx, ident) {
-                return Some(value);
+                return Some(*value);
             }
 
             if let Some(value) = SymbolTableZipper::locate_visited_symbol(
@@ -82,7 +84,7 @@ impl<'a> SymbolTableZipper<'a> {
                 scope.visited_symbols,
                 ident,
             ) {
-                return Some(value);
+                return Some(*value);
             }
         }
 
@@ -116,7 +118,7 @@ impl<'a> SymbolTableZipper<'a> {
     }
 
     pub fn visit_next_symbol(&mut self, _ctx: &IrCtx<'a>) {
-        debug_assert!(self.visited_symbols <= self.cursor.ordered_symbols.len());
+        debug_assert!(self.visited_symbols < self.cursor.ordered_symbols.len());
         self.visited_symbols += 1;
     }
 

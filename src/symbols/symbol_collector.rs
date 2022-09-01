@@ -1,7 +1,11 @@
 use crate::ir::{
     context::IrCtx,
     ir_walker::{IrWalker, ScopeValue},
-    node::{statement::Stmt, type_signature::BUILTIN_TYPES, NodeRef},
+    node::{
+        statement::{Stmt},
+        type_signature::BUILTIN_TYPES,
+        NodeRef,
+    },
 };
 
 use super::symbol_table::{SymbolCollectionError, SymbolTable, SymbolValueItem};

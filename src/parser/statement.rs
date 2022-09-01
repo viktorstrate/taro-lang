@@ -17,8 +17,8 @@ use crate::{
 };
 
 use super::{
-    enumeration::enumeration, function::function_decl, identifier::identifier, span,
-    structure::structure, token, type_signature::type_signature, ws, Input, Res,
+    enumeration::enumeration, function::function_decl, identifier::identifier, spaced, span,
+    structure::structure, type_signature::type_signature, ws, Input, Res,
 };
 
 pub fn statement<'a>(i: Input<'a>) -> Res<Input<'a>, Stmt<'a>> {
@@ -42,7 +42,7 @@ pub fn statement<'a>(i: Input<'a>) -> Res<Input<'a>, Stmt<'a>> {
         )
     };
 
-    let (i, _) = opt(token(tag(";")))(i)?;
+    let (i, _) = opt(spaced(tag(";")))(i)?;
     Ok((i, stmt))
 }
 
@@ -72,8 +72,8 @@ pub fn variable_decl(i: Input<'_>) -> Res<Input<'_>, VarDecl<'_>> {
             tuple((
                 preceded(let_specifier, mut_specifier),
                 identifier,
-                opt(preceded(token(char(':')), type_signature)),
-                preceded(token(char('=')), expression),
+                opt(preceded(spaced(char(':')), type_signature)),
+                preceded(spaced(char('=')), expression),
             )),
             |(mutability, name, type_sig, value)| VarDecl {
                 name,
@@ -86,13 +86,13 @@ pub fn variable_decl(i: Input<'_>) -> Res<Input<'_>, VarDecl<'_>> {
 }
 
 pub fn let_specifier(i: Input<'_>) -> Res<Input<'_>, ()> {
-    map(token(tuple((tag("let"), ws))), |_| ())(i)
+    map(spaced(tuple((tag("let"), ws))), |_| ())(i)
 }
 
 pub fn mut_specifier(i: Input<'_>) -> Res<Input<'_>, Mutability> {
     context(
         "mut specifier",
-        map(opt(token(tuple((tag("mut"), ws)))), |val| {
+        map(opt(spaced(tuple((tag("mut"), ws)))), |val| {
             val.is_some().into()
         }),
     )(i)
@@ -102,7 +102,7 @@ pub fn stmt_return(i: Input<'_>) -> Res<Input<'_>, StmtValue<'_>> {
     context(
         "return",
         map(
-            preceded(token(tag("return")), expression),
+            preceded(spaced(tag("return")), expression),
             StmtValue::Return,
         ),
     )(i)

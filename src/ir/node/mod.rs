@@ -7,7 +7,7 @@ use self::{
     expression::Expr,
     function::{Function, FunctionArg, FunctionCall},
     member_access::UnresolvedMemberAccess,
-    statement::{Stmt, VarDecl},
+    statement::{Stmt, StmtBlock, VarDecl},
     structure::{Struct, StructAccess, StructAttr, StructInit, StructInitValue},
     tuple::{Tuple, TupleAccess},
 };
@@ -28,28 +28,10 @@ pub mod structure;
 pub mod tuple;
 pub mod type_signature;
 
-pub enum IrNode<'a> {
-    Stmt(Stmt<'a>),
-    Expr(Expr<'a>),
-    FunctionArg(FunctionArg<'a>),
-    StructAttr(StructAttr<'a>),
-    EnumValue(EnumValue<'a>),
-    Function(Function<'a>),
-    FunctionCall(FunctionCall<'a>),
-    StructInitValue(StructInitValue<'a>),
-    StructInit(StructInit<'a>),
-    StructAccess(StructAccess<'a>),
-    TupleAccess(TupleAccess<'a>),
-    Tuple(Tuple<'a>),
-    Assignment(Assignment<'a>),
-    EscapeBlock(EscapeBlock<'a>),
-    MemberAccess(UnresolvedMemberAccess<'a>),
-}
-
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct NodeRef<'a, T>
 where
-    T: IrArenaType<'a>,
+    T: IrArenaType<'a> + ?Sized,
 {
     id: Id<T>,
     _marker: PhantomData<&'a str>,
@@ -93,7 +75,8 @@ where
 }
 
 pub struct IrNodeArena<'a> {
-    pub stmts: Arena<Stmt<'a>>,
+    pub stmt_blks: Arena<StmtBlock<'a>>,
+    pub stmt: Arena<Stmt<'a>>,
     pub exprs: Arena<Expr<'a>>,
     pub func_args: Arena<FunctionArg<'a>>,
     pub st_attrs: Arena<StructAttr<'a>>,
@@ -117,7 +100,8 @@ pub struct IrNodeArena<'a> {
 impl<'a> IrNodeArena<'a> {
     pub fn new() -> Self {
         IrNodeArena {
-            stmts: Arena::new(),
+            stmt_blks: Arena::new(),
+            stmt: Arena::new(),
             exprs: Arena::new(),
             func_args: Arena::new(),
             st_attrs: Arena::new(),
@@ -157,15 +141,27 @@ where
     }
 }
 
-impl<'a> IrArenaType<'a> for Stmt<'a> {
+impl<'a> IrArenaType<'a> for StmtBlock<'a> {
     #[inline]
     fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
-        &ctx.nodes.stmts
+        &ctx.nodes.stmt_blks
     }
 
     #[inline]
     fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
-        &mut ctx.nodes.stmts
+        &mut ctx.nodes.stmt_blks
+    }
+}
+
+impl<'a> IrArenaType<'a> for Stmt<'a> {
+    #[inline]
+    fn arena<'b>(ctx: &'b IrCtx<'a>) -> &'b Arena<Self> {
+        &ctx.nodes.stmt
+    }
+
+    #[inline]
+    fn arena_mut<'b>(ctx: &'b mut IrCtx<'a>) -> &'b mut Arena<Self> {
+        &mut ctx.nodes.stmt
     }
 }
 

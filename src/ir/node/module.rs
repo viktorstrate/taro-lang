@@ -1,8 +1,6 @@
-
-
-use super::{statement::Stmt, NodeRef};
+use super::{statement::StmtBlock, NodeRef};
 
 #[derive(Debug)]
 pub struct Module<'a> {
-    pub stmts: Vec<NodeRef<'a, Stmt<'a>>>,
+    pub stmt_block: NodeRef<'a, StmtBlock<'a>>,
 }

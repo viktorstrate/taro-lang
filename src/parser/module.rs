@@ -1,45 +1,37 @@
-use crate::ast::node::{
-    module::Module,
-    statement::{Stmt, StmtValue},
-};
+use nom::{combinator::eof, sequence::terminated, Finish};
 
-use super::{statement::statement, Input, Res};
+use crate::ast::node::module::Module;
 
-pub fn module<'a>(i: Input<'a>) -> Res<Input<'a>, Module<'a>> {
-    let mut stmts: Vec<Stmt<'_>> = Vec::new();
+use super::{spaced, statement::statement, Input, ParserError};
 
-    let mut input = i;
-
-    loop {
-        let (i, new_stmt) = statement(input)?;
-        input = i;
-
-        let empty_stmt = if let StmtValue::Compound(stmts) = &new_stmt.value {
-            stmts.is_empty()
-        } else {
-            false
-        };
-
-        if empty_stmt {
-            break;
-        }
-
-        stmts.push(new_stmt);
-    }
-
-    return Ok((input, Module { stmts }));
+pub fn module<'a>(i: Input<'a>) -> Result<Module<'a>, ParserError<'a>> {
+    let (_i, stmt) = terminated(spaced(statement), eof)(i).finish()?;
+    return Ok(Module { stmt });
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::new_input;
+    use std::assert_matches::assert_matches;
+
+    use crate::{ast::node::statement::StmtValue, parser::new_input};
 
     use super::module;
 
     #[test]
     fn test_module() {
-        let m = module(new_input("struct S {} let x = false")).unwrap().1;
+        let m = module(new_input("struct S {}\nlet x = false")).unwrap();
 
-        assert_eq!(m.stmts.len(), 2);
+        match m.stmt.value {
+            StmtValue::Compound(cmp) => {
+                assert_eq!(cmp.len(), 2)
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_invalid_end() {
+        let m = module(new_input("let x = 2 INVALID"));
+        assert_matches!(m, Err(_));
     }
 }

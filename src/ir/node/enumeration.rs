@@ -1,7 +1,4 @@
-use crate::{
-    ir::context::IrCtx,
-    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper},
-};
+use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
 
 use super::{
     expression::Expr,
@@ -108,7 +105,6 @@ impl<'a> Typed<'a> for NodeRef<'a, EnumInit<'a>> {
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let enm_name = ctx[*self].enum_name;
-        // .ok_or(TypeEvalError::UndeterminableType(ctx[*self].enum_value))?;
 
         Ok(ctx.get_type_sig(TypeSignatureValue::Enum { name: enm_name }))
     }
