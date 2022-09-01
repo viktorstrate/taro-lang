@@ -88,6 +88,15 @@ pub trait IrWalker<'a> {
         Ok(())
     }
 
+    fn visit_func_decl(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        scope: &mut Self::Scope,
+        func: NodeRef<'a, Function<'a>>,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
     fn visit_scope_begin(
         &mut self,
         ctx: &mut IrCtx<'a>,
@@ -306,6 +315,8 @@ pub fn walk_func_decl<'a, W: IrWalker<'a>>(
     ctx[func].return_type = walk_type_sig(walker, ctx, scope, ctx[func].return_type)?;
 
     walk_stmt_block(walker, ctx, &mut func_scope, ctx[func].body)?;
+
+    walker.visit_func_decl(ctx, &mut func_scope, func)?;
 
     walker.visit_scope_end(ctx, scope, func_scope, ScopeValue::Func(func))?;
 

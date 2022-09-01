@@ -79,7 +79,13 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::ir::test_utils::utils::{lowered_ir, type_check};
+    use crate::{
+        ir::{
+            node::type_signature::TypeEvalError,
+            test_utils::utils::{lowered_ir, type_check},
+        },
+        type_checker::TypeCheckerError,
+    };
 
     #[test]
     fn test_var_decl_matching_types() {
@@ -126,7 +132,16 @@ mod tests {
     #[test]
     fn test_decl_inside_scope() {
         let mut ir = lowered_ir("let f = () -> Boolean { let a = true; return a }").unwrap();
-        assert_matches!(type_check(&mut ir), Ok(_))
+        let res = type_check(&mut ir);
+
+        match res {
+            Err(TypeCheckerError::TypeEval(TypeEvalError::UnknownIdent(id))) => {
+                println!("UNKNOWN ID: {:?}", ir.ctx[id])
+            }
+            _ => {}
+        }
+
+        assert_matches!(res, Ok(_))
     }
 
     #[test]

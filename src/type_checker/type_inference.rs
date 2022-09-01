@@ -8,7 +8,9 @@ use crate::{
             expression::Expr,
             function::Function,
             statement::{Stmt, StmtBlock},
-            type_signature::{TypeEvalError, TypeSignature, TypeSignatureValue, Typed},
+            type_signature::{
+                BuiltinType, TypeEvalError, TypeSignature, TypeSignatureValue, Typed,
+            },
             NodeRef,
         },
     },
@@ -188,9 +190,6 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
                     }
                 }
             }
-            Stmt::FunctionDecl(func) => {
-                self.infer_function_body(ctx, func)?;
-            }
             _ => {}
         }
 
@@ -284,12 +283,19 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
             Expr::Tuple(_) => {}
             Expr::EnumInit(_) => {}
             Expr::UnresolvedMemberAccess(_) => {}
-            Expr::Function(func) => {
-                self.infer_function_body(ctx, func)?;
-            }
             _ => {}
         }
 
+        Ok(())
+    }
+
+    fn visit_func_decl(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        _scope: &mut Self::Scope,
+        func: NodeRef<'a, Function<'a>>,
+    ) -> Result<(), Self::Error> {
+        self.infer_function_body(ctx, func)?;
         Ok(())
     }
 }
@@ -324,6 +330,10 @@ impl<'a> TypeInferrer<'a> {
         let mut return_types = Vec::new();
         return_types.push(ctx[func].return_type);
         collect_return_types(self, ctx, ctx[func].body, &mut return_types)?;
+
+        if return_types.len() == 1 {
+            self.add_constraint(return_types[0], ctx.get_builtin_type_sig(BuiltinType::Void))
+        }
 
         for i in 1..return_types.len() {
             self.add_constraint(return_types[i - 1], return_types[i]);
@@ -480,6 +490,16 @@ mod tests {
             type_check(&mut ir),
             ir.ctx.get_builtin_type_sig(BuiltinType::Number),
             ir.ctx.get_builtin_type_sig(BuiltinType::Boolean),
+        );
+    }
+
+    #[test]
+    fn test_func_return_implicit_void() {
+        let mut ir = lowered_ir("func test() -> Number { }").unwrap();
+        assert_type_mismatch(
+            type_check(&mut ir),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Number),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Void),
         );
     }
 

@@ -48,6 +48,8 @@ impl<'a> SymbolTableZipper<'a> {
             visited_symbols: self.visited_symbols,
         });
 
+        self.visited_symbols = 0;
+
         Ok(())
     }
 
