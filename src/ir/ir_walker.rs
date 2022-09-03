@@ -31,19 +31,19 @@ impl<'a> ScopeValue<'a> {
         match self {
             ScopeValue::Func(func) => {
                 symbols
-                    .enter_scope(ctx, ctx[*func].name)
+                    .enter_scope(ctx, *ctx[*func].name)
                     .expect("scope should exist");
             }
             ScopeValue::Struct(st) => {
                 symbols
-                    .enter_scope(ctx, ctx[*st].name)
+                    .enter_scope(ctx, *ctx[*st].name)
                     .expect("scope should exist");
             }
             ScopeValue::StructInit(st_init) => symbols
-                .enter_scope(ctx, ctx[*st_init].scope_name)
+                .enter_scope(ctx, *ctx[*st_init].scope_name)
                 .expect("scope should exist"),
             ScopeValue::Enum(enm) => symbols
-                .enter_scope(ctx, ctx[*enm].name)
+                .enter_scope(ctx, *ctx[*enm].name)
                 .expect("scope should exist"),
         }
     }
@@ -183,13 +183,15 @@ pub fn walk_struct<'a, W: IrWalker<'a>>(
     let mut st_scope = walker.visit_scope_begin(ctx, scope, ScopeValue::Struct(st))?;
 
     for attr_id in ctx[st].attrs.clone() {
-        let attr_name = ctx[attr_id].name;
-        ctx[attr_id].name = walker.visit_ident(
-            ctx,
-            scope,
-            IdentParent::StructDeclAttrName(attr_id),
-            attr_name,
-        )?;
+        let attr_name = *ctx[attr_id].name;
+        ctx[attr_id].name = walker
+            .visit_ident(
+                ctx,
+                scope,
+                IdentParent::StructDeclAttrName(attr_id),
+                attr_name,
+            )?
+            .into();
 
         match ctx[attr_id].default_value {
             Some(value) => {
@@ -201,8 +203,10 @@ pub fn walk_struct<'a, W: IrWalker<'a>>(
         ctx[attr_id].type_sig = walk_type_sig(walker, ctx, scope, ctx[attr_id].type_sig)?;
     }
 
-    let st_name = ctx[st].name;
-    ctx[st].name = walker.visit_ident(ctx, scope, IdentParent::StructDeclName(st), st_name)?;
+    let st_name = *ctx[st].name;
+    ctx[st].name = walker
+        .visit_ident(ctx, scope, IdentParent::StructDeclName(st), st_name)?
+        .into();
 
     walker.visit_scope_end(ctx, scope, st_scope, ScopeValue::Struct(st))?;
 
@@ -216,20 +220,22 @@ pub fn walk_enum<'a, W: IrWalker<'a>>(
     enm: NodeRef<'a, Enum<'a>>,
 ) -> Result<(), W::Error> {
     let enm_scope = walker.visit_scope_begin(ctx, scope, ScopeValue::Enum(enm))?;
-    ctx[enm].name =
-        walker.visit_ident(ctx, scope, IdentParent::EnumDeclName(enm), ctx[enm].name)?;
+    ctx[enm].name = walker
+        .visit_ident(ctx, scope, IdentParent::EnumDeclName(enm), *ctx[enm].name)?
+        .into();
 
     for val in ctx[enm].values.clone() {
-        let ident = ctx[val].name;
-        ctx[val].name =
-            walker.visit_ident(ctx, scope, IdentParent::EnumDeclValueName(val), ident)?;
+        let ident = *ctx[val].name;
+        ctx[val].name = walker
+            .visit_ident(ctx, scope, IdentParent::EnumDeclValueName(val), ident)?
+            .into();
 
         for (i, type_sig) in ctx[val].items.clone().into_iter().enumerate() {
             ctx[val].items[i] = walk_type_sig(walker, ctx, scope, type_sig)?;
         }
     }
 
-    ctx[enm].type_sig = walk_type_sig(walker, ctx, scope, ctx[enm].type_sig)?;
+    ctx[enm].type_sig = walk_type_sig(walker, ctx, scope, *ctx[enm].type_sig)?.into();
 
     walker.visit_scope_end(ctx, scope, enm_scope, ScopeValue::Enum(enm))?;
 
@@ -258,10 +264,10 @@ pub fn walk_stmt<'a, W: IrWalker<'a>>(
     match ctx[stmt].clone() {
         Stmt::VariableDecl(decl) => {
             let decl = decl;
-            let decl_name = ctx[decl].name;
+            let decl_name = *ctx[decl].name;
 
             walker.visit_ordered_symbol(ctx, scope)?;
-            ctx[decl].name =
+            *ctx[decl].name =
                 walker.visit_ident(ctx, scope, IdentParent::VarDeclName(decl), decl_name)?;
             walk_expr(walker, ctx, scope, ctx[decl].value)?;
 
@@ -302,15 +308,18 @@ pub fn walk_func_decl<'a, W: IrWalker<'a>>(
     let mut func_scope = walker.visit_scope_begin(ctx, scope, ScopeValue::Func(func))?;
 
     for arg in ctx[func].args.clone() {
-        let arg_name = ctx[arg].name;
-        ctx[arg].name =
-            walker.visit_ident(ctx, scope, IdentParent::FuncDeclArgName(arg), arg_name)?;
+        let arg_name = *ctx[arg].name;
+        ctx[arg].name = walker
+            .visit_ident(ctx, scope, IdentParent::FuncDeclArgName(arg), arg_name)?
+            .into();
 
         ctx[arg].type_sig = walk_type_sig(walker, ctx, scope, ctx[arg].type_sig)?;
     }
 
-    let func_name = ctx[func].name;
-    ctx[func].name = walker.visit_ident(ctx, scope, IdentParent::FuncDeclName(func), func_name)?;
+    let func_name = *ctx[func].name;
+    ctx[func].name = walker
+        .visit_ident(ctx, scope, IdentParent::FuncDeclName(func), func_name)?
+        .into();
 
     ctx[func].return_type = walk_type_sig(walker, ctx, scope, ctx[func].return_type)?;
 
@@ -442,7 +451,7 @@ pub fn walk_struct_init<'a, W: IrWalker<'a>>(
     let mut child_scope = walker.visit_scope_begin(ctx, scope, ScopeValue::StructInit(st_init))?;
 
     let st_name = ctx[st_init].struct_name;
-    let scp_name = ctx[st_init].scope_name;
+    let scp_name = *ctx[st_init].scope_name;
 
     ctx[st_init].struct_name = walker.visit_ident(
         ctx,
@@ -450,12 +459,14 @@ pub fn walk_struct_init<'a, W: IrWalker<'a>>(
         IdentParent::StructInitStructName(st_init),
         st_name,
     )?;
-    ctx[st_init].scope_name = walker.visit_ident(
-        ctx,
-        &mut child_scope,
-        IdentParent::StructInitScopeName(st_init),
-        scp_name,
-    )?;
+    ctx[st_init].scope_name = walker
+        .visit_ident(
+            ctx,
+            &mut child_scope,
+            IdentParent::StructInitScopeName(st_init),
+            scp_name,
+        )?
+        .into();
 
     for value in ctx[st_init].values.clone() {
         let val_ident = ctx[value].name;

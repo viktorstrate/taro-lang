@@ -1,5 +1,6 @@
 use crate::{
-    ir::context::IrCtx, ir::node::type_signature::TypeSignatureValue,
+    ir::context::IrCtx,
+    ir::{late_init::LateInit, node::type_signature::TypeSignatureValue},
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
@@ -13,7 +14,7 @@ use super::{
 
 #[derive(Debug)]
 pub struct Function<'a> {
-    pub name: Ident<'a>,
+    pub name: LateInit<Ident<'a>>,
     pub args: Vec<NodeRef<'a, FunctionArg<'a>>>,
     pub return_type: TypeSignature<'a>,
     pub body: NodeRef<'a, StmtBlock<'a>>,
@@ -40,7 +41,7 @@ impl<'a> Function<'a> {
 
 #[derive(Debug)]
 pub struct FunctionArg<'a> {
-    pub name: Ident<'a>,
+    pub name: LateInit<Ident<'a>>,
     pub type_sig: TypeSignature<'a>,
 }
 
@@ -52,13 +53,13 @@ pub struct FunctionCall<'a> {
 
 impl<'a> Identifiable<'a> for Function<'a> {
     fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
-        self.name
+        *self.name
     }
 }
 
 impl<'a> Identifiable<'a> for FunctionArg<'a> {
     fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
-        self.name
+        *self.name
     }
 }
 

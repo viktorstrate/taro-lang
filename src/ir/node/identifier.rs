@@ -1,7 +1,7 @@
 use id_arena::Id;
 
 use crate::{ir::context::IrCtx, parser::Span};
-use std::fmt::Debug;
+use std::{fmt::Debug, hash::Hash};
 
 use super::{
     enumeration::{Enum, EnumInit, EnumValue},
@@ -18,9 +18,24 @@ pub trait Identifiable<'a> {
     fn name(&self, ctx: &IrCtx<'a>) -> Ident<'a>;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy)]
 pub struct Ident<'a> {
-    id: Id<IdentValue<'a>>,
+    pub id: Id<IdentValue<'a>>,
+    pub parent: IdentParent<'a>,
+}
+
+impl<'a> Eq for Ident<'a> {}
+
+impl<'a> PartialEq for Ident<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl<'a> Hash for Ident<'a> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
 }
 
 impl<'a> Into<Id<IdentValue<'a>>> for Ident<'a> {
@@ -29,11 +44,11 @@ impl<'a> Into<Id<IdentValue<'a>>> for Ident<'a> {
     }
 }
 
-impl<'a> From<Id<IdentValue<'a>>> for Ident<'a> {
-    fn from(id: Id<IdentValue<'a>>) -> Self {
-        Self { id }
-    }
-}
+// impl<'a> From<Id<IdentValue<'a>>> for Ident<'a> {
+//     fn from(id: Id<IdentValue<'a>>) -> Self {
+//         Self { id }
+//     }
+// }
 
 #[derive(Debug, Clone)]
 pub enum IdentValue<'a> {
@@ -74,7 +89,7 @@ impl<'a> IdentKey<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum IdentParent<'a> {
     StructDeclName(NodeRef<'a, Struct<'a>>),
     StructDeclAttrName(NodeRef<'a, StructAttr<'a>>),
@@ -92,4 +107,6 @@ pub enum IdentParent<'a> {
     IdentExpr(NodeRef<'a, Expr<'a>>),
     TypeSigName(TypeSignature<'a>),
     MemberAccessMemberName(NodeRef<'a, UnresolvedMemberAccess<'a>>),
+    UnresolvedIdent,
+    BuiltinIdent,
 }

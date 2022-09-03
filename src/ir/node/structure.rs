@@ -1,4 +1,7 @@
-use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
+use crate::{
+    ir::{context::IrCtx, late_init::LateInit},
+    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
+};
 
 use super::{
     expression::Expr,
@@ -9,13 +12,13 @@ use super::{
 
 #[derive(Debug)]
 pub struct Struct<'a> {
-    pub name: Ident<'a>,
+    pub name: LateInit<Ident<'a>>,
     pub attrs: Vec<NodeRef<'a, StructAttr<'a>>>,
 }
 
 #[derive(Debug)]
 pub struct StructAttr<'a> {
-    pub name: Ident<'a>,
+    pub name: LateInit<Ident<'a>>,
     pub mutability: Mutability,
     pub type_sig: TypeSignature<'a>,
     pub default_value: Option<NodeRef<'a, Expr<'a>>>,
@@ -24,7 +27,7 @@ pub struct StructAttr<'a> {
 #[derive(Debug)]
 pub struct StructInit<'a> {
     pub struct_name: Ident<'a>,
-    pub scope_name: Ident<'a>,
+    pub scope_name: LateInit<Ident<'a>>,
     pub values: Vec<NodeRef<'a, StructInitValue<'a>>>,
 }
 
@@ -50,26 +53,26 @@ impl<'a> NodeRef<'a, Struct<'a>> {
         ctx[*self]
             .attrs
             .iter()
-            .find(|attr| IdentKey::idents_eq(ctx, ctx[**attr].name, ident))
+            .find(|attr| IdentKey::idents_eq(ctx, *ctx[**attr].name, ident))
             .map(|attr| *attr)
     }
 }
 
 impl<'a> Identifiable<'a> for Struct<'a> {
     fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
-        self.name
+        *self.name
     }
 }
 
 impl<'a> Identifiable<'a> for StructAttr<'a> {
     fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
-        self.name
+        *self.name
     }
 }
 
 impl<'a> Identifiable<'a> for StructInit<'a> {
     fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
-        self.scope_name
+        *self.scope_name
     }
 }
 
@@ -79,7 +82,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Struct<'a>> {
         _symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        let name = ctx[*self].name;
+        let name = *ctx[*self].name;
         Ok(ctx.get_type_sig(TypeSignatureValue::Struct { name }))
     }
 }
@@ -136,7 +139,9 @@ impl<'a> Typed<'a> for NodeRef<'a, StructInit<'a>> {
             .lookup_struct(ctx, symbols)
             .ok_or(TypeEvalError::UnknownIdent(ctx[*self].struct_name))?;
 
-        Ok(ctx.get_type_sig(TypeSignatureValue::Struct { name: ctx[st].name }))
+        Ok(ctx.get_type_sig(TypeSignatureValue::Struct {
+            name: *ctx[st].name,
+        }))
     }
 }
 

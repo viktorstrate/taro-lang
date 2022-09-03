@@ -31,7 +31,7 @@ pub fn check_struct_init<'a>(
     // Check that all attributes without default values are declared
     for attr in ctx[st].attrs.clone() {
         if ctx[attr].default_value.is_none() {
-            let attr_name = ctx[attr].name;
+            let attr_name = *ctx[attr].name;
             if ctx[st_init]
                 .values
                 .iter()
@@ -51,7 +51,7 @@ pub fn check_struct_init<'a>(
         if ctx[st]
             .attrs
             .iter()
-            .find(|val| IdentKey::idents_eq(ctx, ctx[**val].name, attr_name))
+            .find(|val| IdentKey::idents_eq(ctx, *ctx[**val].name, attr_name))
             .is_none()
         {
             return Err(TypeCheckerError::StructError(

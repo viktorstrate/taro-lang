@@ -1,4 +1,10 @@
-use crate::{ast::AST, ir::node::statement::Stmt};
+use crate::{
+    ast::AST,
+    ir::{
+        late_init::LateInit,
+        node::{identifier::IdentParent, statement::Stmt},
+    },
+};
 
 use super::{
     context::IrCtx,
@@ -48,42 +54,42 @@ impl<'a> IrCtx<'a> {
         ) {
             match stmt.value {
                 crate::ast::node::statement::StmtValue::VariableDecl(var_decl) => {
-                    acc.push(
-                        Stmt::VariableDecl(
-                            VarDecl {
-                                name: ctx.make_ident(var_decl.name),
-                                mutability: var_decl.mutability,
-                                type_sig: var_decl
-                                    .type_sig
-                                    .map(|type_sig| type_sig.into_ir_type(ctx))
-                                    .unwrap_or_else(|| ctx.make_type_var()),
-                                value: ctx.lower_expr(var_decl.value),
-                            }
-                            .allocate(ctx),
-                        )
-                        .allocate(ctx),
-                    );
+                    let var_decl_ref = VarDecl {
+                        name: LateInit::empty(),
+                        mutability: var_decl.mutability,
+                        type_sig: var_decl
+                            .type_sig
+                            .map(|type_sig| type_sig.into_ir_type(ctx))
+                            .unwrap_or_else(|| ctx.make_type_var()),
+                        value: ctx.lower_expr(var_decl.value),
+                    }
+                    .allocate(ctx);
+
+                    ctx[var_decl_ref].name = ctx
+                        .make_ident(var_decl.name, IdentParent::VarDeclName(var_decl_ref))
+                        .into();
+
+                    acc.push(Stmt::VariableDecl(var_decl_ref).allocate(ctx));
                 }
                 crate::ast::node::statement::StmtValue::FunctionDecl(func_decl) => {
                     let mut ir_args: Vec<NodeRef<'a, FunctionArg<'a>>> =
                         Vec::with_capacity(func_decl.args.len());
                     for arg in func_decl.args {
-                        ir_args.push(
-                            FunctionArg {
-                                name: ctx.make_ident(arg.name),
-                                type_sig: arg
-                                    .type_sig
-                                    .map(|t| t.into_ir_type(ctx))
-                                    .unwrap_or_else(|| ctx.make_type_var()),
-                            }
-                            .allocate(ctx),
-                        )
-                    }
+                        let func_arg = FunctionArg {
+                            name: LateInit::empty(),
+                            type_sig: arg
+                                .type_sig
+                                .map(|t| t.into_ir_type(ctx))
+                                .unwrap_or_else(|| ctx.make_type_var()),
+                        }
+                        .allocate(ctx);
 
-                    let name = func_decl
-                        .name
-                        .map(|name| ctx.make_ident(name))
-                        .unwrap_or_else(|| ctx.make_anon_ident());
+                        ctx[func_arg].name = ctx
+                            .make_ident(arg.name, IdentParent::FuncDeclArgName(func_arg))
+                            .into();
+
+                        ir_args.push(func_arg)
+                    }
 
                     let return_type = func_decl
                         .return_type
@@ -92,71 +98,87 @@ impl<'a> IrCtx<'a> {
 
                     let body = ctx.lower_stmt(*func_decl.body);
 
-                    acc.push(
-                        Stmt::FunctionDecl(
-                            Function {
-                                name,
-                                args: ir_args,
-                                return_type,
-                                body,
-                            }
-                            .allocate(ctx),
-                        )
-                        .allocate(ctx),
-                    );
+                    let func = Function {
+                        name: LateInit::empty(),
+                        args: ir_args,
+                        return_type,
+                        body,
+                    }
+                    .allocate(ctx);
+
+                    let name = func_decl
+                        .name
+                        .map(|name| ctx.make_ident(name, IdentParent::FuncDeclName(func)))
+                        .unwrap_or_else(|| ctx.make_anon_ident(IdentParent::FuncDeclName(func)));
+
+                    ctx[func].name = name.into();
+
+                    acc.push(Stmt::FunctionDecl(func).allocate(ctx));
                 }
                 crate::ast::node::statement::StmtValue::StructDecl(st_decl) => {
                     let mut ir_attrs: Vec<NodeRef<'a, StructAttr<'a>>> =
                         Vec::with_capacity(st_decl.attrs.len());
                     for attr in st_decl.attrs {
-                        ir_attrs.push(
-                            StructAttr {
-                                name: ctx.make_ident(attr.name),
-                                mutability: attr.mutability,
-                                type_sig: attr
-                                    .type_sig
-                                    .map(|t| t.into_ir_type(ctx))
-                                    .unwrap_or_else(|| ctx.make_type_var()),
-                                default_value: attr.default_value.map(|val| ctx.lower_expr(val)),
-                            }
-                            .allocate(ctx),
-                        )
+                        let st_attr = StructAttr {
+                            name: LateInit::empty(),
+                            mutability: attr.mutability,
+                            type_sig: attr
+                                .type_sig
+                                .map(|t| t.into_ir_type(ctx))
+                                .unwrap_or_else(|| ctx.make_type_var()),
+                            default_value: attr.default_value.map(|val| ctx.lower_expr(val)),
+                        }
+                        .allocate(ctx);
+
+                        ctx[st_attr].name = ctx
+                            .make_ident(attr.name, IdentParent::StructDeclAttrName(st_attr))
+                            .into();
+
+                        ir_attrs.push(st_attr)
                     }
-                    acc.push(
-                        Stmt::StructDecl(
-                            Struct {
-                                name: ctx.make_ident(st_decl.name),
-                                attrs: ir_attrs,
-                            }
-                            .allocate(ctx),
-                        )
-                        .allocate(ctx),
-                    );
+
+                    let st = Struct {
+                        name: LateInit::empty(),
+                        attrs: ir_attrs,
+                    }
+                    .allocate(ctx);
+
+                    ctx[st].name = ctx
+                        .make_ident(st_decl.name, IdentParent::StructDeclName(st))
+                        .into();
+
+                    acc.push(Stmt::StructDecl(st).allocate(ctx));
                 }
                 crate::ast::node::statement::StmtValue::EnumDecl(enm) => {
                     let mut values = Vec::with_capacity(enm.values.len());
                     for val in enm.values {
-                        values.push(
-                            EnumValue {
-                                name: ctx.make_ident(val.name),
-                                items: val.items.into_iter().map(|t| t.into_ir_type(ctx)).collect(),
-                            }
-                            .allocate(ctx),
-                        )
+                        let enm_val = EnumValue {
+                            name: LateInit::empty(),
+                            items: val.items.into_iter().map(|t| t.into_ir_type(ctx)).collect(),
+                        }
+                        .allocate(ctx);
+
+                        ctx[enm_val].name = ctx
+                            .make_ident(val.name, IdentParent::EnumDeclValueName(enm_val))
+                            .into();
+
+                        values.push(enm_val)
                     }
-                    let enm_name = ctx.make_ident(enm.name);
-                    acc.push(
-                        Stmt::EnumDecl(
-                            Enum {
-                                name: enm_name,
-                                values,
-                                type_sig: ctx
-                                    .get_type_sig(TypeSignatureValue::Enum { name: enm_name }),
-                            }
-                            .allocate(ctx),
-                        )
-                        .allocate(ctx),
-                    );
+
+                    let enm_decl = Enum {
+                        name: LateInit::empty(),
+                        values,
+                        type_sig: LateInit::empty(),
+                    }
+                    .allocate(ctx);
+
+                    let enm_name = ctx.make_ident(enm.name, IdentParent::EnumDeclName(enm_decl));
+                    ctx[enm_decl].name = enm_name.into();
+                    ctx[enm_decl].type_sig = ctx
+                        .get_type_sig(TypeSignatureValue::Enum { name: enm_name })
+                        .into();
+
+                    acc.push(Stmt::EnumDecl(enm_decl).allocate(ctx));
                 }
                 crate::ast::node::statement::StmtValue::Compound(stmts) => {
                     for stmt in stmts {
@@ -187,23 +209,24 @@ impl<'a> IrCtx<'a> {
             crate::ast::node::expression::ExprValue::NumberLiteral(num) => Expr::NumberLiteral(num),
             crate::ast::node::expression::ExprValue::BoolLiteral(bool) => Expr::BoolLiteral(bool),
             crate::ast::node::expression::ExprValue::Function(func) => {
-                let name = func
-                    .name
-                    .map(|name| self.make_ident(name))
-                    .unwrap_or_else(|| self.make_anon_ident());
-
                 let args = func
                     .args
                     .into_iter()
                     .map(|arg| {
-                        FunctionArg {
-                            name: self.make_ident(arg.name),
+                        let func_arg = FunctionArg {
+                            name: LateInit::empty(),
                             type_sig: arg
                                 .type_sig
                                 .map(|t| t.into_ir_type(self))
                                 .unwrap_or_else(|| self.make_type_var()),
                         }
-                        .allocate(self)
+                        .allocate(self);
+
+                        self[func_arg].name = self
+                            .make_ident(arg.name, IdentParent::FuncDeclArgName(func_arg))
+                            .into();
+
+                        func_arg
                     })
                     .collect();
 
@@ -214,15 +237,21 @@ impl<'a> IrCtx<'a> {
 
                 let body = self.lower_stmt(*func.body);
 
-                Expr::Function(
-                    Function {
-                        name,
-                        args,
-                        return_type,
-                        body,
-                    }
-                    .allocate(self),
-                )
+                let func_decl = Function {
+                    name: LateInit::empty(),
+                    args,
+                    return_type,
+                    body,
+                }
+                .allocate(self);
+
+                self[func_decl].name = func
+                    .name
+                    .map(|name| self.make_ident(name, IdentParent::FuncDeclName(func_decl)))
+                    .unwrap_or_else(|| self.make_anon_ident(IdentParent::FuncDeclName(func_decl)))
+                    .into();
+
+                Expr::Function(func_decl)
             }
             crate::ast::node::expression::ExprValue::FunctionCall(func_call) => Expr::FunctionCall(
                 FunctionCall {
@@ -241,10 +270,14 @@ impl<'a> IrCtx<'a> {
             crate::ast::node::expression::ExprValue::StructInit(st_init) => {
                 let struct_init = StructInit {
                     struct_name: self.make_unresolved_ident(st_init.struct_name),
-                    scope_name: self.make_anon_ident(),
+                    scope_name: LateInit::empty(),
                     values: Vec::new(),
                 }
                 .allocate(self);
+
+                self[struct_init].scope_name = self
+                    .make_anon_ident(IdentParent::StructInitScopeName(struct_init))
+                    .into();
 
                 let st_init_vals = st_init
                     .values

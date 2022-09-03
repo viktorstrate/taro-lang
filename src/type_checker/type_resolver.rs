@@ -100,7 +100,7 @@ impl<'a> IrWalker<'a> for TypeResolver<'a> {
                 enum_value: ctx[enm_init].enum_value,
             },
         )?;
-        ctx[enm_init].enum_value = ctx[enm_val].name;
+        ctx[enm_init].enum_value = *ctx[enm_val].name;
 
         let sym_id = self
             .symbols

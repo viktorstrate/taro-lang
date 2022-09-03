@@ -1,4 +1,7 @@
-use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
+use crate::{
+    ir::{context::IrCtx, late_init::LateInit},
+    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
+};
 
 use super::{
     expression::Expr,
@@ -9,14 +12,14 @@ use super::{
 
 #[derive(Debug, Clone)]
 pub struct Enum<'a> {
-    pub name: Ident<'a>,
+    pub name: LateInit<Ident<'a>>,
     pub values: Vec<NodeRef<'a, EnumValue<'a>>>,
-    pub type_sig: TypeSignature<'a>,
+    pub type_sig: LateInit<TypeSignature<'a>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct EnumValue<'a> {
-    pub name: Ident<'a>,
+    pub name: LateInit<Ident<'a>>,
     pub items: Vec<TypeSignature<'a>>,
 }
 
@@ -30,7 +33,7 @@ impl<'a> NodeRef<'a, Enum<'a>> {
             .values
             .iter()
             .enumerate()
-            .find(|(_, val)| IdentKey::idents_eq(ctx, ctx[**val].name, ident))
+            .find(|(_, val)| IdentKey::idents_eq(ctx, *ctx[**val].name, ident))
             .map(|(i, val)| (i, *val))
     }
 }
@@ -44,13 +47,13 @@ pub struct EnumInit<'a> {
 
 impl<'a> Identifiable<'a> for Enum<'a> {
     fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
-        self.name
+        *self.name
     }
 }
 
 impl<'a> Identifiable<'a> for EnumValue<'a> {
     fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
-        self.name
+        *self.name
     }
 }
 
@@ -60,7 +63,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Enum<'a>> {
         _symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        Ok(ctx.nodes.enms[self.id].type_sig)
+        Ok(*ctx.nodes.enms[self.id].type_sig)
     }
 }
 

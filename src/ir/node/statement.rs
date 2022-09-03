@@ -1,4 +1,7 @@
-use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
+use crate::{
+    ir::{context::IrCtx, late_init::LateInit},
+    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
+};
 
 use super::{
     enumeration::Enum,
@@ -25,7 +28,7 @@ pub enum Stmt<'a> {
 
 #[derive(Debug)]
 pub struct VarDecl<'a> {
-    pub name: Ident<'a>,
+    pub name: LateInit<Ident<'a>>,
     pub mutability: Mutability,
     pub type_sig: TypeSignature<'a>,
     pub value: NodeRef<'a, Expr<'a>>,
@@ -33,7 +36,7 @@ pub struct VarDecl<'a> {
 
 impl<'a> Identifiable<'a> for VarDecl<'a> {
     fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
-        self.name
+        *self.name
     }
 }
 

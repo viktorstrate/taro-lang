@@ -3,6 +3,7 @@ use self::node::module::Module;
 pub mod ast_lowering;
 pub mod context;
 pub mod ir_walker;
+pub mod late_init;
 pub mod node;
 pub mod test_utils;
 

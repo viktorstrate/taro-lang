@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::node::{
-    identifier::{Ident, IdentValue, ResolvedIdentValue},
+    identifier::{Ident, IdentParent, IdentValue, ResolvedIdentValue},
     type_signature::{BuiltinType, TypeSignature, TypeSignatureValue, BUILTIN_TYPES},
     IrNodeArena, NodeRef,
 };
@@ -158,31 +158,47 @@ impl<'a> IrCtx<'a> {
             .expect("get builtin type signature")
     }
 
-    pub fn make_ident(&mut self, ident: ast::node::identifier::Ident<'a>) -> Ident<'a> {
-        self.idents
-            .alloc(IdentValue::Resolved(ResolvedIdentValue::Named {
-                def_span: ident.span,
-                name: ident.value,
-            }))
-            .into()
+    pub fn make_ident(
+        &mut self,
+        ident: ast::node::identifier::Ident<'a>,
+        parent: IdentParent<'a>,
+    ) -> Ident<'a> {
+        Ident {
+            id: self
+                .idents
+                .alloc(IdentValue::Resolved(ResolvedIdentValue::Named {
+                    def_span: ident.span,
+                    name: ident.value,
+                })),
+            parent,
+        }
     }
 
     pub fn make_builtin_ident(&mut self, builtin: BuiltinType) -> Ident<'a> {
-        self.idents
-            .alloc(IdentValue::Resolved(ResolvedIdentValue::BuiltinType(
-                builtin,
-            )))
-            .into()
+        Ident {
+            id: self
+                .idents
+                .alloc(IdentValue::Resolved(ResolvedIdentValue::BuiltinType(
+                    builtin,
+                ))),
+            parent: IdentParent::BuiltinIdent,
+        }
     }
 
-    pub fn make_anon_ident(&mut self) -> Ident<'a> {
-        self.idents
-            .alloc(IdentValue::Resolved(ResolvedIdentValue::Anonymous))
-            .into()
+    pub fn make_anon_ident(&mut self, parent: IdentParent<'a>) -> Ident<'a> {
+        Ident {
+            id: self
+                .idents
+                .alloc(IdentValue::Resolved(ResolvedIdentValue::Anonymous)),
+            parent,
+        }
     }
 
     pub fn make_unresolved_ident(&mut self, ident: ast::node::identifier::Ident<'a>) -> Ident<'a> {
-        self.idents.alloc(IdentValue::Unresolved(ident)).into()
+        Ident {
+            id: self.idents.alloc(IdentValue::Unresolved(ident)),
+            parent: IdentParent::UnresolvedIdent,
+        }
     }
 
     pub fn make_symbol(&mut self, symbol: SymbolValueItem<'a>) -> SymbolValue<'a> {

@@ -158,7 +158,7 @@ mod tests {
         match ir.ctx[stmts[0]] {
             Stmt::VariableDecl(var_decl) => {
                 assert_eq!(
-                    IdentKey::from_ident(&ir.ctx, ir.ctx[var_decl].name),
+                    IdentKey::from_ident(&ir.ctx, *ir.ctx[var_decl].name),
                     IdentKey::Named("f")
                 );
                 match ir.ctx[ir.ctx[var_decl].value] {

@@ -1,3 +1,5 @@
+use std::assert_matches::debug_assert_matches;
+
 use crate::ir::{
     context::IrCtx,
     ir_walker::{walk_expr, IrWalker, ScopeValue},
@@ -189,7 +191,7 @@ pub fn resolve_ident<'a>(
                     .lookup_attr(ident, ctx)
                     .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
 
-                Some(ctx[attr].name)
+                Some(*ctx[attr].name)
             }
             IdentParent::StructAccessAttrName(st_access) => {
                 let st_attr = st_access
@@ -210,7 +212,7 @@ pub fn resolve_ident<'a>(
                     _ => {}
                 }
 
-                Some(ctx[st_attr].name)
+                Some(*ctx[st_attr].name)
             }
             IdentParent::EnumInitValueName(enm_init) => {
                 let enm_name = ctx[enm_init].enum_name;
@@ -227,7 +229,7 @@ pub fn resolve_ident<'a>(
                     },
                 )?;
 
-                Some(ctx[enm_val].name)
+                Some(*ctx[enm_val].name)
             }
             IdentParent::MemberAccessMemberName(_) => None,
             _ => {
@@ -236,15 +238,14 @@ pub fn resolve_ident<'a>(
                     .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
 
                 let sym = *&ctx[sym_id];
-                Some(sym.name(ctx))
+                Some(sym.name(ctx).into())
             }
         },
         IdentValue::Resolved(_) => None,
     };
 
     if let Some(sym_ident) = resolved_ident {
-        debug_assert!(matches!(ctx[sym_ident], IdentValue::Resolved(_)));
-
+        debug_assert_matches!(ctx[sym_ident], IdentValue::Resolved(_));
         Ok(sym_ident)
     } else {
         Ok(ident)

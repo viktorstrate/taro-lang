@@ -85,9 +85,11 @@ fn format_struct<'a, 'ctx, W: Write>(
     st: NodeRef<'a, Struct<'a>>,
 ) -> CodeGenResult {
     gen.write("function ")?;
-    gen.write_ident(gen.ctx[st].name)?;
+    gen.write_ident(*gen.ctx[st].name)?;
 
-    gen.symbols.enter_scope(&gen.ctx, gen.ctx[st].name).unwrap();
+    gen.symbols
+        .enter_scope(&gen.ctx, *gen.ctx[st].name)
+        .unwrap();
 
     gen.write(" (")?;
 
@@ -95,7 +97,7 @@ fn format_struct<'a, 'ctx, W: Write>(
         gen,
         ", ",
         gen.ctx[st].attrs.clone().into_iter(),
-        |gen, attr| gen.write_ident(gen.ctx[attr].name),
+        |gen, attr| gen.write_ident(*gen.ctx[attr].name),
     )?;
 
     gen.write(") {\n")?;
@@ -106,9 +108,9 @@ fn format_struct<'a, 'ctx, W: Write>(
         gen.ctx[st].attrs.clone().into_iter(),
         |gen, attr| {
             gen.write("this.")?;
-            gen.write_ident(gen.ctx[attr].name)?;
+            gen.write_ident(*gen.ctx[attr].name)?;
             gen.write(" = ")?;
-            gen.write_ident(gen.ctx[attr].name)?;
+            gen.write_ident(*gen.ctx[attr].name)?;
 
             if let Some(default) = gen.ctx[attr].default_value {
                 gen.write(" ?? ")?;
@@ -171,7 +173,7 @@ fn format_var_decl<'a, 'ctx, W: Write>(
         gen.write("const ")?;
     }
 
-    gen.write_ident(gen.ctx[var_decl].name)?;
+    gen.write_ident(*gen.ctx[var_decl].name)?;
     gen.write(" = ")?;
     format_expr(gen, gen.ctx[var_decl].value)?;
     gen.write(";")
@@ -181,7 +183,7 @@ fn format_func_decl<'a, 'ctx, W: Write>(
     gen: &mut CodeGenCtx<'a, 'ctx, W>,
     func: NodeRef<'a, Function<'a>>,
 ) -> CodeGenResult {
-    let func_name = gen.ctx[func].name;
+    let func_name = *gen.ctx[func].name;
 
     gen.write("function ")?;
     gen.write_ident(func_name)?;
@@ -217,7 +219,7 @@ fn format_expr<'a, 'ctx, W: Write>(
         Expr::BoolLiteral(val) => gen.write(if val == true { "true" } else { "false" }),
         Expr::Function(func) => {
             gen.symbols
-                .enter_scope(&gen.ctx, gen.ctx[func].name.clone())
+                .enter_scope(&gen.ctx, *gen.ctx[func].name)
                 .expect("function scope should exist");
 
             format_func_args(gen, gen.ctx[func].args.clone())?;
@@ -243,7 +245,7 @@ fn format_expr<'a, 'ctx, W: Write>(
         Expr::Identifier(ident) => gen.write_ident(ident),
         Expr::StructInit(st_init) => {
             gen.symbols
-                .enter_scope(&gen.ctx, gen.ctx[st_init].scope_name)
+                .enter_scope(&gen.ctx, *gen.ctx[st_init].scope_name)
                 .expect("struct init scope should exist");
             gen.write("new ")?;
             gen.write_ident(gen.ctx[st_init].struct_name)?;
@@ -258,7 +260,7 @@ fn format_expr<'a, 'ctx, W: Write>(
             let attr_names = gen.ctx[st]
                 .attrs
                 .iter()
-                .map(|attr| gen.ctx[*attr].name)
+                .map(|attr| *gen.ctx[*attr].name)
                 .collect::<Vec<_>>();
 
             format_with_separator(gen, ", ", attr_names.iter(), |gen, attr_name| {
@@ -347,7 +349,7 @@ fn format_func_args<'a, 'ctx, W: Write>(
 ) -> CodeGenResult {
     gen.write("(")?;
     format_with_separator(gen, ", ", args.iter(), |gen, arg| {
-        gen.write_ident(gen.ctx[*arg].name)
+        gen.write_ident(*gen.ctx[*arg].name)
     })?;
     gen.write(")")
 }

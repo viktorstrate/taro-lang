@@ -1,11 +1,7 @@
 use crate::ir::{
     context::IrCtx,
     ir_walker::{IrWalker, ScopeValue},
-    node::{
-        statement::{Stmt},
-        type_signature::BUILTIN_TYPES,
-        NodeRef,
-    },
+    node::{statement::Stmt, type_signature::BUILTIN_TYPES, NodeRef},
 };
 
 use super::symbol_table::{SymbolCollectionError, SymbolTable, SymbolValueItem};
@@ -74,12 +70,12 @@ impl<'a> IrWalker<'a> for SymbolCollector {
     ) -> Result<(), Self::Error> {
         // save child scope in parent scope
         match value {
-            ScopeValue::Func(func) => parent.insert_scope(ctx, ctx[func].name, child).map(|_| ()),
-            ScopeValue::Struct(st) => parent.insert_scope(ctx, ctx[st].name, child).map(|_| ()),
+            ScopeValue::Func(func) => parent.insert_scope(ctx, *ctx[func].name, child).map(|_| ()),
+            ScopeValue::Struct(st) => parent.insert_scope(ctx, *ctx[st].name, child).map(|_| ()),
             ScopeValue::StructInit(st_init) => parent
-                .insert_scope(ctx, ctx[st_init].scope_name, child)
+                .insert_scope(ctx, *ctx[st_init].scope_name, child)
                 .map(|_| ()),
-            ScopeValue::Enum(enm) => parent.insert_scope(ctx, ctx[enm].name, child).map(|_| ()),
+            ScopeValue::Enum(enm) => parent.insert_scope(ctx, *ctx[enm].name, child).map(|_| ()),
         }
     }
 
