@@ -60,7 +60,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
             Expr::Tuple(tup) => tup.eval_type(symbols, ctx),
             Expr::TupleAccess(tup_acc) => tup_acc.eval_type(symbols, ctx),
             Expr::EnumInit(enm_init) => enm_init.eval_type(symbols, ctx),
-            Expr::UnresolvedMemberAccess(_) => panic!(),
+            Expr::UnresolvedMemberAccess(mem_acc) => mem_acc.eval_type(symbols, ctx),
         }
     }
 
@@ -79,7 +79,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
             Expr::Tuple(tup) => tup.specified_type(ctx),
             Expr::TupleAccess(tup_acc) => tup_acc.specified_type(ctx),
             Expr::EnumInit(enm_init) => enm_init.specified_type(ctx),
-            Expr::UnresolvedMemberAccess(_) => panic!(),
+            Expr::UnresolvedMemberAccess(mem_acc) => mem_acc.specified_type(ctx),
         }
     }
 
@@ -102,7 +102,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
             Expr::Tuple(tup) => tup.specify_type(ctx, new_type),
             Expr::TupleAccess(tup_acc) => tup_acc.specify_type(ctx, new_type),
             Expr::EnumInit(enm_init) => enm_init.specify_type(ctx, new_type),
-            Expr::UnresolvedMemberAccess(_) => panic!(),
+            Expr::UnresolvedMemberAccess(mem_acc) => mem_acc.specify_type(ctx, new_type),
         }
     }
 }

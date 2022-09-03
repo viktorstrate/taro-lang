@@ -313,6 +313,7 @@ impl<'a> IrCtx<'a> {
                         object,
                         member_name: self.make_unresolved_ident(mem_acc.member_name),
                         items,
+                        type_sig: self.make_type_var(),
                     }
                     .allocate(self),
                 )

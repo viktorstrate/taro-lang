@@ -24,4 +24,8 @@ pub enum TypeCheckerError<'a> {
     StructError(StructTypeError<'a>),
     FuncArgCountMismatch(TypeSignature<'a>, TypeSignature<'a>),
     FuncCallWrongArgAmount(NodeRef<'a, FunctionCall<'a>>),
+    UnknownEnumValue {
+        enum_name: Ident<'a>,
+        enum_value: Ident<'a>,
+    },
 }

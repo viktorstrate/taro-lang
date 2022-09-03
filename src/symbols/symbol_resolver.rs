@@ -81,84 +81,7 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
         parent: IdentParent<'a>,
         ident: Ident<'a>,
     ) -> Result<Ident<'a>, Self::Error> {
-        let resolved_ident = match &ctx[ident] {
-            IdentValue::Unresolved(_) => match parent {
-                IdentParent::StructInitValueName(st_init) => {
-                    let st_name = ctx[ctx[st_init].parent].struct_name;
-
-                    let st = self
-                        .symbols
-                        .lookup(ctx, st_name)
-                        .ok_or(SymbolResolutionError::UnknownIdentifier(st_name))?
-                        .unwrap_struct(ctx);
-
-                    let attr = st
-                        .lookup_attr(ident, ctx)
-                        .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
-
-                    Some(ctx[attr].name)
-                }
-                IdentParent::StructAccessAttrName(st_access) => {
-                    let st_attr = st_access
-                        .lookup_attr(ctx, &mut self.symbols)
-                        .map_err(|_| SymbolResolutionError::UnknownIdentifier(ident))?;
-
-                    match ctx[ctx[st_attr].type_sig] {
-                        TypeSignatureValue::Unresolved(type_ident) => {
-                            let resolved_type_sig = self
-                                .symbols
-                                .lookup(ctx, type_ident)
-                                .ok_or(SymbolResolutionError::UnknownIdentifier(type_ident))?
-                                .clone()
-                                .eval_type(&mut self.symbols, ctx)
-                                .map_err(SymbolResolutionError::TypeEval)?;
-
-                            ctx[st_attr].type_sig = resolved_type_sig;
-                        }
-                        _ => {}
-                    }
-
-                    Some(ctx[st_attr].name)
-                }
-                IdentParent::EnumInitValueName(enm_init) => {
-                    let enm_name = ctx[enm_init].enum_name;
-
-                    let enm = self
-                        .symbols
-                        .lookup(ctx, enm_name)
-                        .ok_or(SymbolResolutionError::UnknownIdentifier(enm_name))?
-                        .unwrap_enum(ctx);
-
-                    let (_, enm_val) = enm.lookup_value(ctx, ctx[enm_init].enum_value).ok_or(
-                        SymbolResolutionError::UnknownEnumValue {
-                            enum_name: enm_name,
-                            enum_value: ctx[enm_init].enum_value,
-                        },
-                    )?;
-
-                    Some(ctx[enm_val].name)
-                }
-                IdentParent::MemberAccessMemberName(_) => None,
-                _ => {
-                    let sym_id = self
-                        .symbols
-                        .lookup(ctx, ident)
-                        .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
-
-                    let sym = *&ctx[sym_id];
-                    Some(sym.name(ctx))
-                }
-            },
-            IdentValue::Resolved(_) => None,
-        };
-
-        if let Some(sym_ident) = resolved_ident {
-            debug_assert!(matches!(ctx[sym_ident], IdentValue::Resolved(_)));
-
-            Ok(sym_ident)
-        } else {
-            Ok(ident)
-        }
+        resolve_ident(&mut self.symbols, ctx, parent, ident)
     }
 
     fn visit_type_sig(
@@ -196,7 +119,10 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
             Expr::UnresolvedMemberAccess(mem_acc) => {
                 let obj = match ctx[mem_acc].object {
                     Some(obj) => obj,
-                    None => todo!("Type inference not implemented yet"),
+                    None => {
+                        // member access cannot be resolved yet
+                        return Ok(());
+                    }
                 };
 
                 let obj_type = obj
@@ -240,5 +166,87 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
             }
             _ => Ok(()),
         }
+    }
+}
+
+pub fn resolve_ident<'a>(
+    symbols: &mut SymbolTableZipper<'a>,
+    ctx: &mut IrCtx<'a>,
+    parent: IdentParent<'a>,
+    ident: Ident<'a>,
+) -> Result<Ident<'a>, SymbolResolutionError<'a>> {
+    let resolved_ident = match &ctx[ident] {
+        IdentValue::Unresolved(_) => match parent {
+            IdentParent::StructInitValueName(st_init) => {
+                let st_name = ctx[ctx[st_init].parent].struct_name;
+
+                let st = symbols
+                    .lookup(ctx, st_name)
+                    .ok_or(SymbolResolutionError::UnknownIdentifier(st_name))?
+                    .unwrap_struct(ctx);
+
+                let attr = st
+                    .lookup_attr(ident, ctx)
+                    .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
+
+                Some(ctx[attr].name)
+            }
+            IdentParent::StructAccessAttrName(st_access) => {
+                let st_attr = st_access
+                    .lookup_attr(ctx, symbols)
+                    .map_err(|_| SymbolResolutionError::UnknownIdentifier(ident))?;
+
+                match ctx[ctx[st_attr].type_sig] {
+                    TypeSignatureValue::Unresolved(type_ident) => {
+                        let resolved_type_sig = symbols
+                            .lookup(ctx, type_ident)
+                            .ok_or(SymbolResolutionError::UnknownIdentifier(type_ident))?
+                            .clone()
+                            .eval_type(symbols, ctx)
+                            .map_err(SymbolResolutionError::TypeEval)?;
+
+                        ctx[st_attr].type_sig = resolved_type_sig;
+                    }
+                    _ => {}
+                }
+
+                Some(ctx[st_attr].name)
+            }
+            IdentParent::EnumInitValueName(enm_init) => {
+                let enm_name = ctx[enm_init].enum_name;
+
+                let enm = symbols
+                    .lookup(ctx, enm_name)
+                    .ok_or(SymbolResolutionError::UnknownIdentifier(enm_name))?
+                    .unwrap_enum(ctx);
+
+                let (_, enm_val) = enm.lookup_value(ctx, ctx[enm_init].enum_value).ok_or(
+                    SymbolResolutionError::UnknownEnumValue {
+                        enum_name: enm_name,
+                        enum_value: ctx[enm_init].enum_value,
+                    },
+                )?;
+
+                Some(ctx[enm_val].name)
+            }
+            IdentParent::MemberAccessMemberName(_) => None,
+            _ => {
+                let sym_id = symbols
+                    .lookup(ctx, ident)
+                    .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
+
+                let sym = *&ctx[sym_id];
+                Some(sym.name(ctx))
+            }
+        },
+        IdentValue::Resolved(_) => None,
+    };
+
+    if let Some(sym_ident) = resolved_ident {
+        debug_assert!(matches!(ctx[sym_ident], IdentValue::Resolved(_)));
+
+        Ok(sym_ident)
+    } else {
+        Ok(ident)
     }
 }

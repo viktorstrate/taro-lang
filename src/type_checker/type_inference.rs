@@ -95,11 +95,11 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
             let type_a = *self.substitutions.get(&type_a).unwrap_or(&type_a);
             let type_b = *self.substitutions.get(&type_b).unwrap_or(&type_b);
 
-            // println!(
-            //     "TYPE CONSTRAINT :: {} == {}",
-            //     type_a.format(ctx),
-            //     type_b.format(ctx)
-            // );
+            println!(
+                "TYPE CONSTRAINT :: {} == {}",
+                type_a.format(ctx),
+                type_b.format(ctx)
+            );
 
             match (ctx[type_a].clone(), ctx[type_b].clone()) {
                 (TypeSignatureValue::TypeVariable(_), TypeSignatureValue::TypeVariable(_)) => {
