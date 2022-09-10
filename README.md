@@ -91,7 +91,7 @@ Each component can be accessed in the following way
 ```
 let first: String = a.0
 let second: Number = a.1
-let third: Boolean = a.3
+let third: Boolean = a.2
 ```
 
 ### Functions
@@ -110,6 +110,29 @@ or as a lambda.
 let sum = (a: Number, b: Number) -> Number {
   return a + b
 }
+```
+
+### Enumeration
+
+An enum is declared with a name and then a list of values the enum can take.
+Each value can have a tuple of data associated with it.
+
+Enum declarations are only used to type check and will be removed when compiled to javascript.
+
+```
+enum IP {
+  v4(Number, Number, Number, Number)
+  v6(String)
+}
+
+let my_ip = IP.v4(127, 0, 0, 1)
+```
+
+In contexts where the type can be inferred, it is not necessary to write the name of the enum.
+This means that the last line above can also be written as such.
+
+```
+let my_ip: IP = .v4(127, 0, 0, 1)
 ```
 
 ### Javascript interoperability
