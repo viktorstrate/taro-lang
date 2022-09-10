@@ -90,76 +90,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
         ctx: &mut IrCtx<'a>,
         _scope: &mut Self::Scope,
     ) -> Result<(), Self::Error> {
-        let mut unresolvable_count = 0;
-        while let Some(TypeConstraint(type_a, type_b)) = self.constraints.pop_front() {
-            let type_a = *self.substitutions.get(&type_a).unwrap_or(&type_a);
-            let type_b = *self.substitutions.get(&type_b).unwrap_or(&type_b);
-
-            println!(
-                "TYPE CONSTRAINT :: {} == {}",
-                type_a.format(ctx),
-                type_b.format(ctx)
-            );
-
-            match (ctx[type_a].clone(), ctx[type_b].clone()) {
-                (TypeSignatureValue::TypeVariable(_), TypeSignatureValue::TypeVariable(_)) => {
-                    if unresolvable_count < self.constraints.len() {
-                        unresolvable_count += 1;
-                        self.add_constraint(type_a, type_b);
-                    } else {
-                        return dbg!(Err(TypeCheckerError::UndeterminableTypes));
-                    }
-                }
-                (TypeSignatureValue::TypeVariable(_), _) => {
-                    unresolvable_count = 0;
-                    self.substitutions.insert(type_a, type_b);
-                }
-                (_, TypeSignatureValue::TypeVariable(_)) => {
-                    unresolvable_count = 0;
-                    self.substitutions.insert(type_b, type_a);
-                }
-                (TypeSignatureValue::Tuple(tup_a), TypeSignatureValue::Tuple(tup_b)) => {
-                    unresolvable_count = 0;
-                    if tup_a.len() != tup_b.len() {
-                        return Err(TypeCheckerError::ConflictingTypes(type_a, type_b));
-                    }
-                    for (val_a, val_b) in tup_a.into_iter().zip(tup_b.into_iter()) {
-                        self.add_constraint(val_a, val_b);
-                    }
-                }
-                (
-                    TypeSignatureValue::Function {
-                        args: args_a,
-                        return_type: return_type_a,
-                    },
-                    TypeSignatureValue::Function {
-                        args: args_b,
-                        return_type: return_type_b,
-                    },
-                ) => {
-                    if args_a.len() != args_b.len() {
-                        return Err(TypeCheckerError::FuncArgCountMismatch(type_a, type_b));
-                    }
-
-                    self.add_constraint(return_type_a, return_type_b);
-                    for (arg_a, arg_b) in args_a.into_iter().zip(args_b.into_iter()) {
-                        self.add_constraint(arg_a, arg_b);
-                    }
-                }
-                _ => {
-                    unresolvable_count = 0;
-                    if coerce(type_a, type_b, ctx).is_none() {
-                        // println!(
-                        //     "CONFLICTING TYPES: {} /= {}",
-                        //     type_a.format(ctx),
-                        //     type_b.format(ctx)
-                        // );
-                        return Err(TypeCheckerError::ConflictingTypes(type_a, type_b));
-                    }
-                }
-            }
-        }
-
+        self.resolve_constraints(ctx)?;
         Ok(())
     }
 
@@ -281,7 +212,27 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
                 self.add_constraint(lhs, rhs);
             }
             Expr::Tuple(_) => {}
-            Expr::EnumInit(_) => {}
+            Expr::EnumInit(enm_init) => {
+                let enm = enm_init
+                    .lookup_enum(ctx, &mut self.symbols)
+                    .ok_or(TypeCheckerError::LookupError(ctx[enm_init].enum_name))?;
+                let enm_val = enm
+                    .lookup_value(ctx, ctx[enm_init].enum_value)
+                    .ok_or(TypeCheckerError::LookupError(ctx[enm_init].enum_name))?
+                    .1;
+
+                for (arg, item_type) in ctx[enm_init]
+                    .items
+                    .clone()
+                    .into_iter()
+                    .zip(ctx[enm_val].items.clone().into_iter())
+                {
+                    let arg_type = arg
+                        .eval_type(&mut self.symbols, ctx)
+                        .map_err(TypeCheckerError::TypeEval)?;
+                    self.add_constraint(arg_type, item_type);
+                }
+            }
             Expr::UnresolvedMemberAccess(_) => {}
             _ => {}
         }
@@ -301,6 +252,80 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
 }
 
 impl<'a> TypeInferrer<'a> {
+    fn resolve_constraints(&mut self, ctx: &mut IrCtx<'a>) -> Result<(), TypeCheckerError<'a>> {
+        let mut unresolvable_count = 0;
+        while let Some(TypeConstraint(type_a, type_b)) = self.constraints.pop_front() {
+            let type_a = *self.substitutions.get(&type_a).unwrap_or(&type_a);
+            let type_b = *self.substitutions.get(&type_b).unwrap_or(&type_b);
+
+            println!(
+                "TYPE CONSTRAINT :: {} == {}",
+                type_a.format(ctx),
+                type_b.format(ctx)
+            );
+
+            match (ctx[type_a].clone(), ctx[type_b].clone()) {
+                (TypeSignatureValue::TypeVariable(_), TypeSignatureValue::TypeVariable(_)) => {
+                    if unresolvable_count < self.constraints.len() {
+                        unresolvable_count += 1;
+                        self.add_constraint(type_a, type_b);
+                    } else {
+                        return dbg!(Err(TypeCheckerError::UndeterminableTypes));
+                    }
+                }
+                (TypeSignatureValue::TypeVariable(_), _) => {
+                    unresolvable_count = 0;
+                    self.substitutions.insert(type_a, type_b);
+                }
+                (_, TypeSignatureValue::TypeVariable(_)) => {
+                    unresolvable_count = 0;
+                    self.substitutions.insert(type_b, type_a);
+                }
+                (TypeSignatureValue::Tuple(tup_a), TypeSignatureValue::Tuple(tup_b)) => {
+                    unresolvable_count = 0;
+                    if tup_a.len() != tup_b.len() {
+                        return Err(TypeCheckerError::ConflictingTypes(type_a, type_b));
+                    }
+                    for (val_a, val_b) in tup_a.into_iter().zip(tup_b.into_iter()) {
+                        self.add_constraint(val_a, val_b);
+                    }
+                }
+                (
+                    TypeSignatureValue::Function {
+                        args: args_a,
+                        return_type: return_type_a,
+                    },
+                    TypeSignatureValue::Function {
+                        args: args_b,
+                        return_type: return_type_b,
+                    },
+                ) => {
+                    if args_a.len() != args_b.len() {
+                        return Err(TypeCheckerError::FuncArgCountMismatch(type_a, type_b));
+                    }
+
+                    self.add_constraint(return_type_a, return_type_b);
+                    for (arg_a, arg_b) in args_a.into_iter().zip(args_b.into_iter()) {
+                        self.add_constraint(arg_a, arg_b);
+                    }
+                }
+                _ => {
+                    unresolvable_count = 0;
+                    if coerce(type_a, type_b, ctx).is_none() {
+                        // println!(
+                        //     "CONFLICTING TYPES: {} /= {}",
+                        //     type_a.format(ctx),
+                        //     type_b.format(ctx)
+                        // );
+                        return Err(TypeCheckerError::ConflictingTypes(type_a, type_b));
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     fn infer_function_body(
         &mut self,
         ctx: &mut IrCtx<'a>,

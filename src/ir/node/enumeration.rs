@@ -45,6 +45,18 @@ pub struct EnumInit<'a> {
     pub items: Vec<NodeRef<'a, Expr<'a>>>,
 }
 
+impl<'a> NodeRef<'a, EnumInit<'a>> {
+    pub fn lookup_enum(
+        &self,
+        ctx: &IrCtx<'a>,
+        symbols: &SymbolTableZipper<'a>,
+    ) -> Option<NodeRef<'a, Enum<'a>>> {
+        symbols
+            .lookup(ctx, ctx[*self].enum_name)
+            .map(|sym| sym.unwrap_enum(ctx))
+    }
+}
+
 impl<'a> Identifiable<'a> for Enum<'a> {
     fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
         *self.name

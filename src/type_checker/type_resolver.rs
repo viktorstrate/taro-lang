@@ -7,7 +7,7 @@ use crate::{
         node::{
             enumeration::EnumInit,
             expression::Expr,
-            identifier::Identifiable,
+            identifier::{Ident, IdentParent, Identifiable},
             type_signature::{TypeSignature, TypeSignatureValue},
             IrAlloc, NodeRef,
         },
@@ -69,6 +69,9 @@ impl<'a> IrWalker<'a> for TypeResolver<'a> {
             _ => return Ok(()),
         };
 
+        // Make sure type sig is resolved before proceeding
+        ctx[mem_acc].type_sig = self.visit_type_sig(ctx, &mut (), ctx[mem_acc].type_sig)?;
+
         let enm_init = match &ctx[ctx[mem_acc].type_sig] {
             TypeSignatureValue::Enum { name } => EnumInit {
                 enum_name: *name,
@@ -107,7 +110,10 @@ impl<'a> IrWalker<'a> for TypeResolver<'a> {
             .lookup(ctx, enm_name)
             .ok_or(TypeCheckerError::LookupError(enm_name))?;
 
-        ctx[enm_init].enum_name = (*&ctx[sym_id]).name(ctx);
+        ctx[enm_init].enum_name = Ident {
+            id: (*&ctx[sym_id]).name(ctx).id,
+            parent: IdentParent::EnumInitEnumName(enm_init).into(),
+        };
 
         Ok(())
     }

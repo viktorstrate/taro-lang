@@ -115,7 +115,6 @@ pub enum IdentParent<'a> {
 
 impl<'a> IdentParent<'a> {
     pub fn change_ident(&self, ctx: &mut IrCtx<'a>, new_ident: Ident<'a>) {
-        println!("CHANGE IDENT {:?} {:?}", new_ident.parent, ctx[new_ident]);
         match self {
             IdentParent::StructDeclName(st_decl) => ctx[*st_decl].name = new_ident.into(),
             IdentParent::StructDeclAttrName(st_attr) => ctx[*st_attr].name = new_ident.into(),

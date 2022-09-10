@@ -464,4 +464,19 @@ mod tests {
             "\nconst ipValue = [0, [192, 168, 0, 1]];\n"
         );
     }
+
+    #[test]
+    fn test_implicit_enum() {
+        let output = final_codegen(
+            "enum IPAddress {\n\
+                v4(Number, Number, Number, Number)\n\
+                v6(String)\n\
+              }\n
+              let ipValue: IPAddress = .v4(192, 168, 0, 1)",
+        );
+        assert_eq!(
+            output.unwrap(),
+            "\nconst ipValue = [0, [192, 168, 0, 1]];\n"
+        );
+    }
 }

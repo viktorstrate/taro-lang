@@ -8,8 +8,8 @@ use crate::{
 };
 
 use super::{
-    assignment::check_assignment, struct_type::check_struct_init, type_resolver::TypeResolver,
-    TypeCheckerError,
+    check_assignment::check_assignment, check_enum::check_enum_init,
+    check_struct::check_struct_init, type_resolver::TypeResolver, TypeCheckerError,
 };
 
 #[derive(Debug)]
@@ -70,6 +70,7 @@ impl<'a> IrWalker<'a> for TypeChecker<'a> {
         match ctx[expr].clone() {
             Expr::Assignment(asg) => check_assignment(ctx, &mut self.symbols, asg),
             Expr::StructInit(st_init) => check_struct_init(ctx, &mut self.symbols, st_init),
+            Expr::EnumInit(enm_init) => check_enum_init(ctx, &mut self.symbols, enm_init),
             _ => Ok(()),
         }
     }
