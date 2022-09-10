@@ -1,41 +1,28 @@
-use std::collections::HashMap;
-
-use crate::{
-    ir::{
-        context::IrCtx,
-        ir_walker::IrWalker,
-        node::{
-            enumeration::EnumInit,
-            expression::Expr,
-            identifier::{Ident, IdentParent, Identifiable},
-            type_signature::{TypeSignature, TypeSignatureValue},
-            IrAlloc, NodeRef,
-        },
+use crate::ir::{
+    context::IrCtx,
+    ir_walker::IrWalker,
+    node::{
+        enumeration::EnumInit,
+        expression::Expr,
+        identifier::{Ident, IdentParent, Identifiable},
+        type_signature::{TypeSignature, TypeSignatureValue},
+        IrAlloc, NodeRef,
     },
-    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
-use super::{type_inference::TypeInferrer, TypeCheckerError};
+use super::{type_inference::TypeInferrer, TypeChecker, TypeCheckerError};
 
 #[derive(Debug)]
-pub struct TypeResolver<'a, 'b> {
-    pub symbols: &'b mut SymbolTableZipper<'a>,
-    pub substitutions: &'b mut HashMap<TypeSignature<'a>, TypeSignature<'a>>,
-}
+pub struct TypeResolver<'a, 'b>(pub &'b mut TypeChecker<'a>);
 
 impl<'a, 'b> TypeResolver<'a, 'b> {
     pub fn new(
         ctx: &IrCtx<'a>,
         type_inferrer: &'b mut TypeInferrer<'a, '_>,
     ) -> TypeResolver<'a, 'b> {
-        debug_assert!(type_inferrer.0.constraints.is_empty());
-
         type_inferrer.0.symbols.reset(ctx);
 
-        TypeResolver {
-            symbols: &mut type_inferrer.0.symbols,
-            substitutions: &mut type_inferrer.0.substitutions,
-        }
+        TypeResolver(type_inferrer.0)
     }
 }
 
@@ -49,15 +36,18 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
         type_sig: TypeSignature<'a>,
     ) -> Result<TypeSignature<'a>, Self::Error> {
         let new_type = self
+            .0
             .substitutions
             .get(&type_sig)
             .cloned()
             .unwrap_or(type_sig);
 
         match ctx[new_type] {
-            TypeSignatureValue::TypeVariable(_) => dbg!(Err(TypeCheckerError::UndeterminableTypes)),
-            _ => Ok(new_type),
+            TypeSignatureValue::TypeVariable(_) => self.0.found_undeterminable_types = true,
+            _ => {}
         }
+
+        Ok(new_type)
     }
 
     fn visit_expr(
@@ -71,6 +61,9 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
             _ => return Ok(()),
         };
 
+        // New types can now potentially be inferred
+        self.0.needs_rerun = true;
+
         // Make sure type sig is resolved before proceeding
         ctx[mem_acc].type_sig = self.visit_type_sig(ctx, &mut (), ctx[mem_acc].type_sig)?;
 
@@ -81,9 +74,9 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
                 items: ctx[mem_acc].items.clone(),
             }
             .allocate(ctx),
-            TypeSignatureValue::TypeVariable(var) => {
-                println!("COULD NOT DETERMINE UNRESOLVED MEM ACC {}", var.index());
-                return dbg!(Err(TypeCheckerError::UndeterminableTypes));
+            TypeSignatureValue::TypeVariable(_) => {
+                self.0.found_undeterminable_types = true;
+                return Ok(());
             }
             _ => unreachable!("Only enums inits can have anonymous base"),
         };
@@ -95,6 +88,7 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
         // Symbol resolve enum name and value
         let enm_name = ctx[enm_init].enum_name;
         let enm = self
+            .0
             .symbols
             .lookup(ctx, enm_name)
             .ok_or(TypeCheckerError::LookupError(enm_name))?
@@ -108,6 +102,7 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
         ctx[enm_init].enum_value = *ctx[enm_val].name;
 
         let sym_id = self
+            .0
             .symbols
             .lookup(ctx, enm_name)
             .ok_or(TypeCheckerError::LookupError(enm_name))?;

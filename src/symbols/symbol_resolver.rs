@@ -131,8 +131,6 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                     .eval_type(&mut self.symbols, ctx)
                     .map_err(SymbolResolutionError::TypeEval)?;
 
-                println!("RESOLVED MEMBER ACCESS TO {:?}", ctx[obj_type]);
-
                 let new_expr = match &ctx[obj_type] {
                     TypeSignatureValue::Function {
                         args: _,

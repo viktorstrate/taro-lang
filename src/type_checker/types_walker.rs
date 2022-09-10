@@ -19,9 +19,9 @@ pub struct EndTypeChecker<'a, 'b> {
 
 impl<'a, 'b> EndTypeChecker<'a, 'b> {
     pub fn new(ctx: &IrCtx<'a>, type_resolver: &'b mut TypeResolver<'a, '_>) -> Self {
-        type_resolver.symbols.reset(ctx);
+        type_resolver.0.symbols.reset(ctx);
         EndTypeChecker {
-            symbols: type_resolver.symbols,
+            symbols: &mut type_resolver.0.symbols,
         }
     }
 }

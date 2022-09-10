@@ -56,6 +56,8 @@ pub struct TypeChecker<'a> {
     pub symbols: SymbolTableZipper<'a>,
     pub substitutions: HashMap<TypeSignature<'a>, TypeSignature<'a>>,
     pub constraints: VecDeque<TypeConstraint<'a>>,
+    pub needs_rerun: bool,
+    pub found_undeterminable_types: bool,
 }
 
 impl<'a> TypeChecker<'a> {
@@ -66,6 +68,8 @@ impl<'a> TypeChecker<'a> {
             symbols,
             substitutions: HashMap::new(),
             constraints: VecDeque::new(),
+            needs_rerun: true,
+            found_undeterminable_types: false,
         }
     }
 
@@ -74,14 +78,25 @@ impl<'a> TypeChecker<'a> {
         ctx: &mut IrCtx<'a>,
         ir: &mut IR<'a>,
     ) -> Result<(), TypeCheckerError<'a>> {
-        let mut type_inferrer = TypeInferrer::new(ctx, self);
-        walk_ir(&mut type_inferrer, ctx, ir)?;
+        while self.needs_rerun {
+            self.needs_rerun = false;
+            self.found_undeterminable_types = false;
+            self.substitutions.clear();
+            self.constraints.clear();
 
-        let mut type_resolver = TypeResolver::new(&ctx, &mut type_inferrer);
-        walk_ir(&mut type_resolver, ctx, ir)?;
+            let mut type_inferrer = TypeInferrer::new(ctx, self);
+            walk_ir(&mut type_inferrer, ctx, ir)?;
 
-        let mut type_checker = EndTypeChecker::new(&ctx, &mut type_resolver);
-        walk_ir(&mut type_checker, ctx, ir)?;
+            let mut type_resolver = TypeResolver::new(&ctx, &mut type_inferrer);
+            walk_ir(&mut type_resolver, ctx, ir)?;
+
+            let mut type_checker = EndTypeChecker::new(&ctx, &mut type_resolver);
+            walk_ir(&mut type_checker, ctx, ir)?;
+        }
+
+        if self.found_undeterminable_types {
+            return Err(TypeCheckerError::UndeterminableTypes);
+        }
 
         Ok(())
     }

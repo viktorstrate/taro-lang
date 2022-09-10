@@ -12,9 +12,7 @@ pub mod utils {
             symbol_resolver::SymbolResolver,
             symbol_table::{SymbolCollectionError, SymbolTable},
         },
-        type_checker::{
-            TypeChecker, TypeCheckerError,
-        },
+        type_checker::{TypeChecker, TypeCheckerError},
         TranspilerError,
     };
 
@@ -59,15 +57,6 @@ pub mod utils {
 
         let mut sym_resolver = SymbolResolver::new(symbols);
         walk_ir(&mut sym_resolver, ctx, ir).unwrap();
-
-        // let mut type_inferrer = TypeInferrer::new(&ctx, sym_resolver);
-        // walk_ir(&mut type_inferrer, ctx, ir)?;
-
-        // let mut type_resolver = TypeResolver::new(ctx, type_inferrer);
-        // walk_ir(&mut type_resolver, ctx, ir)?;
-
-        // let mut checker = EndTypeChecker::new(ctx, type_resolver);
-        // let result = walk_ir(&mut checker, ctx, ir);
 
         let mut type_checker = TypeChecker::new(ctx, sym_resolver);
         let result = type_checker.type_check(ctx, ir);

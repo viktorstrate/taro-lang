@@ -1,18 +1,12 @@
-
-
-use crate::{
-    ir::{
-        context::IrCtx,
-        ir_walker::{IrWalker, ScopeValue},
-        node::{
-            expression::Expr,
-            function::Function,
-            statement::{Stmt, StmtBlock},
-            type_signature::{
-                BuiltinType, TypeEvalError, TypeSignature, TypeSignatureValue, Typed,
-            },
-            NodeRef,
-        },
+use crate::ir::{
+    context::IrCtx,
+    ir_walker::{IrWalker, ScopeValue},
+    node::{
+        expression::Expr,
+        function::Function,
+        statement::{Stmt, StmtBlock},
+        type_signature::{BuiltinType, TypeEvalError, TypeSignature, TypeSignatureValue, Typed},
+        NodeRef,
     },
 };
 
@@ -248,11 +242,11 @@ impl<'a> TypeInferrer<'a, '_> {
             let type_a = *self.0.substitutions.get(&type_a).unwrap_or(&type_a);
             let type_b = *self.0.substitutions.get(&type_b).unwrap_or(&type_b);
 
-            println!(
-                "TYPE CONSTRAINT :: {} == {}",
-                type_a.format(ctx),
-                type_b.format(ctx)
-            );
+            // println!(
+            //     "TYPE CONSTRAINT :: {} == {}",
+            //     type_a.format(ctx),
+            //     type_b.format(ctx)
+            // );
 
             match (ctx[type_a].clone(), ctx[type_b].clone()) {
                 (TypeSignatureValue::TypeVariable(_), TypeSignatureValue::TypeVariable(_)) => {
@@ -260,7 +254,9 @@ impl<'a> TypeInferrer<'a, '_> {
                         unresolvable_count += 1;
                         self.add_constraint(type_a, type_b);
                     } else {
-                        return dbg!(Err(TypeCheckerError::UndeterminableTypes));
+                        // No more constraints can be resolved
+                        self.0.found_undeterminable_types = true;
+                        return Ok(());
                     }
                 }
                 (TypeSignatureValue::TypeVariable(_), _) => {
