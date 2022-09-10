@@ -1,4 +1,7 @@
-use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
+use crate::{
+    ir::{context::IrCtx, late_init::LateInit},
+    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
+};
 
 use super::{
     assignment::Assignment,
@@ -20,7 +23,7 @@ pub enum Expr<'a> {
     BoolLiteral(bool),
     Function(NodeRef<'a, Function<'a>>),
     FunctionCall(NodeRef<'a, FunctionCall<'a>>),
-    Identifier(Ident<'a>),
+    Identifier(LateInit<Ident<'a>>),
     StructInit(NodeRef<'a, StructInit<'a>>),
     StructAccess(NodeRef<'a, StructAccess<'a>>),
     TupleAccess(NodeRef<'a, TupleAccess<'a>>),
@@ -45,8 +48,8 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
             Expr::FunctionCall(call) => call.eval_type(symbols, ctx),
             Expr::Identifier(ident) => {
                 let sym_val = symbols
-                    .lookup(ctx, ident)
-                    .ok_or(TypeEvalError::UnknownIdent(ident))?;
+                    .lookup(ctx, *ident)
+                    .ok_or(TypeEvalError::UnknownIdent(*ident))?;
 
                 sym_val.eval_type(symbols, ctx)
             }

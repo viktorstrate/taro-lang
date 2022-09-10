@@ -26,14 +26,14 @@ pub struct StructAttr<'a> {
 
 #[derive(Debug)]
 pub struct StructInit<'a> {
-    pub struct_name: Ident<'a>,
+    pub struct_name: LateInit<Ident<'a>>,
     pub scope_name: LateInit<Ident<'a>>,
     pub values: Vec<NodeRef<'a, StructInitValue<'a>>>,
 }
 
 #[derive(Debug)]
 pub struct StructInitValue<'a> {
-    pub name: Ident<'a>,
+    pub name: LateInit<Ident<'a>>,
     pub parent: NodeRef<'a, StructInit<'a>>,
     pub value: NodeRef<'a, Expr<'a>>,
 }
@@ -124,7 +124,7 @@ impl<'a> NodeRef<'a, StructInit<'a>> {
         symbols: &SymbolTableZipper<'a>,
     ) -> Option<NodeRef<'a, Struct<'a>>> {
         symbols
-            .lookup(ctx, ctx[*self].struct_name)
+            .lookup(ctx, *ctx[*self].struct_name)
             .map(|val| val.unwrap_struct(ctx))
     }
 }
@@ -137,7 +137,7 @@ impl<'a> Typed<'a> for NodeRef<'a, StructInit<'a>> {
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let st = self
             .lookup_struct(ctx, symbols)
-            .ok_or(TypeEvalError::UnknownIdent(ctx[*self].struct_name))?;
+            .ok_or(TypeEvalError::UnknownIdent(*ctx[*self].struct_name))?;
 
         Ok(ctx.get_type_sig(TypeSignatureValue::Struct {
             name: *ctx[st].name,

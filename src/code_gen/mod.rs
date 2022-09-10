@@ -57,7 +57,12 @@ impl<'a, 'ctx, W: Write> CodeGenCtx<'a, 'ctx, W> {
                     panic!("Anonymous identifiers should not be written")
                 }
             },
-            IdentValue::Unresolved(_) => unreachable!("all identifiers should be resolved by now"),
+            IdentValue::Unresolved(id) => {
+                unreachable!(
+                    "all identifiers should be resolved by now: (PARENT: {:?}, IDENT: {id:?})",
+                    ident.parent
+                )
+            }
         }
     }
 }
@@ -242,18 +247,18 @@ fn format_expr<'a, 'ctx, W: Write>(
             )?;
             gen.write(")")
         }
-        Expr::Identifier(ident) => gen.write_ident(ident),
+        Expr::Identifier(ident) => gen.write_ident(*ident),
         Expr::StructInit(st_init) => {
             gen.symbols
                 .enter_scope(&gen.ctx, *gen.ctx[st_init].scope_name)
                 .expect("struct init scope should exist");
             gen.write("new ")?;
-            gen.write_ident(gen.ctx[st_init].struct_name)?;
+            gen.write_ident(*gen.ctx[st_init].struct_name)?;
             gen.write("(")?;
 
             let st = gen
                 .symbols
-                .lookup(&gen.ctx, gen.ctx[st_init].struct_name)
+                .lookup(&gen.ctx, *gen.ctx[st_init].struct_name)
                 .unwrap()
                 .unwrap_struct(&gen.ctx);
 
@@ -267,7 +272,7 @@ fn format_expr<'a, 'ctx, W: Write>(
                 let attr_val = gen.ctx[st_init]
                     .values
                     .iter()
-                    .find(|val| gen.ctx[**val].name == *attr_name);
+                    .find(|val| *gen.ctx[**val].name == *attr_name);
                 if let Some(val) = attr_val {
                     format_expr(gen, gen.ctx[*val].value)
                 } else {

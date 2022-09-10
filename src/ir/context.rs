@@ -10,10 +10,13 @@ use crate::{
     symbols::symbol_table::{SymbolValue, SymbolValueItem},
 };
 
-use super::node::{
-    identifier::{Ident, IdentParent, IdentValue, ResolvedIdentValue},
-    type_signature::{BuiltinType, TypeSignature, TypeSignatureValue, BUILTIN_TYPES},
-    IrNodeArena, NodeRef,
+use super::{
+    late_init::LateInit,
+    node::{
+        identifier::{Ident, IdentParent, IdentValue, ResolvedIdentValue},
+        type_signature::{BuiltinType, TypeSignature, TypeSignatureValue, BUILTIN_TYPES},
+        IrNodeArena, NodeRef,
+    },
 };
 
 pub struct IrCtx<'a> {
@@ -170,7 +173,7 @@ impl<'a> IrCtx<'a> {
                     def_span: ident.span,
                     name: ident.value,
                 })),
-            parent,
+            parent: parent.into(),
         }
     }
 
@@ -181,7 +184,7 @@ impl<'a> IrCtx<'a> {
                 .alloc(IdentValue::Resolved(ResolvedIdentValue::BuiltinType(
                     builtin,
                 ))),
-            parent: IdentParent::BuiltinIdent,
+            parent: IdentParent::BuiltinIdent.into(),
         }
     }
 
@@ -190,14 +193,18 @@ impl<'a> IrCtx<'a> {
             id: self
                 .idents
                 .alloc(IdentValue::Resolved(ResolvedIdentValue::Anonymous)),
-            parent,
+            parent: parent.into(),
         }
     }
 
-    pub fn make_unresolved_ident(&mut self, ident: ast::node::identifier::Ident<'a>) -> Ident<'a> {
+    pub fn make_unresolved_ident(
+        &mut self,
+        ident: ast::node::identifier::Ident<'a>,
+        parent: LateInit<IdentParent<'a>>,
+    ) -> Ident<'a> {
         Ident {
             id: self.idents.alloc(IdentValue::Unresolved(ident)),
-            parent: IdentParent::UnresolvedIdent,
+            parent,
         }
     }
 

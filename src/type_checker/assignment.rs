@@ -37,14 +37,14 @@ pub fn check_assignment<'a>(
     match ctx[ctx[asg].lhs].clone() {
         Expr::Identifier(ident) => {
             let sym = symbols
-                .lookup(ctx, ident)
-                .ok_or(TypeCheckerError::LookupError(ident.clone()))?;
+                .lookup(ctx, *ident)
+                .ok_or(TypeCheckerError::LookupError(*ident))?;
 
             match &ctx[sym] {
                 SymbolValueItem::VarDecl(var_decl) => {
                     if ctx[*var_decl].mutability == Mutability::Immutable {
                         return Err(TypeCheckerError::AssignmentError(
-                            AssignmentError::ImmutableAssignment(ident),
+                            AssignmentError::ImmutableAssignment(*ident),
                         ));
                     }
                 }

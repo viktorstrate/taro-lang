@@ -80,10 +80,10 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
         &mut self,
         ctx: &mut IrCtx<'a>,
         _scope: &mut Self::Scope,
-        parent: IdentParent<'a>,
         ident: Ident<'a>,
-    ) -> Result<Ident<'a>, Self::Error> {
-        resolve_ident(&mut self.symbols, ctx, parent, ident)
+    ) -> Result<(), Self::Error> {
+        resolve_ident(&mut self.symbols, ctx, ident)?;
+        Ok(())
     }
 
     fn visit_type_sig(
@@ -92,7 +92,7 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
         _scope: &mut Self::Scope,
         type_sig: crate::ir::node::type_signature::TypeSignature<'a>,
     ) -> Result<crate::ir::node::type_signature::TypeSignature<'a>, Self::Error> {
-        let updated_type_sig = match ctx[type_sig] {
+        let updated_type_sig = match ctx[type_sig].clone() {
             TypeSignatureValue::Unresolved(ident) => {
                 let sym_val = self
                     .symbols
@@ -131,32 +131,49 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                     .eval_type(&mut self.symbols, ctx)
                     .map_err(SymbolResolutionError::TypeEval)?;
 
+                println!("RESOLVED MEMBER ACCESS TO {:?}", ctx[obj_type]);
+
                 let new_expr = match &ctx[obj_type] {
                     TypeSignatureValue::Function {
                         args: _,
                         return_type: _,
-                    } => Expr::FunctionCall(
-                        FunctionCall {
+                    } => {
+                        let func_call = FunctionCall {
                             func: obj,
                             params: ctx[mem_acc].items.clone(),
                         }
-                        .allocate(ctx),
-                    ),
-                    TypeSignatureValue::Struct { name: _ } => Expr::StructAccess(
-                        StructAccess {
+                        .allocate(ctx);
+
+                        Expr::FunctionCall(func_call)
+                    }
+                    TypeSignatureValue::Struct { name: _ } => {
+                        let st_acc = StructAccess {
                             struct_expr: obj,
-                            attr_name: ctx[mem_acc].member_name,
+                            attr_name: *ctx[mem_acc].member_name,
                         }
-                        .allocate(ctx),
-                    ),
-                    TypeSignatureValue::Enum { name } => Expr::EnumInit(
-                        EnumInit {
+                        .allocate(ctx);
+
+                        ctx[st_acc].attr_name.parent =
+                            IdentParent::StructAccessAttrName(st_acc).into();
+
+                        Expr::StructAccess(st_acc)
+                    }
+                    TypeSignatureValue::Enum { name } => {
+                        let enm_init = EnumInit {
                             enum_name: *name,
-                            enum_value: ctx[mem_acc].member_name,
+                            enum_value: *ctx[mem_acc].member_name,
                             items: ctx[mem_acc].items.clone(),
                         }
-                        .allocate(ctx),
-                    ),
+                        .allocate(ctx);
+
+                        ctx[enm_init].enum_name.parent =
+                            IdentParent::EnumInitEnumName(enm_init).into();
+
+                        ctx[enm_init].enum_value.parent =
+                            IdentParent::EnumInitValueName(enm_init).into();
+
+                        Expr::EnumInit(enm_init)
+                    }
                     _ => unreachable!("Expression can never be a member access"),
                 };
 
@@ -174,13 +191,12 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
 pub fn resolve_ident<'a>(
     symbols: &mut SymbolTableZipper<'a>,
     ctx: &mut IrCtx<'a>,
-    parent: IdentParent<'a>,
     ident: Ident<'a>,
-) -> Result<Ident<'a>, SymbolResolutionError<'a>> {
+) -> Result<(), SymbolResolutionError<'a>> {
     let resolved_ident = match &ctx[ident] {
-        IdentValue::Unresolved(_) => match parent {
-            IdentParent::StructInitValueName(st_init) => {
-                let st_name = ctx[ctx[st_init].parent].struct_name;
+        IdentValue::Unresolved(_) => match *ident.parent {
+            IdentParent::StructInitValueName(st_val) => {
+                let st_name = *ctx[ctx[st_val].parent].struct_name;
 
                 let st = symbols
                     .lookup(ctx, st_name)
@@ -198,7 +214,7 @@ pub fn resolve_ident<'a>(
                     .lookup_attr(ctx, symbols)
                     .map_err(|_| SymbolResolutionError::UnknownIdentifier(ident))?;
 
-                match ctx[ctx[st_attr].type_sig] {
+                match ctx[ctx[st_attr].type_sig].clone() {
                     TypeSignatureValue::Unresolved(type_ident) => {
                         let resolved_type_sig = symbols
                             .lookup(ctx, type_ident)
@@ -246,8 +262,8 @@ pub fn resolve_ident<'a>(
 
     if let Some(sym_ident) = resolved_ident {
         debug_assert_matches!(ctx[sym_ident], IdentValue::Resolved(_));
-        Ok(sym_ident)
-    } else {
-        Ok(ident)
+        ident.parent.change_ident(ctx, sym_ident);
     }
+
+    Ok(())
 }

@@ -2,9 +2,17 @@ use std::fmt::Debug;
 
 use id_arena::Id;
 
-use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
+use crate::{
+    ir::{context::IrCtx, late_init::LateInit},
+    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
+};
 
-use super::{expression::Expr, function::Function, identifier::Ident, NodeRef};
+use super::{
+    expression::Expr,
+    function::Function,
+    identifier::{Ident, IdentParent},
+    NodeRef,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TypeSignature<'a> {
@@ -90,9 +98,19 @@ impl<'a> PartialEq for TypeSignatureValue<'a> {
 
 impl<'a> crate::ast::node::type_signature::TypeSignature<'a> {
     pub fn into_ir_type(self, ctx: &mut IrCtx<'a>) -> TypeSignature<'a> {
-        let val = match self.value {
+        match self.value {
             crate::ast::node::type_signature::TypeSignatureValue::Base(base) => {
-                TypeSignatureValue::Unresolved(ctx.make_unresolved_ident(base))
+                let ident = ctx.make_unresolved_ident(base, LateInit::empty());
+                let type_sig = ctx.get_type_sig(TypeSignatureValue::Unresolved(ident));
+
+                match &mut ctx[type_sig] {
+                    TypeSignatureValue::Unresolved(id) => {
+                        id.parent = IdentParent::TypeSigName(type_sig).into()
+                    }
+                    _ => unreachable!(),
+                }
+
+                type_sig
             }
             crate::ast::node::type_signature::TypeSignatureValue::Function {
                 args,
@@ -101,15 +119,13 @@ impl<'a> crate::ast::node::type_signature::TypeSignature<'a> {
                 let args = args.into_iter().map(|arg| arg.into_ir_type(ctx)).collect();
                 let return_type = return_type.into_ir_type(ctx);
 
-                TypeSignatureValue::Function { args, return_type }
+                ctx.get_type_sig(TypeSignatureValue::Function { args, return_type })
             }
             crate::ast::node::type_signature::TypeSignatureValue::Tuple(types) => {
                 let type_sigs = types.into_iter().map(|t| t.into_ir_type(ctx)).collect();
-                TypeSignatureValue::Tuple(type_sigs)
+                ctx.get_type_sig(TypeSignatureValue::Tuple(type_sigs))
             }
-        };
-
-        ctx.get_type_sig(val)
+        }
     }
 }
 

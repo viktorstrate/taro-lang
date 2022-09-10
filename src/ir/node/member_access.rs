@@ -1,4 +1,7 @@
-use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
+use crate::{
+    ir::{context::IrCtx, late_init::LateInit},
+    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
+};
 
 use super::{
     expression::Expr,
@@ -10,7 +13,7 @@ use super::{
 #[derive(Debug, Clone)]
 pub struct UnresolvedMemberAccess<'a> {
     pub object: Option<NodeRef<'a, Expr<'a>>>,
-    pub member_name: Ident<'a>,
+    pub member_name: LateInit<Ident<'a>>,
     pub items: Vec<NodeRef<'a, Expr<'a>>>,
     pub type_sig: TypeSignature<'a>,
 }

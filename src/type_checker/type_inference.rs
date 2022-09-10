@@ -238,7 +238,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
             }
             Expr::Identifier(_) => {}
             Expr::StructInit(st_init) => {
-                let st_name = ctx[st_init].struct_name;
+                let st_name = *ctx[st_init].struct_name;
                 let st = self
                     .symbols
                     .lookup(ctx, st_name)
@@ -249,9 +249,9 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
 
                 for val in ctx[st_init].values.clone() {
                     let st_attr =
-                        st.lookup_attr(ctx[val].name, ctx)
+                        st.lookup_attr(*ctx[val].name, ctx)
                             .ok_or(TypeCheckerError::TypeEval(TypeEvalError::UnknownIdent(
-                                ctx[val].name,
+                                *ctx[val].name,
                             )))?;
 
                     let val_type = ctx[val]

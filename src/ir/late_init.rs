@@ -1,5 +1,6 @@
 use std::{
     fmt::Debug,
+    hash::Hash,
     ops::{Deref, DerefMut},
 };
 
@@ -17,6 +18,10 @@ fn expect_init<U>(opt: Option<U>) -> U {
 impl<T> LateInit<T> {
     pub fn empty() -> Self {
         LateInit { inner: None }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_none()
     }
 }
 
@@ -68,9 +73,10 @@ impl<T: Default> Default for LateInit<T> {
 
 impl<T: Debug> Debug for LateInit<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LateInit")
-            .field("inner", &self.inner)
-            .finish()
+        match &self.inner {
+            Some(val) => val.fmt(f),
+            None => f.write_str("<<UNINITIALIZED>>"),
+        }
     }
 }
 
@@ -79,5 +85,21 @@ impl<T: Clone> Clone for LateInit<T> {
         Self {
             inner: self.inner.clone(),
         }
+    }
+}
+
+impl<T: Copy> Copy for LateInit<T> {}
+
+impl<T: PartialEq> PartialEq for LateInit<T> {
+    fn eq(&self, other: &Self) -> bool {
+        *expect_init(self.inner.as_ref()) == *expect_init(other.inner.as_ref())
+    }
+}
+
+impl<T: Eq> Eq for LateInit<T> {}
+
+impl<T: Hash> Hash for LateInit<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.inner.hash(state);
     }
 }

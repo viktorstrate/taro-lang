@@ -204,10 +204,16 @@ impl<'a> IrCtx<'a> {
         &mut self,
         expr: crate::ast::node::expression::Expr<'a>,
     ) -> NodeRef<'a, Expr<'a>> {
-        let ir_expr: Expr<'a> = match expr.value {
-            crate::ast::node::expression::ExprValue::StringLiteral(str) => Expr::StringLiteral(str),
-            crate::ast::node::expression::ExprValue::NumberLiteral(num) => Expr::NumberLiteral(num),
-            crate::ast::node::expression::ExprValue::BoolLiteral(bool) => Expr::BoolLiteral(bool),
+        match expr.value {
+            crate::ast::node::expression::ExprValue::StringLiteral(str) => {
+                Expr::StringLiteral(str).allocate(self)
+            }
+            crate::ast::node::expression::ExprValue::NumberLiteral(num) => {
+                Expr::NumberLiteral(num).allocate(self)
+            }
+            crate::ast::node::expression::ExprValue::BoolLiteral(bool) => {
+                Expr::BoolLiteral(bool).allocate(self)
+            }
             crate::ast::node::expression::ExprValue::Function(func) => {
                 let args = func
                     .args
@@ -251,7 +257,7 @@ impl<'a> IrCtx<'a> {
                     .unwrap_or_else(|| self.make_anon_ident(IdentParent::FuncDeclName(func_decl)))
                     .into();
 
-                Expr::Function(func_decl)
+                Expr::Function(func_decl).allocate(self)
             }
             crate::ast::node::expression::ExprValue::FunctionCall(func_call) => Expr::FunctionCall(
                 FunctionCall {
@@ -263,17 +269,33 @@ impl<'a> IrCtx<'a> {
                         .collect(),
                 }
                 .allocate(self),
-            ),
+            )
+            .allocate(self),
             crate::ast::node::expression::ExprValue::Identifier(id) => {
-                Expr::Identifier(self.make_unresolved_ident(id))
+                let id_expr = Expr::Identifier(LateInit::empty()).allocate(self);
+
+                let unresolved_ident = self
+                    .make_unresolved_ident(id, IdentParent::IdentExpr(id_expr).into())
+                    .into();
+
+                self[id_expr] = Expr::Identifier(unresolved_ident);
+
+                id_expr
             }
             crate::ast::node::expression::ExprValue::StructInit(st_init) => {
                 let struct_init = StructInit {
-                    struct_name: self.make_unresolved_ident(st_init.struct_name),
+                    struct_name: LateInit::empty(),
                     scope_name: LateInit::empty(),
                     values: Vec::new(),
                 }
                 .allocate(self);
+
+                self[struct_init].struct_name = self
+                    .make_unresolved_ident(
+                        st_init.struct_name,
+                        IdentParent::StructInitStructName(struct_init).into(),
+                    )
+                    .into();
 
                 self[struct_init].scope_name = self
                     .make_anon_ident(IdentParent::StructInitScopeName(struct_init))
@@ -283,18 +305,27 @@ impl<'a> IrCtx<'a> {
                     .values
                     .into_iter()
                     .map(|val| {
-                        StructInitValue {
-                            name: self.make_unresolved_ident(val.name),
+                        let st_val = StructInitValue {
+                            name: LateInit::empty(),
                             parent: struct_init,
                             value: self.lower_expr(val.value),
                         }
-                        .allocate(self)
+                        .allocate(self);
+
+                        self[st_val].name = self
+                            .make_unresolved_ident(
+                                val.name,
+                                IdentParent::StructInitValueName(st_val).into(),
+                            )
+                            .into();
+
+                        st_val
                     })
                     .collect();
 
                 self[struct_init].values = st_init_vals;
 
-                Expr::StructInit(struct_init)
+                Expr::StructInit(struct_init).allocate(self)
             }
             crate::ast::node::expression::ExprValue::TupleAccess(tup_acc) => Expr::TupleAccess(
                 TupleAccess {
@@ -302,7 +333,8 @@ impl<'a> IrCtx<'a> {
                     attr: tup_acc.attr,
                 }
                 .allocate(self),
-            ),
+            )
+            .allocate(self),
             crate::ast::node::expression::ExprValue::EscapeBlock(esc) => Expr::EscapeBlock(
                 EscapeBlock {
                     content: esc.content,
@@ -312,14 +344,16 @@ impl<'a> IrCtx<'a> {
                         .unwrap_or_else(|| self.make_type_var()),
                 }
                 .allocate(self),
-            ),
+            )
+            .allocate(self),
             crate::ast::node::expression::ExprValue::Assignment(asg) => Expr::Assignment(
                 Assignment {
                     lhs: self.lower_expr(asg.lhs),
                     rhs: self.lower_expr(asg.rhs),
                 }
                 .allocate(self),
-            ),
+            )
+            .allocate(self),
             crate::ast::node::expression::ExprValue::Tuple(tup) => Expr::Tuple(
                 Tuple {
                     values: tup
@@ -333,7 +367,8 @@ impl<'a> IrCtx<'a> {
                         .unwrap_or_else(|| self.make_type_var()),
                 }
                 .allocate(self),
-            ),
+            )
+            .allocate(self),
             crate::ast::node::expression::ExprValue::MemberAccess(mem_acc) => {
                 let object = mem_acc.object.map(|obj| self.lower_expr(obj));
                 let items = mem_acc
@@ -341,18 +376,24 @@ impl<'a> IrCtx<'a> {
                     .into_iter()
                     .map(|item| self.lower_expr(item))
                     .collect();
-                Expr::UnresolvedMemberAccess(
-                    UnresolvedMemberAccess {
-                        object,
-                        member_name: self.make_unresolved_ident(mem_acc.member_name),
-                        items,
-                        type_sig: self.make_type_var(),
-                    }
-                    .allocate(self),
-                )
-            }
-        };
 
-        ir_expr.allocate(self)
+                let mem_acc_ref = UnresolvedMemberAccess {
+                    object,
+                    member_name: LateInit::empty(),
+                    items,
+                    type_sig: self.make_type_var(),
+                }
+                .allocate(self);
+
+                self[mem_acc_ref].member_name = self
+                    .make_unresolved_ident(
+                        mem_acc.member_name,
+                        IdentParent::MemberAccessMemberName(mem_acc_ref).into(),
+                    )
+                    .into();
+
+                Expr::UnresolvedMemberAccess(mem_acc_ref).allocate(self)
+            }
+        }
     }
 }

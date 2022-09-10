@@ -23,7 +23,7 @@ pub fn check_struct_init<'a>(
     symbols: &mut SymbolTableZipper<'a>,
     st_init: NodeRef<'a, StructInit<'a>>,
 ) -> Result<(), TypeCheckerError<'a>> {
-    let st_name = ctx[st_init].struct_name;
+    let st_name = *ctx[st_init].struct_name;
     let st = st_init
         .lookup_struct(ctx, symbols)
         .ok_or(TypeCheckerError::LookupError(st_name))?;
@@ -35,7 +35,7 @@ pub fn check_struct_init<'a>(
             if ctx[st_init]
                 .values
                 .iter()
-                .find(|val| IdentKey::idents_eq(ctx, ctx[**val].name, attr_name))
+                .find(|val| IdentKey::idents_eq(ctx, *ctx[**val].name, attr_name))
                 .is_none()
             {
                 return Err(TypeCheckerError::StructError(
@@ -47,7 +47,7 @@ pub fn check_struct_init<'a>(
 
     // Check that declared attributes all exist on struct
     for attr in ctx[st_init].values.clone() {
-        let attr_name = ctx[attr].name;
+        let attr_name = *ctx[attr].name;
         if ctx[st]
             .attrs
             .iter()
