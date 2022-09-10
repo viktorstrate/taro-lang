@@ -17,8 +17,7 @@ use symbols::{
     symbol_table::SymbolCollectionError,
 };
 use type_checker::{
-    type_inference::TypeInferrer, type_resolver::TypeResolver, types_walker::TypeChecker,
-    TypeCheckerError,
+    TypeChecker, TypeCheckerError,
 };
 
 pub mod ast;
@@ -66,14 +65,10 @@ fn transpile<'a, W: Write>(writer: &mut W, input: &'a str) -> Result<(), Transpi
     let mut sym_resolver = SymbolResolver::new(sym_table);
     walk_ir(&mut sym_resolver, ctx, ir).map_err(TranspilerError::SymbolResolveError)?;
 
-    let mut type_inferrer = TypeInferrer::new(&ctx, sym_resolver);
-    walk_ir(&mut type_inferrer, ctx, ir).map_err(TranspilerError::TypeCheck)?;
-
-    let mut type_resolver = TypeResolver::new(&ctx, type_inferrer);
-    walk_ir(&mut type_resolver, ctx, ir).map_err(TranspilerError::TypeCheck)?;
-
-    let mut type_checker = TypeChecker::new(&ctx, type_resolver);
-    walk_ir(&mut type_checker, ctx, ir).map_err(TranspilerError::TypeCheck)?;
+    let mut type_checker = TypeChecker::new(ctx, sym_resolver);
+    type_checker
+        .type_check(ctx, ir)
+        .map_err(TranspilerError::TypeCheck)?;
 
     format_ir(writer, ctx, type_checker.symbols, ir).map_err(TranspilerError::Write)?;
 

@@ -13,19 +13,20 @@ use super::{
 };
 
 #[derive(Debug)]
-pub struct TypeChecker<'a> {
-    pub symbols: SymbolTableZipper<'a>,
+pub struct EndTypeChecker<'a, 'b> {
+    pub symbols: &'b mut SymbolTableZipper<'a>,
 }
 
-impl<'a> TypeChecker<'a> {
-    pub fn new(ctx: &IrCtx<'a>, type_resolver: TypeResolver<'a>) -> Self {
-        let mut symbols = type_resolver.symbols;
-        symbols.reset(ctx);
-        TypeChecker { symbols }
+impl<'a, 'b> EndTypeChecker<'a, 'b> {
+    pub fn new(ctx: &IrCtx<'a>, type_resolver: &'b mut TypeResolver<'a, '_>) -> Self {
+        type_resolver.symbols.reset(ctx);
+        EndTypeChecker {
+            symbols: type_resolver.symbols,
+        }
     }
 }
 
-impl<'a> IrWalker<'a> for TypeChecker<'a> {
+impl<'a> IrWalker<'a> for EndTypeChecker<'a, '_> {
     type Error = TypeCheckerError<'a>;
 
     fn visit_scope_begin(

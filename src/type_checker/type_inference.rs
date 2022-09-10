@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+
 
 use crate::{
     ir::{
@@ -14,41 +14,29 @@ use crate::{
             NodeRef,
         },
     },
-    symbols::{
-        symbol_resolver::SymbolResolver, symbol_table::symbol_table_zipper::SymbolTableZipper,
-    },
 };
 
-use super::{coercion::coerce, TypeCheckerError};
+use super::{coercion::coerce, TypeChecker, TypeCheckerError};
 
 #[derive(Debug)]
 pub struct TypeConstraint<'a>(TypeSignature<'a>, TypeSignature<'a>);
 
 #[derive(Debug)]
-pub struct TypeInferrer<'a> {
-    pub symbols: SymbolTableZipper<'a>,
-    pub substitutions: HashMap<TypeSignature<'a>, TypeSignature<'a>>,
-    pub constraints: VecDeque<TypeConstraint<'a>>,
-}
+pub struct TypeInferrer<'a, 'b>(pub &'b mut TypeChecker<'a>);
 
-impl<'a> TypeInferrer<'a> {
-    pub fn new(ctx: &IrCtx<'a>, sym_resolver: SymbolResolver<'a>) -> Self {
-        let mut symbols = sym_resolver.symbols;
-        symbols.reset(ctx);
-        TypeInferrer {
-            symbols,
-            substitutions: HashMap::new(),
-            constraints: VecDeque::new(),
-        }
+impl<'a, 'b> TypeInferrer<'a, 'b> {
+    pub fn new(ctx: &IrCtx<'a>, type_checker: &'b mut TypeChecker<'a>) -> Self {
+        type_checker.symbols.reset(ctx);
+        Self(type_checker)
     }
 
     #[inline]
     fn add_constraint(&mut self, a: TypeSignature<'a>, b: TypeSignature<'a>) {
-        self.constraints.push_back(TypeConstraint(a, b))
+        self.0.constraints.push_back(TypeConstraint(a, b))
     }
 }
 
-impl<'a> IrWalker<'a> for TypeInferrer<'a> {
+impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
     type Error = TypeCheckerError<'a>;
     type Scope = ();
 
@@ -58,7 +46,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
         _parent: &mut Self::Scope,
         value: ScopeValue<'a>,
     ) -> Result<(), TypeCheckerError<'a>> {
-        value.visit_scope_begin(ctx, &mut self.symbols);
+        value.visit_scope_begin(ctx, &mut self.0.symbols);
         Ok(())
     }
 
@@ -69,7 +57,8 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
         _child: Self::Scope,
         _value: ScopeValue<'a>,
     ) -> Result<(), TypeCheckerError<'a>> {
-        self.symbols
+        self.0
+            .symbols
             .exit_scope(ctx)
             .expect("scope should not be global scope");
 
@@ -81,7 +70,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
         ctx: &mut IrCtx<'a>,
         _scope: &mut Self::Scope,
     ) -> Result<(), Self::Error> {
-        self.symbols.visit_next_symbol(ctx);
+        self.0.symbols.visit_next_symbol(ctx);
         Ok(())
     }
 
@@ -105,7 +94,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
                 let val_type = ctx[var_decl]
                     .value
                     .clone()
-                    .eval_type(&mut self.symbols, ctx)
+                    .eval_type(&mut self.0.symbols, ctx)
                     .map_err(TypeCheckerError::TypeEval)?;
 
                 self.add_constraint(ctx[var_decl].type_sig, val_type)
@@ -114,7 +103,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
                 for attr in ctx[st].attrs.clone() {
                     if let Some(attr_val) = ctx[attr].default_value {
                         let default_val_type = attr_val
-                            .eval_type(&mut self.symbols, ctx)
+                            .eval_type(&mut self.0.symbols, ctx)
                             .map_err(TypeCheckerError::TypeEval)?;
 
                         self.add_constraint(ctx[attr].type_sig, default_val_type)
@@ -138,7 +127,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
                 let func_type_sig = ctx[call]
                     .func
                     .clone()
-                    .eval_type(&mut self.symbols, ctx)
+                    .eval_type(&mut self.0.symbols, ctx)
                     .map_err(TypeCheckerError::TypeEval)?;
 
                 let args = match &ctx[func_type_sig] {
@@ -161,7 +150,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
 
                 for (arg, param) in args.into_iter().zip(func_params.into_iter()) {
                     let param_type = param
-                        .eval_type(&mut self.symbols, ctx)
+                        .eval_type(&mut self.0.symbols, ctx)
                         .map_err(TypeCheckerError::TypeEval)?;
 
                     self.add_constraint(arg, param_type)
@@ -171,6 +160,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
             Expr::StructInit(st_init) => {
                 let st_name = *ctx[st_init].struct_name;
                 let st = self
+                    .0
                     .symbols
                     .lookup(ctx, st_name)
                     .ok_or(TypeCheckerError::TypeEval(TypeEvalError::UnknownIdent(
@@ -188,7 +178,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
                     let val_type = ctx[val]
                         .value
                         .clone()
-                        .eval_type(&mut self.symbols, ctx)
+                        .eval_type(&mut self.0.symbols, ctx)
                         .map_err(TypeCheckerError::TypeEval)?;
 
                     self.add_constraint(ctx[st_attr].type_sig, val_type);
@@ -201,12 +191,12 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
                 let lhs = ctx[asg]
                     .lhs
                     .clone()
-                    .eval_type(&mut self.symbols, ctx)
+                    .eval_type(&mut self.0.symbols, ctx)
                     .map_err(TypeCheckerError::TypeEval)?;
                 let rhs = ctx[asg]
                     .rhs
                     .clone()
-                    .eval_type(&mut self.symbols, ctx)
+                    .eval_type(&mut self.0.symbols, ctx)
                     .map_err(TypeCheckerError::TypeEval)?;
 
                 self.add_constraint(lhs, rhs);
@@ -214,7 +204,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
             Expr::Tuple(_) => {}
             Expr::EnumInit(enm_init) => {
                 let enm = enm_init
-                    .lookup_enum(ctx, &mut self.symbols)
+                    .lookup_enum(ctx, &mut self.0.symbols)
                     .ok_or(TypeCheckerError::LookupError(ctx[enm_init].enum_name))?;
                 let enm_val = enm
                     .lookup_value(ctx, ctx[enm_init].enum_value)
@@ -228,7 +218,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
                     .zip(ctx[enm_val].items.clone().into_iter())
                 {
                     let arg_type = arg
-                        .eval_type(&mut self.symbols, ctx)
+                        .eval_type(&mut self.0.symbols, ctx)
                         .map_err(TypeCheckerError::TypeEval)?;
                     self.add_constraint(arg_type, item_type);
                 }
@@ -251,12 +241,12 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a> {
     }
 }
 
-impl<'a> TypeInferrer<'a> {
+impl<'a> TypeInferrer<'a, '_> {
     fn resolve_constraints(&mut self, ctx: &mut IrCtx<'a>) -> Result<(), TypeCheckerError<'a>> {
         let mut unresolvable_count = 0;
-        while let Some(TypeConstraint(type_a, type_b)) = self.constraints.pop_front() {
-            let type_a = *self.substitutions.get(&type_a).unwrap_or(&type_a);
-            let type_b = *self.substitutions.get(&type_b).unwrap_or(&type_b);
+        while let Some(TypeConstraint(type_a, type_b)) = self.0.constraints.pop_front() {
+            let type_a = *self.0.substitutions.get(&type_a).unwrap_or(&type_a);
+            let type_b = *self.0.substitutions.get(&type_b).unwrap_or(&type_b);
 
             println!(
                 "TYPE CONSTRAINT :: {} == {}",
@@ -266,7 +256,7 @@ impl<'a> TypeInferrer<'a> {
 
             match (ctx[type_a].clone(), ctx[type_b].clone()) {
                 (TypeSignatureValue::TypeVariable(_), TypeSignatureValue::TypeVariable(_)) => {
-                    if unresolvable_count < self.constraints.len() {
+                    if unresolvable_count < self.0.constraints.len() {
                         unresolvable_count += 1;
                         self.add_constraint(type_a, type_b);
                     } else {
@@ -275,11 +265,11 @@ impl<'a> TypeInferrer<'a> {
                 }
                 (TypeSignatureValue::TypeVariable(_), _) => {
                     unresolvable_count = 0;
-                    self.substitutions.insert(type_a, type_b);
+                    self.0.substitutions.insert(type_a, type_b);
                 }
                 (_, TypeSignatureValue::TypeVariable(_)) => {
                     unresolvable_count = 0;
-                    self.substitutions.insert(type_b, type_a);
+                    self.0.substitutions.insert(type_b, type_a);
                 }
                 (TypeSignatureValue::Tuple(tup_a), TypeSignatureValue::Tuple(tup_b)) => {
                     unresolvable_count = 0;
@@ -332,7 +322,7 @@ impl<'a> TypeInferrer<'a> {
         func: NodeRef<'a, Function<'a>>,
     ) -> Result<(), TypeCheckerError<'a>> {
         fn collect_return_types<'a>(
-            inferrer: &mut TypeInferrer<'a>,
+            inferrer: &mut TypeInferrer<'a, '_>,
             ctx: &mut IrCtx<'a>,
             stmt_block: NodeRef<'a, StmtBlock<'a>>,
             acc: &mut Vec<TypeSignature<'a>>,
@@ -341,7 +331,7 @@ impl<'a> TypeInferrer<'a> {
                 match ctx[stmt] {
                     Stmt::Return(expr) => {
                         let expr_type = expr
-                            .eval_type(&mut inferrer.symbols, ctx)
+                            .eval_type(&mut inferrer.0.symbols, ctx)
                             .map_err(TypeCheckerError::TypeEval)?;
                         acc.push(expr_type)
                     }
@@ -372,12 +362,9 @@ impl<'a> TypeInferrer<'a> {
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::{
-        ir::{
-            node::type_signature::BuiltinType,
-            test_utils::utils::{lowered_ir, type_check},
-        },
-        type_checker::types_walker::TypeChecker,
+    use crate::ir::{
+        node::type_signature::BuiltinType,
+        test_utils::utils::{lowered_ir, type_check},
     };
 
     use super::*;

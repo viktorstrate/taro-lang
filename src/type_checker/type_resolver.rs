@@ -18,26 +18,28 @@ use crate::{
 use super::{type_inference::TypeInferrer, TypeCheckerError};
 
 #[derive(Debug)]
-pub struct TypeResolver<'a> {
-    pub symbols: SymbolTableZipper<'a>,
-    pub substitutions: HashMap<TypeSignature<'a>, TypeSignature<'a>>,
+pub struct TypeResolver<'a, 'b> {
+    pub symbols: &'b mut SymbolTableZipper<'a>,
+    pub substitutions: &'b mut HashMap<TypeSignature<'a>, TypeSignature<'a>>,
 }
 
-impl<'a> TypeResolver<'a> {
-    pub fn new(ctx: &IrCtx<'a>, type_inferrer: TypeInferrer<'a>) -> TypeResolver<'a> {
-        debug_assert!(type_inferrer.constraints.is_empty());
+impl<'a, 'b> TypeResolver<'a, 'b> {
+    pub fn new(
+        ctx: &IrCtx<'a>,
+        type_inferrer: &'b mut TypeInferrer<'a, '_>,
+    ) -> TypeResolver<'a, 'b> {
+        debug_assert!(type_inferrer.0.constraints.is_empty());
 
-        let mut symbols = type_inferrer.symbols;
-        symbols.reset(ctx);
+        type_inferrer.0.symbols.reset(ctx);
 
         TypeResolver {
-            symbols,
-            substitutions: type_inferrer.substitutions,
+            symbols: &mut type_inferrer.0.symbols,
+            substitutions: &mut type_inferrer.0.substitutions,
         }
     }
 }
 
-impl<'a> IrWalker<'a> for TypeResolver<'a> {
+impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
     type Error = TypeCheckerError<'a>;
 
     fn visit_type_sig(
@@ -53,7 +55,7 @@ impl<'a> IrWalker<'a> for TypeResolver<'a> {
             .unwrap_or(type_sig);
 
         match ctx[new_type] {
-            TypeSignatureValue::TypeVariable(_) => Err(TypeCheckerError::UndeterminableTypes),
+            TypeSignatureValue::TypeVariable(_) => dbg!(Err(TypeCheckerError::UndeterminableTypes)),
             _ => Ok(new_type),
         }
     }
@@ -81,7 +83,7 @@ impl<'a> IrWalker<'a> for TypeResolver<'a> {
             .allocate(ctx),
             TypeSignatureValue::TypeVariable(var) => {
                 println!("COULD NOT DETERMINE UNRESOLVED MEM ACC {}", var.index());
-                return Err(TypeCheckerError::UndeterminableTypes);
+                return dbg!(Err(TypeCheckerError::UndeterminableTypes));
             }
             _ => unreachable!("Only enums inits can have anonymous base"),
         };
