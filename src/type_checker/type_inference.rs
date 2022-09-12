@@ -393,7 +393,7 @@ mod tests {
 
     #[test]
     fn test_assign_variable_types_mismatch() {
-        let mut ir = lowered_ir("let mut foo = 1; foo = false").unwrap();
+        let mut ir = lowered_ir("var foo = 1; foo = false").unwrap();
         assert_type_mismatch(
             type_check(&mut ir),
             ir.ctx.get_builtin_type_sig(BuiltinType::Number),

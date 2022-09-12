@@ -217,11 +217,11 @@ mod tests {
         let mut ir = lowered_ir(
             "
         struct Deep {
-            let mut inner = false
+            var inner = false
         }
 
         struct Foo {
-            let mut bar: Deep
+            var bar: Deep
         }
 
         let foo = Foo { bar: Deep {} }

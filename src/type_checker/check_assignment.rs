@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_assign_variable() {
-        let mut ir = lowered_ir("let mut foo = 1; foo = 2").unwrap();
+        let mut ir = lowered_ir("var foo = 1; foo = 2").unwrap();
         assert_matches!(type_check(&mut ir), Ok(_))
     }
 
@@ -107,8 +107,8 @@ mod tests {
     #[test]
     fn test_assign_struct() {
         let mut ir = lowered_ir(
-            "struct Foo { let mut attr: Number }
-            let mut foo = Foo { attr: 1 }
+            "struct Foo { var attr: Number }
+            var foo = Foo { attr: 1 }
             foo.attr = 2",
         )
         .unwrap();
@@ -120,7 +120,7 @@ mod tests {
     fn test_assign_struct_immutable() {
         let mut ir = lowered_ir(
             "struct Foo { let attr: Number }
-            let mut foo = Foo { attr: 1 }
+            var foo = Foo { attr: 1 }
             foo.attr = 2",
         )
         .unwrap();
@@ -133,7 +133,7 @@ mod tests {
         let mut ir = lowered_ir(
             "
         struct Deep {
-            let mut inner = false
+            var inner = false
         }
 
         struct Foo {

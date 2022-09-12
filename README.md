@@ -36,7 +36,7 @@ By making a completely new language, inconsistencies and complexities in Javascr
 ### Variables
 
 Variables are declared using the `let` keyword.
-By default a variable is immutable, to declare a mutable variable, the `let mut` keyword is used instead.
+By default a variable is immutable, to declare a mutable variable, the `var` keyword is used instead.
 
 ```
 let greeting = "Hello, World!"

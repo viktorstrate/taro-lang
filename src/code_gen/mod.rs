@@ -390,7 +390,7 @@ mod tests {
     use crate::ir::test_utils::utils::final_codegen;
 
     #[test]
-    fn test_let_assign_simple() {
+    fn test_let_declare_simple() {
         assert_eq!(
             final_codegen("let val: Number = 23.4").unwrap(),
             "const val = 23.4;\n"
@@ -444,7 +444,7 @@ mod tests {
     #[test]
     fn test_struct() {
         let output = final_codegen(
-            "struct Test { let defaultVal = 123; let mut noDefault: Boolean }\n\
+            "struct Test { let defaultVal = 123; var noDefault: Boolean }\n\
             let testVar = Test { noDefault: false }
             let val: Number = testVar.defaultVal
         ",

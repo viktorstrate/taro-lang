@@ -18,7 +18,7 @@ use crate::{
 
 use super::{
     enumeration::enumeration, function::function_decl, identifier::identifier, spaced, span,
-    structure::structure, type_signature::type_signature, ws, Input, Res,
+    structure::structure, type_signature::type_signature, Input, Res,
 };
 
 pub fn statement<'a>(i: Input<'a>) -> Res<Input<'a>, Stmt<'a>> {
@@ -64,13 +64,13 @@ pub fn single_statement(i: Input<'_>) -> Res<Input<'_>, Stmt<'_>> {
 }
 
 pub fn variable_decl(i: Input<'_>) -> Res<Input<'_>, VarDecl<'_>> {
-    // let [mut] IDENTIFIER [: TYPE_SIGNATURE] = EXPRESSION
+    // ( val | var ) IDENTIFIER [: TYPE_SIGNATURE] = EXPRESSION
 
     context(
         "variable declaration",
         map(
             tuple((
-                preceded(let_specifier, mut_specifier),
+                mutability_specifier,
                 identifier,
                 opt(preceded(spaced(char(':')), type_signature)),
                 preceded(spaced(char('=')), expression),
@@ -85,18 +85,28 @@ pub fn variable_decl(i: Input<'_>) -> Res<Input<'_>, VarDecl<'_>> {
     )(i)
 }
 
-pub fn let_specifier(i: Input<'_>) -> Res<Input<'_>, ()> {
-    map(spaced(tuple((tag("let"), ws))), |_| ())(i)
+pub fn mutability_specifier(i: Input<'_>) -> Res<Input<'_>, Mutability> {
+    spaced(context(
+        "mutability specifier",
+        alt((
+            map(tag("let"), |_| Mutability::Immutable),
+            map(tag("var"), |_| Mutability::Mutable),
+        )),
+    ))(i)
 }
 
-pub fn mut_specifier(i: Input<'_>) -> Res<Input<'_>, Mutability> {
-    context(
-        "mut specifier",
-        map(opt(spaced(tuple((tag("mut"), ws)))), |val| {
-            val.is_some().into()
-        }),
-    )(i)
-}
+// pub fn let_specifier(i: Input<'_>) -> Res<Input<'_>, ()> {
+//     map(spaced(tuple((tag("let"), ws))), |_| ())(i)
+// }
+
+// pub fn mut_specifier(i: Input<'_>) -> Res<Input<'_>, Mutability> {
+//     context(
+//         "mut specifier",
+//         map(opt(spaced(tuple((tag("mut"), ws)))), |val| {
+//             val.is_some().into()
+//         }),
+//     )(i)
+// }
 
 pub fn stmt_return(i: Input<'_>) -> Res<Input<'_>, StmtValue<'_>> {
     context(
@@ -126,14 +136,14 @@ mod tests {
     #[test]
     fn test_stmt() {
         assert_matches!(
-            statement(new_input("let mut name: String = \"John\"")),
+            statement(new_input("var name: String = \"John\"")),
             Ok((
                 _,
                 Stmt {
                     span: Span {
                         line: _,
                         offset: _,
-                        fragment: "let mut name: String = \"John\""
+                        fragment: "var name: String = \"John\""
                     },
                     value: StmtValue::VariableDecl(VarDecl {
                         name: Ident {

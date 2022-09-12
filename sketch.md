@@ -30,7 +30,7 @@ let val = "hello"
 val = "asdf"
 
 // ok
-let mut val2 = "foo"
+var val2 = "foo"
 val2 = "bar"
 
 trait Equatable {
@@ -135,7 +135,7 @@ trait Combinable {
 
 extend<T, I> T: Combinable where T: StringInterpolationExpressible<I> {
   func ++(lhs: Self, rhs: Self) -> Self {
-    let mut result = Self(lhs)
+    var result = Self(lhs)
     result.appendInterpolation(rhs)
     return result
   }

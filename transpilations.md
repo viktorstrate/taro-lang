@@ -7,7 +7,7 @@ Examples of how Taro concepts are transpiled to javascript
 ```
 struct Test {
   let defaultVal = 123
-  let mut noDefault: Bool
+  var noDefault: Bool
 }
 
 let val = Test { noDefault: false }

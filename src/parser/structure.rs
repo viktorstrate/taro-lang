@@ -11,13 +11,8 @@ use nom::{
 use crate::ast::node::structure::{Struct, StructAttr, StructInit, StructInitValue};
 
 use super::{
-    expression::expression,
-    identifier::identifier,
-    spaced, span,
-    statement::{let_specifier, mut_specifier},
-    surround_brackets,
-    type_signature::type_signature,
-    ws, BracketType, Input, Res,
+    expression::expression, identifier::identifier, spaced, span, statement::mutability_specifier,
+    surround_brackets, type_signature::type_signature, ws, BracketType, Input, Res,
 };
 
 pub fn structure<'a>(i: Input<'a>) -> Res<Input<'a>, Struct<'a>> {
@@ -40,13 +35,13 @@ pub fn struct_attrs<'a>(i: Input<'a>) -> Res<Input<'a>, Vec<StructAttr<'a>>> {
     // ATTR <\n ATTR>*
 
     let struct_attr = move |i: Input<'a>| -> Res<Input<'a>, StructAttr<'a>> {
-        // let [mut] IDENT [ : TYPE_SIG ] [ = EXPR ]
+        // (val | var) IDENT [ : TYPE_SIG ] [ = EXPR ]
 
         map(
             context(
                 "structure attribute",
                 span(tuple((
-                    preceded(let_specifier, mut_specifier),
+                    mutability_specifier,
                     context("attribute identifier", identifier),
                     context(
                         "attribute type signature",
