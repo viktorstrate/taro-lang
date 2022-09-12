@@ -16,9 +16,7 @@ use symbols::{
     symbol_resolver::{SymbolResolutionError, SymbolResolver},
     symbol_table::SymbolCollectionError,
 };
-use type_checker::{
-    TypeChecker, TypeCheckerError,
-};
+use type_checker::{TypeChecker, TypeCheckerError};
 
 pub mod ast;
 pub mod code_gen;

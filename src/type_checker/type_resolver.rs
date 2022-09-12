@@ -61,9 +61,6 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
             _ => return Ok(()),
         };
 
-        // New types can now potentially be inferred
-        self.0.needs_rerun = true;
-
         // Make sure type sig is resolved before proceeding
         ctx[mem_acc].type_sig = self.visit_type_sig(ctx, &mut (), ctx[mem_acc].type_sig)?;
 
@@ -71,7 +68,7 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
             TypeSignatureValue::Enum { name } => EnumInit {
                 enum_name: *name,
                 enum_value: *ctx[mem_acc].member_name,
-                items: ctx[mem_acc].items.clone(),
+                items: ctx[mem_acc].items.clone().unwrap_or_default(),
             }
             .allocate(ctx),
             TypeSignatureValue::TypeVariable(_) => {
@@ -111,6 +108,9 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
             id: (*&ctx[sym_id]).name(ctx).id,
             parent: IdentParent::EnumInitEnumName(enm_init).into(),
         };
+
+        // New types can now potentially be inferred
+        self.0.needs_rerun = true;
 
         Ok(())
     }

@@ -132,18 +132,18 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                     .map_err(SymbolResolutionError::TypeEval)?;
 
                 let new_expr = match &ctx[obj_type] {
-                    TypeSignatureValue::Function {
-                        args: _,
-                        return_type: _,
-                    } => {
-                        let func_call = FunctionCall {
-                            func: obj,
-                            params: ctx[mem_acc].items.clone(),
-                        }
-                        .allocate(ctx);
+                    // TypeSignatureValue::Function {
+                    //     args: _,
+                    //     return_type: _,
+                    // } => {
+                    //     let func_call = FunctionCall {
+                    //         func: obj,
+                    //         params: ctx[mem_acc].items.clone(),
+                    //     }
+                    //     .allocate(ctx);
 
-                        Expr::FunctionCall(func_call)
-                    }
+                    //     Expr::FunctionCall(func_call)
+                    // }
                     TypeSignatureValue::Struct { name: _ } => {
                         let st_acc = StructAccess {
                             struct_expr: obj,
@@ -154,13 +154,25 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                         ctx[st_acc].attr_name.parent =
                             IdentParent::StructAccessAttrName(st_acc).into();
 
-                        Expr::StructAccess(st_acc)
+                        if let Some(params) = ctx[mem_acc].items.clone() {
+                            let st_acc_expr = Expr::StructAccess(st_acc).allocate(ctx);
+
+                            let func_call = FunctionCall {
+                                func: st_acc_expr,
+                                params,
+                            }
+                            .allocate(ctx);
+
+                            Expr::FunctionCall(func_call)
+                        } else {
+                            Expr::StructAccess(st_acc)
+                        }
                     }
                     TypeSignatureValue::Enum { name } => {
                         let enm_init = EnumInit {
                             enum_name: *name,
                             enum_value: *ctx[mem_acc].member_name,
-                            items: ctx[mem_acc].items.clone(),
+                            items: ctx[mem_acc].items.clone().unwrap_or_default(),
                         }
                         .allocate(ctx);
 

@@ -383,8 +383,10 @@ pub fn walk_expr<'a, W: IrWalker<'a>>(
             Ok(())
         }
         Expr::UnresolvedMemberAccess(mem_acc) => {
-            for item in ctx[mem_acc].items.clone() {
-                walk_expr(walker, ctx, scope, item)?;
+            if ctx[mem_acc].items.is_some() {
+                for item in ctx[mem_acc].items.clone().unwrap() {
+                    walk_expr(walker, ctx, scope, item)?;
+                }
             }
 
             if let Some(obj) = ctx[mem_acc].object {

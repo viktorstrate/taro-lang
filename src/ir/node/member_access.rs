@@ -14,7 +14,7 @@ use super::{
 pub struct UnresolvedMemberAccess<'a> {
     pub object: Option<NodeRef<'a, Expr<'a>>>,
     pub member_name: LateInit<Ident<'a>>,
-    pub items: Vec<NodeRef<'a, Expr<'a>>>,
+    pub items: Option<Vec<NodeRef<'a, Expr<'a>>>>,
     pub type_sig: TypeSignature<'a>,
 }
 

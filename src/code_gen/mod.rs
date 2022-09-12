@@ -237,6 +237,7 @@ fn format_expr<'a, 'ctx, W: Write>(
             gen.write("}")
         }
         Expr::FunctionCall(call) => {
+            println!("GEN FUNC CALL");
             format_expr(gen, gen.ctx[call].func)?;
             gen.write("(")?;
             format_with_separator(
@@ -285,6 +286,7 @@ fn format_expr<'a, 'ctx, W: Write>(
             Ok(())
         }
         Expr::StructAccess(st_access) => {
+            println!("GEN STRUCT ACCESS");
             format_expr(gen, gen.ctx[st_access].struct_expr)?;
             gen.write(".")?;
 
@@ -417,6 +419,26 @@ mod tests {
             output2.unwrap(),
             "const f = () => {return true;};\nconst x = f();\n"
         );
+    }
+
+    #[test]
+    fn test_func_call_inside_struct() {
+        let output = final_codegen(
+            "struct Foo {\n\
+                let bar: () -> Void\n\
+              }
+
+              let x = Foo { bar: () {} }\n\
+              x.bar()\n\
+              ",
+        );
+        assert_eq!(
+            output.unwrap(),
+            "function Foo (bar) {\n\
+            this.bar = bar}\n\
+            const x = new Foo(() => {});\n\
+            x.bar();\n"
+        )
     }
 
     #[test]

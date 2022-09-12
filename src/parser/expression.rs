@@ -47,7 +47,7 @@ pub fn expression(i: Input<'_>) -> Res<Input<'_>, Expr<'_>> {
 
 enum ExprTailChain<'a> {
     FuncCall(Vec<Expr<'a>>),
-    MemberAccess(Ident<'a>, Vec<Expr<'a>>),
+    MemberAccess(Ident<'a>, Option<Vec<Expr<'a>>>),
     TupleAccess(usize),
 }
 
@@ -127,7 +127,7 @@ fn tail_func_call(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
 fn tail_member_access(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
     map(
         pair(preceded(spaced(tag(".")), identifier), opt(expr_args)),
-        |(member_name, items)| ExprTailChain::MemberAccess(member_name, items.unwrap_or_default()),
+        |(member_name, items)| ExprTailChain::MemberAccess(member_name, items),
     )(i)
 }
 
@@ -189,7 +189,7 @@ pub fn expr_anon_member_access(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
             ExprValue::MemberAccess(Box::new(MemberAccess {
                 object: None,
                 member_name,
-                items: items.unwrap_or_default(),
+                items,
             }))
         },
     )(i)
@@ -284,7 +284,7 @@ mod tests {
                     member_name,
                     items,
                 } => {
-                    assert_eq!(items.len(), 1);
+                    assert_eq!(items.unwrap().len(), 1);
                     assert_eq!(member_name, test_ident("next"));
                     assert_eq!(span.fragment, "base()().first.next(123)");
                 }
@@ -378,7 +378,7 @@ mod tests {
                 };
 
                 assert_eq!(mem_acc.member_name, test_ident("v4"));
-                assert_matches!(mem_acc.items.len(), 4);
+                assert_matches!(mem_acc.items.unwrap().len(), 4);
             }
             expr => assert!(false, "Expected EnumInit expression, got {expr:?}"),
         }

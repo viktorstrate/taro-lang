@@ -298,11 +298,11 @@ impl<'a> TypeInferrer<'a, '_> {
                 _ => {
                     unresolvable_count = 0;
                     if coerce(type_a, type_b, ctx).is_none() {
-                        // println!(
-                        //     "CONFLICTING TYPES: {} /= {}",
-                        //     type_a.format(ctx),
-                        //     type_b.format(ctx)
-                        // );
+                        println!(
+                            "CONFLICTING TYPES: {} /= {}",
+                            type_a.format(ctx),
+                            type_b.format(ctx)
+                        );
                         return Err(TypeCheckerError::ConflictingTypes(type_a, type_b));
                     }
                 }

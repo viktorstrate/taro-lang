@@ -4,5 +4,5 @@ use super::{expression::Expr, identifier::Ident};
 pub struct MemberAccess<'a> {
     pub object: Option<Expr<'a>>,
     pub member_name: Ident<'a>,
-    pub items: Vec<Expr<'a>>,
+    pub items: Option<Vec<Expr<'a>>>,
 }

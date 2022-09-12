@@ -186,7 +186,7 @@ mod tests {
                         })
                     );
                     assert_eq!(member_name, test_ident("attribute"));
-                    assert!(items.is_empty());
+                    assert!(items.is_none());
                 }
             },
             _ => assert!(false),
