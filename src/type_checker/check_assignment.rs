@@ -24,17 +24,13 @@ pub enum AssignmentError<'a> {
     },
 }
 
-pub fn check_assignment<'a>(
+fn check_assignment_expr<'a>(
     ctx: &mut IrCtx<'a>,
     symbols: &mut SymbolTableZipper<'a>,
     asg: NodeRef<'a, Assignment<'a>>,
+    expr: NodeRef<'a, Expr<'a>>,
 ) -> Result<(), TypeCheckerError<'a>> {
-    // only assign to:
-    // - variable
-    // - (nested) struct attribute
-    // with properties: mutable, same type
-
-    match ctx[ctx[asg].lhs].clone() {
+    match ctx[expr].clone() {
         Expr::Identifier(ident) => {
             let sym = symbols
                 .lookup(ctx, *ident)
@@ -56,18 +52,17 @@ pub fn check_assignment<'a>(
             }
         }
         Expr::StructAccess(st_access) => {
-            let attrs = st_access
-                .lookup_attr_chain(ctx, symbols)
+            let attr = st_access
+                .lookup_attr(ctx, symbols)
                 .map_err(TypeCheckerError::TypeEval)?;
 
-            if !attrs
-                .iter()
-                .all(|a| ctx[*a].mutability == Mutability::Mutable)
-            {
+            if ctx[attr].mutability == Mutability::Immutable {
                 return Err(TypeCheckerError::AssignmentError(
                     AssignmentError::ImmutableAssignment(ctx[st_access].attr_name),
                 ));
             }
+
+            check_assignment_expr(ctx, symbols, asg, ctx[st_access].struct_expr)?;
         }
         _ => {
             return Err(TypeCheckerError::AssignmentError(
@@ -76,7 +71,20 @@ pub fn check_assignment<'a>(
         }
     }
 
-    Ok(())
+    return Ok(());
+}
+
+pub fn check_assignment<'a>(
+    ctx: &mut IrCtx<'a>,
+    symbols: &mut SymbolTableZipper<'a>,
+    asg: NodeRef<'a, Assignment<'a>>,
+) -> Result<(), TypeCheckerError<'a>> {
+    // only assign to:
+    // - variable
+    // - (nested) struct attribute
+    // with properties: mutable, same type
+
+    check_assignment_expr(ctx, symbols, asg, ctx[asg].lhs)
 }
 
 #[cfg(test)]
@@ -117,10 +125,22 @@ mod tests {
     }
 
     #[test]
-    fn test_assign_struct_immutable() {
+    fn test_assign_struct_immutable_attr() {
         let mut ir = lowered_ir(
             "struct Foo { let attr: Number }
             var foo = Foo { attr: 1 }
+            foo.attr = 2",
+        )
+        .unwrap();
+
+        assert_matches!(type_check(&mut ir), Err(_));
+    }
+
+    #[test]
+    fn test_assign_struct_immutable() {
+        let mut ir = lowered_ir(
+            "struct Foo { var attr: Number }
+            let foo = Foo { attr: 1 }
             foo.attr = 2",
         )
         .unwrap();

@@ -286,7 +286,6 @@ fn format_expr<'a, 'ctx, W: Write>(
             Ok(())
         }
         Expr::StructAccess(st_access) => {
-            println!("GEN STRUCT ACCESS");
             format_expr(gen, gen.ctx[st_access].struct_expr)?;
             gen.write(".")?;
 

@@ -224,7 +224,7 @@ mod tests {
             var bar: Deep
         }
 
-        let foo = Foo { bar: Deep {} }
+        var foo = Foo { bar: Deep {} }
         foo.bar.inner = true
         ",
         )
