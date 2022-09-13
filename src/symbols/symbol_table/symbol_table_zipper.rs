@@ -54,10 +54,8 @@ impl<'a> SymbolTableZipper<'a> {
     }
 
     pub fn exit_scope(&mut self, ctx: &IrCtx<'a>) -> Result<(), SymbolCollectionError<'a>> {
-        let mut breadcrumb = self
-            .breadcrumb
-            .pop()
-            .ok_or(SymbolCollectionError::MovePastGlobalScope)?;
+        let mut breadcrumb = self.breadcrumb.pop().expect("move past global scope");
+        // .ok_or(SymbolCollectionError::MovePastGlobalScope)?;
 
         std::mem::swap(&mut self.cursor, &mut breadcrumb.sym_table);
         self.cursor

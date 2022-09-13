@@ -25,6 +25,7 @@ use super::{
     IR,
 };
 
+#[derive(Debug)]
 pub struct LowerAstResult<'a> {
     pub ctx: IrCtx<'a>,
     pub ir: IR<'a>,

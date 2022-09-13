@@ -31,16 +31,18 @@ pub type ParserError<'a> = VerboseError<Input<'a>>;
 pub type Res<I, O> = IResult<I, O, VerboseError<I>>;
 
 #[derive(Debug, Default, Clone)]
-pub struct ParserContext();
+pub struct ParserContext<'a> {
+    source: &'a str,
+}
 
-pub type Input<'a> = LocatedSpan<&'a str, ParserContext>;
+pub type Input<'a> = LocatedSpan<&'a str, ParserContext<'a>>;
 
 pub fn ws(i: Input<'_>) -> Res<Input<'_>, Input<'_>> {
     return multispace1(i);
 }
 
 pub fn new_input(input: &str) -> Input<'_> {
-    Input::new_extra(input, ParserContext::default())
+    Input::new_extra(input, ParserContext { source: input })
 }
 
 pub fn spaced<F, I, O>(mut parser: F) -> impl FnMut(I) -> Res<I, O>
@@ -101,6 +103,7 @@ pub struct Span<'a> {
     pub line: usize,
     pub offset: usize,
     pub fragment: &'a str,
+    pub source: &'a str,
 }
 
 impl<'a> Span<'a> {
@@ -111,6 +114,7 @@ impl<'a> Span<'a> {
             line: start.location_line() as usize,
             offset: start.get_utf8_column(),
             fragment: &start.fragment()[0..len],
+            source: start.extra.source,
         }
     }
 }

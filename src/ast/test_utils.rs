@@ -6,10 +6,12 @@ use super::node::{
 };
 
 fn test_span() -> Span<'static> {
+    let input = "";
     Span {
         line: 0,
         offset: 0,
-        fragment: "",
+        fragment: input,
+        source: input,
     }
 }
 

@@ -24,17 +24,16 @@ pub mod utils {
     pub fn collect_symbols<'a>(
         ir_result: &mut LowerAstResult<'a>,
     ) -> Result<SymbolTable<'a>, SymbolCollectionError<'a>> {
-        let result = walk_ir(
-            &mut SymbolCollector {},
-            &mut ir_result.ctx,
-            &mut ir_result.ir,
-        );
+        let result = walk_ir(&mut SymbolCollector {}, ir_result);
 
         match result {
             Ok(val) => Ok(val),
             Err(err) => {
                 match &err {
-                    SymbolCollectionError::SymbolAlreadyExistsInScope(ident) => {
+                    SymbolCollectionError::SymbolAlreadyExistsInScope {
+                        new: ident,
+                        existing: _,
+                    } => {
                         println!(
                             "SYMBOL ALREADY EXISTS IN SCOPE: {:?}",
                             ir_result.ctx[*ident]
@@ -52,14 +51,11 @@ pub mod utils {
     ) -> Result<TypeChecker<'a>, TypeCheckerError<'a>> {
         let symbols = collect_symbols(ir_result).unwrap();
 
-        let ctx = &mut ir_result.ctx;
-        let ir = &mut ir_result.ir;
-
         let mut sym_resolver = SymbolResolver::new(symbols);
-        walk_ir(&mut sym_resolver, ctx, ir).unwrap();
+        walk_ir(&mut sym_resolver, ir_result).unwrap();
 
-        let mut type_checker = TypeChecker::new(ctx, sym_resolver);
-        let result = type_checker.type_check(ctx, ir);
+        let mut type_checker = TypeChecker::new(&mut ir_result.ctx, sym_resolver);
+        let result = type_checker.type_check(ir_result);
 
         match result {
             Ok(_) => Ok(type_checker),

@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    fmt::Debug,
     ops::{Index, IndexMut},
 };
 
@@ -26,6 +27,12 @@ pub struct IrCtx<'a> {
     pub idents: Arena<IdentValue<'a>>,
     pub nodes: IrNodeArena<'a>,
     pub symbols: Arena<SymbolValueItem<'a>>,
+}
+
+impl<'a> Debug for IrCtx<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IrCtx").finish()
+    }
 }
 
 pub trait IrArenaType<'a>

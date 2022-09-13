@@ -2,6 +2,7 @@ use std::collections::{HashMap, VecDeque};
 
 use crate::{
     ir::{
+        ast_lowering::LowerAstResult,
         context::IrCtx,
         ir_walker::walk_ir,
         node::{
@@ -11,7 +12,6 @@ use crate::{
             type_signature::{TypeEvalError, TypeSignature},
             NodeRef,
         },
-        IR,
     },
     symbols::{
         symbol_resolver::SymbolResolver, symbol_table::symbol_table_zipper::SymbolTableZipper,
@@ -73,25 +73,21 @@ impl<'a> TypeChecker<'a> {
         }
     }
 
-    pub fn type_check(
-        &mut self,
-        ctx: &mut IrCtx<'a>,
-        ir: &mut IR<'a>,
-    ) -> Result<(), TypeCheckerError<'a>> {
+    pub fn type_check(&mut self, la: &mut LowerAstResult<'a>) -> Result<(), TypeCheckerError<'a>> {
         while self.needs_rerun {
             self.needs_rerun = false;
             self.found_undeterminable_types = false;
             self.substitutions.clear();
             self.constraints.clear();
 
-            let mut type_inferrer = TypeInferrer::new(ctx, self);
-            walk_ir(&mut type_inferrer, ctx, ir)?;
+            let mut type_inferrer = TypeInferrer::new(&la.ctx, self);
+            walk_ir(&mut type_inferrer, la)?;
 
-            let mut type_resolver = TypeResolver::new(&ctx, &mut type_inferrer);
-            walk_ir(&mut type_resolver, ctx, ir)?;
+            let mut type_resolver = TypeResolver::new(&la.ctx, &mut type_inferrer);
+            walk_ir(&mut type_resolver, la)?;
 
-            let mut type_checker = EndTypeChecker::new(&ctx, &mut type_resolver);
-            walk_ir(&mut type_checker, ctx, ir)?;
+            let mut type_checker = EndTypeChecker::new(&la.ctx, &mut type_resolver);
+            walk_ir(&mut type_checker, la)?;
         }
 
         if self.found_undeterminable_types {

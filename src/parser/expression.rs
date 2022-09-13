@@ -235,7 +235,8 @@ mod tests {
                     span: Span {
                         line: 1,
                         offset: 1,
-                        fragment: "\"hello\""
+                        fragment: "\"hello\"",
+                        source: _
                     },
                     value: ExprValue::StringLiteral("hello")
                 }

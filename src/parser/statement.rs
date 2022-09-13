@@ -143,14 +143,16 @@ mod tests {
                     span: Span {
                         line: _,
                         offset: _,
-                        fragment: "var name: String = \"John\""
+                        fragment: "var name: String = \"John\"",
+                        source: _
                     },
                     value: StmtValue::VariableDecl(VarDecl {
                         name: Ident {
                             span: Span {
                                 line: _,
                                 offset: _,
-                                fragment: "name"
+                                fragment: "name",
+                                source: _
                             },
                             value: "name"
                         },
@@ -161,7 +163,8 @@ mod tests {
                                 span: Span {
                                     line: _,
                                     offset: _,
-                                    fragment: "String"
+                                    fragment: "String",
+                                    source: _
                                 },
                                 value: "String"
                             })
@@ -170,7 +173,8 @@ mod tests {
                             span: Span {
                                 line: _,
                                 offset: _,
-                                fragment: "\"John\""
+                                fragment: "\"John\"",
+                                source: _
                             },
                             value: ExprValue::StringLiteral("John")
                         }
@@ -190,14 +194,16 @@ mod tests {
                     span: Span {
                         line: _,
                         offset: _,
-                        fragment: "let name = true"
+                        fragment: "let name = true",
+                        source: _
                     },
                     value: StmtValue::VariableDecl(VarDecl {
                         name: Ident {
                             span: Span {
                                 line: _,
                                 offset: _,
-                                fragment: "name"
+                                fragment: "name",
+                                source: _
                             },
                             value: "name"
                         },
@@ -207,7 +213,8 @@ mod tests {
                             span: Span {
                                 line: _,
                                 offset: _,
-                                fragment: "true"
+                                fragment: "true",
+                                source: _
                             },
                             value: ExprValue::BoolLiteral(true)
                         }

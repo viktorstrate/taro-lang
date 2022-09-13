@@ -117,7 +117,10 @@ mod tests {
         let mut ir = lowered_ir("func f() {}; func f() {}").unwrap();
         assert_matches!(
             collect_symbols(&mut ir),
-            Err(SymbolCollectionError::SymbolAlreadyExistsInScope(_))
+            Err(SymbolCollectionError::SymbolAlreadyExistsInScope {
+                new: _,
+                existing: _
+            })
         )
     }
 }

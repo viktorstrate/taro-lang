@@ -83,7 +83,8 @@ mod tests {
                 span: Span {
                     line: _,
                     offset: _,
-                    fragment: "Boolean"
+                    fragment: "Boolean",
+                    source: _
                 },
                 value: TypeSignatureValue::Base(Ident {
                     span: _,

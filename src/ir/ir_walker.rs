@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use crate::symbols::symbol_table::symbol_table_zipper::SymbolTableZipper;
 
 use super::{
+    ast_lowering::LowerAstResult,
     context::IrCtx,
     node::{
         enumeration::Enum,
@@ -15,7 +16,6 @@ use super::{
         type_signature::{TypeSignature, TypeSignatureValue},
         NodeRef,
     },
-    IR,
 };
 
 #[derive(Debug, Clone)]
@@ -154,13 +154,12 @@ pub trait IrWalker<'a> {
 
 pub fn walk_ir<'a, W: IrWalker<'a>>(
     walker: &mut W,
-    ctx: &mut IrCtx<'a>,
-    ir: &mut IR<'a>,
+    la: &mut LowerAstResult<'a>,
 ) -> Result<W::Scope, W::Error> {
     let mut global_scope = W::Scope::default();
-    walker.visit_begin(ctx, &mut global_scope)?;
-    walk_module(walker, ctx, &mut global_scope, &mut ir.0)?;
-    walker.visit_end(ctx, &mut global_scope)?;
+    walker.visit_begin(&mut la.ctx, &mut global_scope)?;
+    walk_module(walker, &mut la.ctx, &mut global_scope, &mut la.ir.0)?;
+    walker.visit_end(&mut la.ctx, &mut global_scope)?;
     Ok(global_scope)
 }
 

@@ -5,11 +5,16 @@
 #![feature(let_else)]
 #![feature(hash_set_entry)]
 #![deny(rust_2018_idioms)]
+#![feature(iter_advance_by)]
 
 use std::io::{BufRead, Write};
 
 use code_gen::format_ir;
-use ir::{ast_lowering::lower_ast, ir_walker::walk_ir};
+use error_message::ErrorMessage;
+use ir::{
+    ast_lowering::{lower_ast, LowerAstResult},
+    ir_walker::walk_ir,
+};
 use parser::{parse_ast, ParserError};
 use symbols::{
     symbol_collector::SymbolCollector,
@@ -20,6 +25,7 @@ use type_checker::{TypeChecker, TypeCheckerError};
 
 pub mod ast;
 pub mod code_gen;
+pub mod error_message;
 pub mod ir;
 pub mod parser;
 pub mod symbols;
@@ -35,7 +41,7 @@ fn main() -> std::io::Result<()> {
     let input = input.into_iter().collect::<String>();
 
     if let Err(err) = transpile(&mut std::io::stdout(), &input) {
-        println!("Error: {:?}", err)
+        err.format_err(&mut std::io::stderr(), ())?;
     }
 
     Ok(())
@@ -44,31 +50,37 @@ fn main() -> std::io::Result<()> {
 #[derive(Debug)]
 pub enum TranspilerError<'a> {
     Parse(ParserError<'a>),
-    SymbolCollectError(SymbolCollectionError<'a>),
-    SymbolResolveError(SymbolResolutionError<'a>),
-    TypeCheck(TypeCheckerError<'a>),
+    SymbolCollectError(LowerAstResult<'a>, SymbolCollectionError<'a>),
+    SymbolResolveError(LowerAstResult<'a>, SymbolResolutionError<'a>),
+    TypeCheck(LowerAstResult<'a>, TypeCheckerError<'a>),
     Write(std::io::Error),
 }
 
 fn transpile<'a, W: Write>(writer: &mut W, input: &'a str) -> Result<(), TranspilerError<'a>> {
     let ast = parse_ast(&input).map_err(TranspilerError::Parse)?;
-    let mut lowered_ast = lower_ast(ast);
+    let mut la = lower_ast(ast);
 
-    let ctx = &mut lowered_ast.ctx;
-    let ir = &mut lowered_ast.ir;
-
-    let sym_table =
-        walk_ir(&mut SymbolCollector {}, ctx, ir).map_err(TranspilerError::SymbolCollectError)?;
+    let sym_table = match walk_ir(&mut SymbolCollector {}, &mut la) {
+        Ok(sym) => sym,
+        Err(err) => return Err(TranspilerError::SymbolCollectError(la, err)),
+    };
 
     let mut sym_resolver = SymbolResolver::new(sym_table);
-    walk_ir(&mut sym_resolver, ctx, ir).map_err(TranspilerError::SymbolResolveError)?;
+    match walk_ir(&mut sym_resolver, &mut la) {
+        Ok(_) => {}
+        Err(err) => return Err(TranspilerError::SymbolResolveError(la, err)),
+    }
 
-    let mut type_checker = TypeChecker::new(ctx, sym_resolver);
-    type_checker
-        .type_check(ctx, ir)
-        .map_err(TranspilerError::TypeCheck)?;
+    let mut type_checker = TypeChecker::new(&mut la.ctx, sym_resolver);
+    match type_checker.type_check(&mut la) {
+        Ok(_) => {}
+        Err(err) => return Err(TranspilerError::TypeCheck(la, err)),
+    }
 
-    format_ir(writer, ctx, type_checker.symbols, ir).map_err(TranspilerError::Write)?;
+    match format_ir(writer, &mut la.ctx, type_checker.symbols, &mut la.ir) {
+        Ok(_) => {}
+        Err(err) => return Err(TranspilerError::Write(err)),
+    }
 
     Ok(())
 }
