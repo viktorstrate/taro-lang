@@ -63,7 +63,7 @@ impl<'a> Into<Ident<'a>> for LateInit<Ident<'a>> {
     }
 }
 
-impl<T: Default> Default for LateInit<T> {
+impl<T> Default for LateInit<T> {
     fn default() -> Self {
         Self {
             inner: Default::default(),

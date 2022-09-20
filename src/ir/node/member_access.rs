@@ -15,7 +15,7 @@ pub struct UnresolvedMemberAccess<'a> {
     pub object: Option<NodeRef<'a, Expr<'a>>>,
     pub member_name: LateInit<Ident<'a>>,
     pub items: Option<Vec<NodeRef<'a, Expr<'a>>>>,
-    pub type_sig: TypeSignature<'a>,
+    pub type_sig: LateInit<TypeSignature<'a>>,
 }
 
 impl<'a> Typed<'a> for NodeRef<'a, UnresolvedMemberAccess<'a>> {
@@ -24,11 +24,11 @@ impl<'a> Typed<'a> for NodeRef<'a, UnresolvedMemberAccess<'a>> {
         _symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        Ok(ctx[*self].type_sig)
+        Ok((*ctx[*self].type_sig).clone())
     }
 
-    fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
-        Some(ctx[*self].type_sig)
+    fn specified_type(&self, ctx: &IrCtx<'a>) -> Option<TypeSignature<'a>> {
+        Some((*ctx[*self].type_sig).clone())
     }
 
     fn specify_type(
@@ -36,7 +36,7 @@ impl<'a> Typed<'a> for NodeRef<'a, UnresolvedMemberAccess<'a>> {
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
-        ctx[*self].type_sig = new_type;
+        ctx[*self].type_sig = new_type.into();
         Ok(())
     }
 }

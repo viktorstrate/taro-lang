@@ -6,7 +6,10 @@ use crate::{
 use super::{
     expression::Expr,
     identifier::{Ident, IdentKey, Identifiable},
-    type_signature::{TypeEvalError, TypeSignature, TypeSignatureValue, Typed},
+    type_signature::{
+        TypeEvalError, TypeSignature, TypeSignatureContext, TypeSignatureParent,
+        TypeSignatureValue, Typed,
+    },
     NodeRef,
 };
 
@@ -20,7 +23,7 @@ pub struct Enum<'a> {
 #[derive(Debug, Clone)]
 pub struct EnumValue<'a> {
     pub name: LateInit<Ident<'a>>,
-    pub items: Vec<TypeSignature<'a>>,
+    pub items: LateInit<Vec<TypeSignature<'a>>>,
 }
 
 impl<'a> NodeRef<'a, Enum<'a>> {
@@ -75,7 +78,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Enum<'a>> {
         _symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        Ok(*ctx.nodes.enms[self.id].type_sig)
+        Ok((*ctx.nodes.enms[self.id].type_sig).clone())
     }
 }
 
@@ -85,12 +88,21 @@ impl<'a> Typed<'a> for NodeRef<'a, EnumValue<'a>> {
         _symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        Ok(self.specified_type(ctx).unwrap())
+        // Ok(self.specified_type(ctx).unwrap())
+        let items = (*ctx[*self].items).clone();
+
+        Ok(ctx.get_type_sig(
+            TypeSignatureValue::Tuple(items.into()),
+            TypeSignatureContext {
+                parent: TypeSignatureParent::EnumValue(*self),
+                type_span: None,
+            }
+            .alloc(),
+        ))
     }
 
-    fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
-        let items = ctx[*self].items.clone();
-        Some(ctx.get_type_sig(TypeSignatureValue::Tuple(items)))
+    fn specified_type(&self, _ctx: &IrCtx<'a>) -> Option<TypeSignature<'a>> {
+        None
     }
 
     fn specify_type(
@@ -98,7 +110,7 @@ impl<'a> Typed<'a> for NodeRef<'a, EnumValue<'a>> {
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
-        let TypeSignatureValue::Tuple(tuple) = &ctx[new_type] else {
+        let TypeSignatureValue::Tuple(tuple) = &ctx[&new_type] else {
             unreachable!("specified type expected to be tuple");
         };
 
@@ -108,7 +120,7 @@ impl<'a> Typed<'a> for NodeRef<'a, EnumValue<'a>> {
             "enum value length match"
         );
 
-        ctx[*self].items = tuple.clone();
+        ctx[*self].items = tuple.clone().into();
         Ok(())
     }
 }
@@ -121,6 +133,13 @@ impl<'a> Typed<'a> for NodeRef<'a, EnumInit<'a>> {
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let enm_name = ctx[*self].enum_name;
 
-        Ok(ctx.get_type_sig(TypeSignatureValue::Enum { name: enm_name }))
+        Ok(ctx.get_type_sig(
+            TypeSignatureValue::Enum { name: enm_name },
+            TypeSignatureContext {
+                parent: TypeSignatureParent::EnumInit(*self),
+                type_span: None,
+            }
+            .alloc(),
+        ))
     }
 }

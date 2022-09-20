@@ -1,15 +1,21 @@
-use crate::{ir::context::IrCtx, symbols::symbol_table::symbol_table_zipper::SymbolTableZipper};
+use crate::{
+    ir::{context::IrCtx, late_init::LateInit},
+    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
+};
 
 use super::{
     expression::Expr,
-    type_signature::{TypeEvalError, TypeSignature, TypeSignatureValue, Typed},
+    type_signature::{
+        TypeEvalError, TypeSignature, TypeSignatureContext, TypeSignatureParent,
+        TypeSignatureValue, Typed,
+    },
     NodeRef,
 };
 
 #[derive(Debug)]
 pub struct Tuple<'a> {
     pub values: Vec<NodeRef<'a, Expr<'a>>>,
-    pub type_sig: TypeSignature<'a>,
+    pub type_sig: LateInit<TypeSignature<'a>>,
 }
 
 #[derive(Debug)]
@@ -31,11 +37,18 @@ impl<'a> Typed<'a> for NodeRef<'a, Tuple<'a>> {
             .map(|val| val.eval_type(symbols, ctx))
             .collect::<Result<Vec<_>, _>>()?;
 
-        Ok(ctx.get_type_sig(TypeSignatureValue::Tuple(types)))
+        Ok(ctx.get_type_sig(
+            TypeSignatureValue::Tuple(types.into()),
+            TypeSignatureContext {
+                parent: TypeSignatureParent::Tuple(*self),
+                type_span: None,
+            }
+            .alloc(),
+        ))
     }
 
-    fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
-        Some(ctx[*self].type_sig)
+    fn specified_type(&self, ctx: &IrCtx<'a>) -> Option<TypeSignature<'a>> {
+        Some((*ctx[*self].type_sig).clone())
     }
 
     fn specify_type(
@@ -43,14 +56,14 @@ impl<'a> Typed<'a> for NodeRef<'a, Tuple<'a>> {
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
-        match &ctx[new_type] {
+        match &ctx[&new_type] {
             TypeSignatureValue::Tuple(vals) => {
                 assert_eq!(vals.len(), ctx[*self].values.len(), "tuple length match")
             }
             _ => assert!(false),
         }
 
-        ctx[*self].type_sig = new_type;
+        ctx[*self].type_sig = new_type.into();
         Ok(())
     }
 }
@@ -63,7 +76,7 @@ impl<'a> Typed<'a> for NodeRef<'a, TupleAccess<'a>> {
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let tuple_type = ctx[*self].tuple_expr.clone().eval_type(symbols, ctx)?;
         let attr = ctx[*self].attr;
-        match &ctx[tuple_type] {
+        match &ctx[&tuple_type] {
             TypeSignatureValue::Tuple(tuple) => {
                 tuple
                     .get(attr)

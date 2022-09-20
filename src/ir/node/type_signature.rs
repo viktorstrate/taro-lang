@@ -1,22 +1,86 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, hash::Hash, ops::Deref, rc::Rc};
 
 use id_arena::Id;
 
 use crate::{
     ir::{context::IrCtx, late_init::LateInit},
+    parser::Span,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
 use super::{
+    enumeration::{Enum, EnumInit, EnumValue},
+    escape_block::EscapeBlock,
     expression::Expr,
-    function::Function,
+    function::{Function, FunctionArg},
     identifier::{Ident, IdentParent},
+    member_access::UnresolvedMemberAccess,
+    statement::VarDecl,
+    structure::{Struct, StructAttr, StructInit},
+    tuple::Tuple,
     NodeRef,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub struct TypeSignature<'a> {
-    id: Id<TypeSignatureValue<'a>>,
+    pub id: Id<TypeSignatureValue<'a>>,
+    pub context: Rc<TypeSignatureContext<'a>>,
+}
+
+impl<'a> Eq for TypeSignature<'a> {}
+
+impl<'a> PartialEq for TypeSignature<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl<'a> Hash for TypeSignature<'a> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TypeSignatureContext<'a> {
+    pub parent: TypeSignatureParent<'a>,
+    pub type_span: Option<Span<'a>>,
+}
+
+impl<'a> TypeSignatureContext<'a> {
+    #[inline]
+    pub fn alloc(self) -> Rc<Self> {
+        Rc::new(self)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum TypeSignatureParent<'a> {
+    Builtin,
+    VarDeclSig(NodeRef<'a, VarDecl<'a>>),
+    Enum(NodeRef<'a, Enum<'a>>),
+    EnumValue(NodeRef<'a, EnumValue<'a>>),
+    EnumInit(NodeRef<'a, EnumInit<'a>>),
+    Expr(NodeRef<'a, Expr<'a>>),
+    Function(NodeRef<'a, Function<'a>>),
+    FunctionArg {
+        parent_func: TypeSignature<'a>,
+    },
+    FunctionReturn {
+        parent_func: TypeSignature<'a>,
+    },
+    FunctionDefArg(NodeRef<'a, FunctionArg<'a>>),
+    FunctionDefReturn(NodeRef<'a, Function<'a>>),
+    Struct(NodeRef<'a, Struct<'a>>),
+    StructInit(NodeRef<'a, StructInit<'a>>),
+    StructAttr(NodeRef<'a, StructAttr<'a>>),
+    Tuple(NodeRef<'a, Tuple<'a>>),
+    TupleItem {
+        attr: usize,
+        parent_tuple: TypeSignature<'a>,
+    },
+    EscapeBlock(NodeRef<'a, EscapeBlock<'a>>),
+    MemberAccess(NodeRef<'a, UnresolvedMemberAccess<'a>>),
 }
 
 impl<'a> Into<Id<TypeSignatureValue<'a>>> for TypeSignature<'a> {
@@ -25,9 +89,9 @@ impl<'a> Into<Id<TypeSignatureValue<'a>>> for TypeSignature<'a> {
     }
 }
 
-impl<'a> From<Id<TypeSignatureValue<'a>>> for TypeSignature<'a> {
-    fn from(id: Id<TypeSignatureValue<'a>>) -> Self {
-        Self { id }
+impl<'a> Into<Id<TypeSignatureValue<'a>>> for &TypeSignature<'a> {
+    fn into(self) -> Id<TypeSignatureValue<'a>> {
+        self.id
     }
 }
 
@@ -37,8 +101,8 @@ pub enum TypeSignatureValue<'a> {
     Unresolved(Ident<'a>),
     TypeVariable(Id<TypeSignatureValue<'a>>),
     Function {
-        args: Vec<TypeSignature<'a>>,
-        return_type: TypeSignature<'a>,
+        args: LateInit<Vec<TypeSignature<'a>>>,
+        return_type: LateInit<TypeSignature<'a>>,
     },
     Struct {
         name: Ident<'a>,
@@ -46,7 +110,71 @@ pub enum TypeSignatureValue<'a> {
     Enum {
         name: Ident<'a>,
     },
-    Tuple(Vec<TypeSignature<'a>>),
+    Tuple(LateInit<Vec<TypeSignature<'a>>>),
+}
+
+impl<'a> TypeSignature<'a> {
+    pub fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+        if let Some(span) = self.context.type_span.clone() {
+            return Some(span);
+        }
+
+        let node_span = match &self.context.parent {
+            TypeSignatureParent::Builtin => None,
+            TypeSignatureParent::VarDeclSig(var) => ctx[*var].name.get_span(ctx),
+            TypeSignatureParent::Enum(_) => todo!(),
+            TypeSignatureParent::EnumValue(_) => todo!(),
+            TypeSignatureParent::EnumInit(_) => todo!(),
+            TypeSignatureParent::Expr(expr) => match &ctx[*expr] {
+                Expr::StringLiteral(_, span) => Some(span.clone()),
+                Expr::NumberLiteral(_, span) => Some(span.clone()),
+                Expr::BoolLiteral(_, span) => Some(span.clone()),
+                Expr::Function(_) => todo!(),
+                Expr::FunctionCall(_) => todo!(),
+                Expr::Identifier(_) => todo!(),
+                Expr::StructInit(_) => todo!(),
+                Expr::StructAccess(_) => todo!(),
+                Expr::TupleAccess(_) => todo!(),
+                Expr::EscapeBlock(_) => todo!(),
+                Expr::Assignment(_) => todo!(),
+                Expr::Tuple(_) => todo!(),
+                Expr::EnumInit(_) => todo!(),
+                Expr::UnresolvedMemberAccess(_) => todo!(),
+            },
+            TypeSignatureParent::Function(func) => Some(ctx[*func].span.clone()),
+            TypeSignatureParent::FunctionArg { parent_func: _ } => todo!(),
+            TypeSignatureParent::FunctionReturn { parent_func: _ } => todo!(),
+            TypeSignatureParent::FunctionDefArg(_) => todo!(),
+            TypeSignatureParent::FunctionDefReturn(_) => todo!(),
+            TypeSignatureParent::Struct(_) => todo!(),
+            TypeSignatureParent::StructInit(_) => todo!(),
+            TypeSignatureParent::StructAttr(_) => todo!(),
+            TypeSignatureParent::Tuple(_) => todo!(),
+            TypeSignatureParent::TupleItem {
+                attr: _,
+                parent_tuple: _,
+            } => todo!(),
+            TypeSignatureParent::EscapeBlock(_) => todo!(),
+            TypeSignatureParent::MemberAccess(_) => todo!(),
+        };
+
+        if node_span.is_some() {
+            return node_span;
+        }
+
+        match &ctx[self] {
+            TypeSignatureValue::Builtin(_) => None,
+            TypeSignatureValue::Unresolved(id) => id.get_span(ctx),
+            TypeSignatureValue::TypeVariable(_) => todo!(),
+            TypeSignatureValue::Function {
+                args: _,
+                return_type: _,
+            } => todo!(),
+            TypeSignatureValue::Struct { name } => name.get_span(ctx),
+            TypeSignatureValue::Enum { name } => name.get_span(ctx),
+            TypeSignatureValue::Tuple(_) => todo!(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -85,27 +213,45 @@ impl<'a> PartialEq for TypeSignatureValue<'a> {
                     return_type: r_return_type,
                 },
             ) => {
-                l_args.into_iter().zip(r_args).all(|(l, r)| l == r)
+                (**l_args)
+                    .clone()
+                    .into_iter()
+                    .zip(r_args.deref())
+                    .all(|(l, r)| l == *r)
                     && l_return_type == r_return_type
             }
             (Self::Struct { name: l_name }, Self::Struct { name: r_name }) => l_name == r_name,
             (Self::Enum { name: l_name }, Self::Enum { name: r_name }) => l_name == r_name,
-            (Self::Tuple(l0), Self::Tuple(r0)) => l0.into_iter().zip(r0).all(|(l, r)| l == r),
+            (Self::Tuple(l0), Self::Tuple(r0)) => (**l0)
+                .clone()
+                .into_iter()
+                .zip(r0.deref())
+                .all(|(l, r)| l == *r),
             _ => false,
         }
     }
 }
 
 impl<'a> crate::ast::node::type_signature::TypeSignature<'a> {
-    pub fn into_ir_type(self, ctx: &mut IrCtx<'a>) -> TypeSignature<'a> {
+    pub fn into_ir_type(
+        self,
+        ctx: &mut IrCtx<'a>,
+        parent: TypeSignatureParent<'a>,
+    ) -> TypeSignature<'a> {
+        let type_ctx = TypeSignatureContext {
+            parent: parent,
+            type_span: Some(self.span),
+        }
+        .alloc();
+
         match self.value {
             crate::ast::node::type_signature::TypeSignatureValue::Base(base) => {
                 let ident = ctx.make_unresolved_ident(base, LateInit::empty());
-                let type_sig = ctx.get_type_sig(TypeSignatureValue::Unresolved(ident));
+                let type_sig = ctx.get_type_sig(TypeSignatureValue::Unresolved(ident), type_ctx);
 
-                match &mut ctx[type_sig] {
+                match &mut ctx[&type_sig] {
                     TypeSignatureValue::Unresolved(id) => {
-                        id.parent = IdentParent::TypeSigName(type_sig).into()
+                        id.parent = IdentParent::TypeSigName(type_sig.id).into()
                     }
                     _ => unreachable!(),
                 }
@@ -116,14 +262,81 @@ impl<'a> crate::ast::node::type_signature::TypeSignature<'a> {
                 args,
                 return_type,
             } => {
-                let args = args.into_iter().map(|arg| arg.into_ir_type(ctx)).collect();
-                let return_type = return_type.into_ir_type(ctx);
+                let func = ctx.get_type_sig(
+                    TypeSignatureValue::Function {
+                        args: LateInit::empty(),
+                        return_type: LateInit::empty(),
+                    },
+                    type_ctx,
+                );
 
-                ctx.get_type_sig(TypeSignatureValue::Function { args, return_type })
+                let new_args = args
+                    .into_iter()
+                    .enumerate()
+                    .map(|(_i, arg)| {
+                        arg.into_ir_type(
+                            ctx,
+                            TypeSignatureParent::FunctionArg {
+                                parent_func: func.clone(),
+                            },
+                        )
+                    })
+                    .collect::<Vec<TypeSignature<'a>>>()
+                    .into();
+
+                let new_return = return_type
+                    .into_ir_type(
+                        ctx,
+                        TypeSignatureParent::FunctionReturn {
+                            parent_func: func.clone(),
+                        },
+                    )
+                    .into();
+
+                match &mut ctx[&func] {
+                    TypeSignatureValue::Function {
+                        args: ags,
+                        return_type: ret_type,
+                    } => {
+                        *ags = new_args;
+                        *ret_type = new_return;
+                    }
+                    _ => unreachable!(),
+                }
+
+                func
             }
             crate::ast::node::type_signature::TypeSignatureValue::Tuple(types) => {
-                let type_sigs = types.into_iter().map(|t| t.into_ir_type(ctx)).collect();
-                ctx.get_type_sig(TypeSignatureValue::Tuple(type_sigs))
+                // let tup = match &type_ctx.parent {
+                //     TypeSignatureParent::Tuple(tup) => *tup,
+                //     _ => unreachable!(),
+                // };
+
+                let tup = ctx.get_type_sig(TypeSignatureValue::Tuple(LateInit::empty()), type_ctx);
+
+                let type_sigs = types
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, t)| {
+                        t.into_ir_type(
+                            ctx,
+                            TypeSignatureParent::TupleItem {
+                                attr: i,
+                                parent_tuple: tup.clone(),
+                            },
+                        )
+                    })
+                    .collect::<Vec<TypeSignature<'a>>>()
+                    .into();
+
+                match &mut ctx[&tup] {
+                    TypeSignatureValue::Tuple(t) => {
+                        *t = type_sigs;
+                    }
+                    _ => unreachable!(),
+                }
+
+                tup
             }
         }
     }
@@ -131,13 +344,18 @@ impl<'a> crate::ast::node::type_signature::TypeSignature<'a> {
 
 impl<'a> TypeSignature<'a> {
     pub fn format(&self, ctx: &IrCtx<'a>) -> String {
-        match ctx[*self].clone() {
+        match ctx[self].clone() {
             TypeSignatureValue::Builtin(builtin) => builtin.name().to_owned(),
             TypeSignatureValue::Unresolved(id) => format!("UNRESOLVED [{:?}]", ctx[id]),
-            TypeSignatureValue::TypeVariable(var) => format!("TYPE_VAR [{:?}]", var.index()),
+            TypeSignatureValue::TypeVariable(_var) => {
+                //format!("TYPE_VAR [{:?}]", var.index()),
+                "[unknown]".to_owned()
+            }
             TypeSignatureValue::Function { args, return_type } => format!(
                 "({}) -> {}",
-                args.into_iter()
+                (*args)
+                    .clone()
+                    .into_iter()
                     .map(|arg| arg.format(ctx))
                     .intersperse(", ".to_owned())
                     .collect::<String>(),
@@ -147,7 +365,9 @@ impl<'a> TypeSignature<'a> {
             TypeSignatureValue::Enum { name } => format!("ENUM {:?}", ctx[name]),
             TypeSignatureValue::Tuple(vals) => format!(
                 "({})",
-                vals.into_iter()
+                (*vals)
+                    .clone()
+                    .into_iter()
                     .map(|val| val.format(ctx))
                     .intersperse(", ".to_owned())
                     .collect::<String>()
@@ -164,7 +384,7 @@ pub trait Typed<'a>: Debug {
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>>;
 
-    fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
+    fn specified_type(&self, ctx: &IrCtx<'a>) -> Option<TypeSignature<'a>> {
         None
     }
 

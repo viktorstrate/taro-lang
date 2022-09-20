@@ -13,7 +13,7 @@ use super::{
     member_access::UnresolvedMemberAccess,
     statement::VarDecl,
     structure::{Struct, StructAccess, StructAttr, StructInit, StructInitValue},
-    type_signature::{BuiltinType, TypeSignature, TypeSignatureValue},
+    type_signature::{BuiltinType, TypeSignatureValue},
     NodeRef,
 };
 
@@ -44,6 +44,19 @@ impl<'a> Hash for Ident<'a> {
 impl<'a> Into<Id<IdentValue<'a>>> for Ident<'a> {
     fn into(self) -> Id<IdentValue<'a>> {
         self.id
+    }
+}
+
+impl<'a> Ident<'a> {
+    pub fn get_span(self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+        match &ctx[self] {
+            IdentValue::Resolved(id) => match id {
+                ResolvedIdentValue::Named { def_span, name: _ } => Some(def_span.clone()),
+                ResolvedIdentValue::Anonymous => None,
+                ResolvedIdentValue::BuiltinType(_) => None,
+            },
+            IdentValue::Unresolved(id) => Some(id.span.clone()),
+        }
     }
 }
 
@@ -108,7 +121,7 @@ pub enum IdentParent<'a> {
     FuncDeclName(NodeRef<'a, Function<'a>>),
     FuncDeclArgName(NodeRef<'a, FunctionArg<'a>>),
     IdentExpr(NodeRef<'a, Expr<'a>>),
-    TypeSigName(TypeSignature<'a>),
+    TypeSigName(Id<TypeSignatureValue<'a>>),
     MemberAccessMemberName(NodeRef<'a, UnresolvedMemberAccess<'a>>),
     BuiltinIdent,
 }
@@ -137,7 +150,7 @@ impl<'a> IdentParent<'a> {
                 Expr::Identifier(id) => *id = new_ident.into(),
                 _ => unreachable!(),
             },
-            IdentParent::TypeSigName(type_sig) => match &mut ctx[*type_sig] {
+            IdentParent::TypeSigName(type_sig) => match &mut ctx.types[*type_sig] {
                 TypeSignatureValue::Unresolved(ident) => *ident = new_ident.into(),
                 TypeSignatureValue::Enum { name } => *name = new_ident,
                 TypeSignatureValue::Struct { name } => *name = new_ident,

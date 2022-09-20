@@ -2,10 +2,10 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_until},
     character::complete::{char as char_parser, digit1},
-    combinator::{map, opt},
+    combinator::{map, opt, recognize},
     error::context,
     multi::{fold_many0, separated_list0},
-    sequence::{delimited, pair, preceded, tuple},
+    sequence::{delimited, pair, preceded},
 };
 use nom_locate::position;
 
@@ -19,8 +19,8 @@ use crate::ast::node::{
 };
 
 use super::{
-    escape_block::escape_block, function::function_expr, identifier::identifier, spaced, span,
-    structure::struct_init_expr, surround_brackets, BracketType, Input, Res, Span,
+    decimal, escape_block::escape_block, function::function_expr, identifier::identifier, spaced,
+    span, structure::struct_init_expr, surround_brackets, BracketType, Input, Res, Span,
 };
 
 pub fn expression(i: Input<'_>) -> Res<Input<'_>, Expr<'_>> {
@@ -146,16 +146,10 @@ pub fn expr_string_literal(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
 }
 
 pub fn expr_number_literal(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
-    let (i, num) = digit1(i)?;
-
-    let (i, maybe_decimal) = opt(tuple((tag("."), digit1)))(i)?;
-    let result: f64 = if let Some((_, decimal)) = maybe_decimal {
-        format!("{num}.{decimal}").parse().unwrap()
-    } else {
-        num.parse().unwrap()
-    };
-
-    Ok((i, ExprValue::NumberLiteral(result)))
+    map(
+        recognize(pair(decimal, opt(pair(char_parser('.'), opt(decimal))))),
+        |num| ExprValue::NumberLiteral(num.parse().unwrap()),
+    )(i)
 }
 
 pub fn expr_boolean_literal(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {

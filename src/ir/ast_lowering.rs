@@ -2,7 +2,11 @@ use crate::{
     ast::AST,
     ir::{
         late_init::LateInit,
-        node::{identifier::IdentParent, statement::Stmt},
+        node::{
+            identifier::IdentParent,
+            statement::Stmt,
+            type_signature::{TypeSignature, TypeSignatureContext, TypeSignatureParent},
+        },
     },
 };
 
@@ -58,16 +62,24 @@ impl<'a> IrCtx<'a> {
                     let var_decl_ref = VarDecl {
                         name: LateInit::empty(),
                         mutability: var_decl.mutability,
-                        type_sig: var_decl
-                            .type_sig
-                            .map(|type_sig| type_sig.into_ir_type(ctx))
-                            .unwrap_or_else(|| ctx.make_type_var()),
+                        type_sig: LateInit::empty(),
                         value: ctx.lower_expr(var_decl.value),
                     }
                     .allocate(ctx);
 
                     ctx[var_decl_ref].name = ctx
                         .make_ident(var_decl.name, IdentParent::VarDeclName(var_decl_ref))
+                        .into();
+
+                    ctx[var_decl_ref].type_sig = var_decl
+                        .type_sig
+                        .map(|type_sig| {
+                            type_sig
+                                .into_ir_type(ctx, TypeSignatureParent::VarDeclSig(var_decl_ref))
+                        })
+                        .unwrap_or_else(|| {
+                            ctx.make_type_var(TypeSignatureParent::VarDeclSig(var_decl_ref))
+                        })
                         .into();
 
                     acc.push(Stmt::VariableDecl(var_decl_ref).allocate(ctx));
@@ -78,10 +90,7 @@ impl<'a> IrCtx<'a> {
                     for arg in func_decl.args {
                         let func_arg = FunctionArg {
                             name: LateInit::empty(),
-                            type_sig: arg
-                                .type_sig
-                                .map(|t| t.into_ir_type(ctx))
-                                .unwrap_or_else(|| ctx.make_type_var()),
+                            type_sig: LateInit::empty(),
                         }
                         .allocate(ctx);
 
@@ -89,21 +98,27 @@ impl<'a> IrCtx<'a> {
                             .make_ident(arg.name, IdentParent::FuncDeclArgName(func_arg))
                             .into();
 
+                        ctx[func_arg].type_sig = arg
+                            .type_sig
+                            .map(|t| {
+                                t.into_ir_type(ctx, TypeSignatureParent::FunctionDefArg(func_arg))
+                            })
+                            .unwrap_or_else(|| {
+                                ctx.make_type_var(TypeSignatureParent::FunctionDefArg(func_arg))
+                            })
+                            .into();
+
                         ir_args.push(func_arg)
                     }
-
-                    let return_type = func_decl
-                        .return_type
-                        .map(|t| t.into_ir_type(ctx))
-                        .unwrap_or_else(|| ctx.make_type_var());
 
                     let body = ctx.lower_stmt(*func_decl.body);
 
                     let func = Function {
                         name: LateInit::empty(),
                         args: ir_args,
-                        return_type,
+                        return_type: LateInit::empty(),
                         body,
+                        span: func_decl.span,
                     }
                     .allocate(ctx);
 
@@ -114,6 +129,14 @@ impl<'a> IrCtx<'a> {
 
                     ctx[func].name = name.into();
 
+                    ctx[func].return_type = func_decl
+                        .return_type
+                        .map(|t| t.into_ir_type(ctx, TypeSignatureParent::FunctionDefReturn(func)))
+                        .unwrap_or_else(|| {
+                            ctx.make_type_var(TypeSignatureParent::FunctionDefReturn(func))
+                        })
+                        .into();
+
                     acc.push(Stmt::FunctionDecl(func).allocate(ctx));
                 }
                 crate::ast::node::statement::StmtValue::StructDecl(st_decl) => {
@@ -123,16 +146,21 @@ impl<'a> IrCtx<'a> {
                         let st_attr = StructAttr {
                             name: LateInit::empty(),
                             mutability: attr.mutability,
-                            type_sig: attr
-                                .type_sig
-                                .map(|t| t.into_ir_type(ctx))
-                                .unwrap_or_else(|| ctx.make_type_var()),
+                            type_sig: LateInit::empty(),
                             default_value: attr.default_value.map(|val| ctx.lower_expr(val)),
                         }
                         .allocate(ctx);
 
                         ctx[st_attr].name = ctx
                             .make_ident(attr.name, IdentParent::StructDeclAttrName(st_attr))
+                            .into();
+
+                        ctx[st_attr].type_sig = attr
+                            .type_sig
+                            .map(|t| t.into_ir_type(ctx, TypeSignatureParent::StructAttr(st_attr)))
+                            .unwrap_or_else(|| {
+                                ctx.make_type_var(TypeSignatureParent::StructAttr(st_attr))
+                            })
                             .into();
 
                         ir_attrs.push(st_attr)
@@ -155,12 +183,19 @@ impl<'a> IrCtx<'a> {
                     for val in enm.values {
                         let enm_val = EnumValue {
                             name: LateInit::empty(),
-                            items: val.items.into_iter().map(|t| t.into_ir_type(ctx)).collect(),
+                            items: LateInit::empty(),
                         }
                         .allocate(ctx);
 
                         ctx[enm_val].name = ctx
                             .make_ident(val.name, IdentParent::EnumDeclValueName(enm_val))
+                            .into();
+
+                        ctx[enm_val].items = val
+                            .items
+                            .into_iter()
+                            .map(|t| t.into_ir_type(ctx, TypeSignatureParent::EnumValue(enm_val)))
+                            .collect::<Vec<TypeSignature<'a>>>()
                             .into();
 
                         values.push(enm_val)
@@ -173,10 +208,19 @@ impl<'a> IrCtx<'a> {
                     }
                     .allocate(ctx);
 
+                    let enm_name_span = enm.name.span.clone();
+
                     let enm_name = ctx.make_ident(enm.name, IdentParent::EnumDeclName(enm_decl));
                     ctx[enm_decl].name = enm_name.into();
                     ctx[enm_decl].type_sig = ctx
-                        .get_type_sig(TypeSignatureValue::Enum { name: enm_name })
+                        .get_type_sig(
+                            TypeSignatureValue::Enum { name: enm_name },
+                            TypeSignatureContext {
+                                parent: TypeSignatureParent::Enum(enm_decl),
+                                type_span: Some(enm_name_span),
+                            }
+                            .alloc(),
+                        )
                         .into();
 
                     acc.push(Stmt::EnumDecl(enm_decl).allocate(ctx));
@@ -207,13 +251,13 @@ impl<'a> IrCtx<'a> {
     ) -> NodeRef<'a, Expr<'a>> {
         match expr.value {
             crate::ast::node::expression::ExprValue::StringLiteral(str) => {
-                Expr::StringLiteral(str).allocate(self)
+                Expr::StringLiteral(str, expr.span).allocate(self)
             }
             crate::ast::node::expression::ExprValue::NumberLiteral(num) => {
-                Expr::NumberLiteral(num).allocate(self)
+                Expr::NumberLiteral(num, expr.span).allocate(self)
             }
             crate::ast::node::expression::ExprValue::BoolLiteral(bool) => {
-                Expr::BoolLiteral(bool).allocate(self)
+                Expr::BoolLiteral(bool, expr.span).allocate(self)
             }
             crate::ast::node::expression::ExprValue::Function(func) => {
                 let args = func
@@ -222,10 +266,7 @@ impl<'a> IrCtx<'a> {
                     .map(|arg| {
                         let func_arg = FunctionArg {
                             name: LateInit::empty(),
-                            type_sig: arg
-                                .type_sig
-                                .map(|t| t.into_ir_type(self))
-                                .unwrap_or_else(|| self.make_type_var()),
+                            type_sig: LateInit::empty(),
                         }
                         .allocate(self);
 
@@ -233,22 +274,28 @@ impl<'a> IrCtx<'a> {
                             .make_ident(arg.name, IdentParent::FuncDeclArgName(func_arg))
                             .into();
 
+                        self[func_arg].type_sig = arg
+                            .type_sig
+                            .map(|t| {
+                                t.into_ir_type(self, TypeSignatureParent::FunctionDefArg(func_arg))
+                            })
+                            .unwrap_or_else(|| {
+                                self.make_type_var(TypeSignatureParent::FunctionDefArg(func_arg))
+                            })
+                            .into();
+
                         func_arg
                     })
                     .collect();
-
-                let return_type = func
-                    .return_type
-                    .map(|t| t.into_ir_type(self))
-                    .unwrap_or_else(|| self.make_type_var());
 
                 let body = self.lower_stmt(*func.body);
 
                 let func_decl = Function {
                     name: LateInit::empty(),
                     args,
-                    return_type,
+                    return_type: LateInit::empty(),
                     body,
+                    span: func.span,
                 }
                 .allocate(self);
 
@@ -256,6 +303,16 @@ impl<'a> IrCtx<'a> {
                     .name
                     .map(|name| self.make_ident(name, IdentParent::FuncDeclName(func_decl)))
                     .unwrap_or_else(|| self.make_anon_ident(IdentParent::FuncDeclName(func_decl)))
+                    .into();
+
+                self[func_decl].return_type = func
+                    .return_type
+                    .map(|t| {
+                        t.into_ir_type(self, TypeSignatureParent::FunctionDefReturn(func_decl))
+                    })
+                    .unwrap_or_else(|| {
+                        self.make_type_var(TypeSignatureParent::FunctionDefReturn(func_decl))
+                    })
                     .into();
 
                 Expr::Function(func_decl).allocate(self)
@@ -336,17 +393,23 @@ impl<'a> IrCtx<'a> {
                 .allocate(self),
             )
             .allocate(self),
-            crate::ast::node::expression::ExprValue::EscapeBlock(esc) => Expr::EscapeBlock(
-                EscapeBlock {
+            crate::ast::node::expression::ExprValue::EscapeBlock(esc) => {
+                let esc_blk = EscapeBlock {
                     content: esc.content,
-                    type_sig: esc
-                        .type_sig
-                        .map(|t| t.into_ir_type(self))
-                        .unwrap_or_else(|| self.make_type_var()),
+                    type_sig: LateInit::empty(),
                 }
-                .allocate(self),
-            )
-            .allocate(self),
+                .allocate(self);
+
+                self[esc_blk].type_sig = esc
+                    .type_sig
+                    .map(|t| t.into_ir_type(self, TypeSignatureParent::EscapeBlock(esc_blk)))
+                    .unwrap_or_else(|| {
+                        self.make_type_var(TypeSignatureParent::EscapeBlock(esc_blk))
+                    })
+                    .into();
+
+                Expr::EscapeBlock(esc_blk).allocate(self)
+            }
             crate::ast::node::expression::ExprValue::Assignment(asg) => Expr::Assignment(
                 Assignment {
                     lhs: self.lower_expr(asg.lhs),
@@ -355,20 +418,25 @@ impl<'a> IrCtx<'a> {
                 .allocate(self),
             )
             .allocate(self),
-            crate::ast::node::expression::ExprValue::Tuple(tup) => Expr::Tuple(
-                Tuple {
+            crate::ast::node::expression::ExprValue::Tuple(tup) => {
+                let tup_ref = Tuple {
                     values: tup
                         .values
                         .into_iter()
                         .map(|val| self.lower_expr(val))
                         .collect(),
-                    type_sig: tup
-                        .type_sig
-                        .map(|t| t.into_ir_type(self))
-                        .unwrap_or_else(|| self.make_type_var()),
+                    type_sig: LateInit::empty(),
                 }
-                .allocate(self),
-            )
+                .allocate(self);
+
+                self[tup_ref].type_sig = tup
+                    .type_sig
+                    .map(|t| t.into_ir_type(self, TypeSignatureParent::Tuple(tup_ref)))
+                    .unwrap_or_else(|| self.make_type_var(TypeSignatureParent::Tuple(tup_ref)))
+                    .into();
+
+                Expr::Tuple(tup_ref)
+            }
             .allocate(self),
             crate::ast::node::expression::ExprValue::MemberAccess(mem_acc) => {
                 let object = mem_acc.object.map(|obj| self.lower_expr(obj));
@@ -383,7 +451,7 @@ impl<'a> IrCtx<'a> {
                     object,
                     member_name: LateInit::empty(),
                     items,
-                    type_sig: self.make_type_var(),
+                    type_sig: LateInit::empty(),
                 }
                 .allocate(self);
 
@@ -392,6 +460,10 @@ impl<'a> IrCtx<'a> {
                         mem_acc.member_name,
                         IdentParent::MemberAccessMemberName(mem_acc_ref).into(),
                     )
+                    .into();
+
+                self[mem_acc_ref].type_sig = self
+                    .make_type_var(TypeSignatureParent::MemberAccess(mem_acc_ref))
                     .into();
 
                 Expr::UnresolvedMemberAccess(mem_acc_ref).allocate(self)

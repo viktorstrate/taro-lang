@@ -215,13 +215,13 @@ fn format_expr<'a, 'ctx, W: Write>(
     expr: NodeRef<'a, Expr<'a>>,
 ) -> CodeGenResult {
     match gen.ctx[expr].clone() {
-        Expr::StringLiteral(str) => {
+        Expr::StringLiteral(str, _) => {
             gen.write("\"")?;
             gen.write(str)?;
             gen.write("\"")
         }
-        Expr::NumberLiteral(num) => gen.write_fmt(format_args!("{}", num)),
-        Expr::BoolLiteral(val) => gen.write(if val == true { "true" } else { "false" }),
+        Expr::NumberLiteral(num, _) => gen.write_fmt(format_args!("{}", num)),
+        Expr::BoolLiteral(val, _) => gen.write(if val == true { "true" } else { "false" }),
         Expr::Function(func) => {
             gen.symbols
                 .enter_scope(&gen.ctx, *gen.ctx[func].name)

@@ -92,16 +92,18 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
         _scope: &mut Self::Scope,
         type_sig: crate::ir::node::type_signature::TypeSignature<'a>,
     ) -> Result<crate::ir::node::type_signature::TypeSignature<'a>, Self::Error> {
-        let updated_type_sig = match ctx[type_sig].clone() {
+        let updated_type_sig = match ctx[&type_sig].clone() {
             TypeSignatureValue::Unresolved(ident) => {
                 let sym_val = self
                     .symbols
                     .lookup(ctx, ident)
                     .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
 
-                let new_type = sym_val
+                let mut new_type = sym_val
                     .eval_type(&mut self.symbols, ctx)
                     .map_err(SymbolResolutionError::TypeEval)?;
+
+                new_type.context = type_sig.context;
 
                 new_type
             }
@@ -131,7 +133,7 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                     .eval_type(&mut self.symbols, ctx)
                     .map_err(SymbolResolutionError::TypeEval)?;
 
-                let new_expr = match &ctx[obj_type] {
+                let new_expr = match &ctx[&obj_type] {
                     // TypeSignatureValue::Function {
                     //     args: _,
                     //     return_type: _,
@@ -224,7 +226,7 @@ pub fn resolve_ident<'a>(
                     .lookup_attr(ctx, symbols)
                     .map_err(|_| SymbolResolutionError::UnknownIdentifier(ident))?;
 
-                match ctx[ctx[st_attr].type_sig].clone() {
+                match ctx[&*ctx[st_attr].type_sig].clone() {
                     TypeSignatureValue::Unresolved(type_ident) => {
                         let resolved_type_sig = symbols
                             .lookup(ctx, type_ident)
@@ -233,7 +235,7 @@ pub fn resolve_ident<'a>(
                             .eval_type(symbols, ctx)
                             .map_err(SymbolResolutionError::TypeEval)?;
 
-                        ctx[st_attr].type_sig = resolved_type_sig;
+                        ctx[st_attr].type_sig = resolved_type_sig.into();
                     }
                     _ => {}
                 }

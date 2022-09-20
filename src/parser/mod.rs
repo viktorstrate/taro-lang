@@ -1,6 +1,6 @@
 use nom::{
     bytes::complete::tag,
-    character::complete::{multispace0, multispace1},
+    character::complete::{digit1, multispace0, multispace1},
     error::VerboseError,
     sequence::{delimited, preceded},
     AsChar, IResult, InputTakeAtPosition,
@@ -96,6 +96,10 @@ where
         parser,
         preceded(multispace0, tag(brackets.close())),
     )
+}
+
+pub fn decimal(i: Input<'_>) -> Res<Input<'_>, Input<'_>> {
+    digit1(i)
 }
 
 #[derive(Debug, Clone)]

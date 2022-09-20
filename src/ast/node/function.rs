@@ -1,3 +1,5 @@
+use crate::parser::Span;
+
 use super::{expression::Expr, identifier::Ident, statement::Stmt, type_signature::TypeSignature};
 
 #[derive(Debug, Clone)]
@@ -6,6 +8,7 @@ pub struct Function<'a> {
     pub args: Vec<FunctionArg<'a>>,
     pub return_type: Option<TypeSignature<'a>>,
     pub body: Box<Stmt<'a>>,
+    pub span: Span<'a>,
 }
 
 #[derive(Debug, Clone)]

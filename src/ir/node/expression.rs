@@ -1,5 +1,6 @@
 use crate::{
     ir::{context::IrCtx, late_init::LateInit},
+    parser::Span,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
@@ -12,15 +13,18 @@ use super::{
     member_access::UnresolvedMemberAccess,
     structure::{StructAccess, StructInit},
     tuple::{Tuple, TupleAccess},
-    type_signature::{BuiltinType, TypeEvalError, TypeSignature, Typed},
+    type_signature::{
+        BuiltinType, TypeEvalError, TypeSignature, TypeSignatureContext, TypeSignatureParent,
+        TypeSignatureValue, Typed,
+    },
     NodeRef,
 };
 
 #[derive(Debug, Clone)]
 pub enum Expr<'a> {
-    StringLiteral(&'a str),
-    NumberLiteral(f64),
-    BoolLiteral(bool),
+    StringLiteral(&'a str, Span<'a>),
+    NumberLiteral(f64, Span<'a>),
+    BoolLiteral(bool, Span<'a>),
     Function(NodeRef<'a, Function<'a>>),
     FunctionCall(NodeRef<'a, FunctionCall<'a>>),
     Identifier(LateInit<Ident<'a>>),
@@ -34,6 +38,15 @@ pub enum Expr<'a> {
     UnresolvedMemberAccess(NodeRef<'a, UnresolvedMemberAccess<'a>>),
 }
 
+impl<'a> NodeRef<'a, Expr<'a>> {
+    pub fn unwrap_func(self, ctx: &IrCtx<'a>) -> NodeRef<'a, Function<'a>> {
+        match ctx[self] {
+            Expr::Function(func) => func,
+            _ => panic!("failed to unwrap expr as function"),
+        }
+    }
+}
+
 impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
     fn eval_type(
         &self,
@@ -41,9 +54,30 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         match ctx[*self].clone() {
-            Expr::StringLiteral(_) => Ok(ctx.get_builtin_type_sig(BuiltinType::String)),
-            Expr::NumberLiteral(_) => Ok(ctx.get_builtin_type_sig(BuiltinType::Number)),
-            Expr::BoolLiteral(_) => Ok(ctx.get_builtin_type_sig(BuiltinType::Boolean)),
+            Expr::StringLiteral(_, _) => Ok(ctx.get_type_sig(
+                TypeSignatureValue::Builtin(BuiltinType::String),
+                TypeSignatureContext {
+                    parent: TypeSignatureParent::Expr(*self),
+                    type_span: None,
+                }
+                .alloc(),
+            )),
+            Expr::NumberLiteral(_, _) => Ok(ctx.get_type_sig(
+                TypeSignatureValue::Builtin(BuiltinType::Number),
+                TypeSignatureContext {
+                    parent: TypeSignatureParent::Expr(*self),
+                    type_span: None,
+                }
+                .alloc(),
+            )),
+            Expr::BoolLiteral(_, _) => Ok(ctx.get_type_sig(
+                TypeSignatureValue::Builtin(BuiltinType::Boolean),
+                TypeSignatureContext {
+                    parent: TypeSignatureParent::Expr(*self),
+                    type_span: None,
+                }
+                .alloc(),
+            )),
             Expr::Function(func) => func.eval_type(symbols, ctx),
             Expr::FunctionCall(call) => call.eval_type(symbols, ctx),
             Expr::Identifier(ident) => {
@@ -67,11 +101,11 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
         }
     }
 
-    fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
+    fn specified_type(&self, ctx: &IrCtx<'a>) -> Option<TypeSignature<'a>> {
         match ctx[*self].clone() {
-            Expr::StringLiteral(_) => None,
-            Expr::NumberLiteral(_) => None,
-            Expr::BoolLiteral(_) => None,
+            Expr::StringLiteral(_, _) => None,
+            Expr::NumberLiteral(_, _) => None,
+            Expr::BoolLiteral(_, _) => None,
             Expr::Function(func) => func.specified_type(ctx),
             Expr::FunctionCall(call) => call.specified_type(ctx),
             Expr::Identifier(_) => None,
@@ -92,9 +126,9 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
         match ctx[*self].clone() {
-            Expr::StringLiteral(_) => Ok(()),
-            Expr::NumberLiteral(_) => Ok(()),
-            Expr::BoolLiteral(_) => Ok(()),
+            Expr::StringLiteral(_, _) => Ok(()),
+            Expr::NumberLiteral(_, _) => Ok(()),
+            Expr::BoolLiteral(_, _) => Ok(()),
             Expr::Function(func) => func.specify_type(ctx, new_type),
             Expr::FunctionCall(call) => call.specify_type(ctx, new_type),
             Expr::Identifier(_) => Ok(()),

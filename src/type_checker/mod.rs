@@ -42,13 +42,18 @@ pub enum TypeCheckerError<'a> {
     LookupError(Ident<'a>),
     AssignmentError(AssignmentError<'a>),
     StructError(StructTypeError<'a>),
-    FuncArgCountMismatch(TypeSignature<'a>, TypeSignature<'a>),
-    FuncCallWrongArgAmount(NodeRef<'a, FunctionCall<'a>>),
+    FunctionError(FunctionError<'a>),
     UnknownEnumValue {
         enum_name: Ident<'a>,
         enum_value: Ident<'a>,
     },
     EnumInitArgCountMismatch(NodeRef<'a, EnumInit<'a>>, NodeRef<'a, EnumValue<'a>>),
+}
+
+#[derive(Debug)]
+pub enum FunctionError<'a> {
+    ArgCountMismatch(TypeSignature<'a>, TypeSignature<'a>),
+    FuncCallWrongArgAmount(NodeRef<'a, FunctionCall<'a>>),
 }
 
 #[derive(Debug)]

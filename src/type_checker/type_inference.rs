@@ -10,10 +10,10 @@ use crate::ir::{
     },
 };
 
-use super::{coercion::coerce, TypeChecker, TypeCheckerError};
+use super::{coercion::coerce, FunctionError, TypeChecker, TypeCheckerError};
 
 #[derive(Debug)]
-pub struct TypeConstraint<'a>(TypeSignature<'a>, TypeSignature<'a>);
+pub struct TypeConstraint<'a>(pub TypeSignature<'a>, pub TypeSignature<'a>);
 
 #[derive(Debug)]
 pub struct TypeInferrer<'a, 'b>(pub &'b mut TypeChecker<'a>);
@@ -91,7 +91,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
                     .eval_type(&mut self.0.symbols, ctx)
                     .map_err(TypeCheckerError::TypeEval)?;
 
-                self.add_constraint(ctx[var_decl].type_sig, val_type)
+                self.add_constraint((*ctx[var_decl].type_sig).clone(), val_type)
             }
             Stmt::StructDecl(st) => {
                 for attr in ctx[st].attrs.clone() {
@@ -100,7 +100,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
                             .eval_type(&mut self.0.symbols, ctx)
                             .map_err(TypeCheckerError::TypeEval)?;
 
-                        self.add_constraint(ctx[attr].type_sig, default_val_type)
+                        self.add_constraint((*ctx[attr].type_sig).clone(), default_val_type)
                     }
                 }
             }
@@ -124,7 +124,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
                     .eval_type(&mut self.0.symbols, ctx)
                     .map_err(TypeCheckerError::TypeEval)?;
 
-                let args = match &ctx[func_type_sig] {
+                let args = match &ctx[&func_type_sig] {
                     TypeSignatureValue::Function {
                         args,
                         return_type: _,
@@ -139,10 +139,12 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
                 let func_params = ctx[call].params.clone();
 
                 if args.len() != func_params.len() {
-                    return Err(TypeCheckerError::FuncCallWrongArgAmount(call));
+                    return Err(TypeCheckerError::FunctionError(
+                        FunctionError::FuncCallWrongArgAmount(call),
+                    ));
                 }
 
-                for (arg, param) in args.into_iter().zip(func_params.into_iter()) {
+                for (arg, param) in (*args).clone().into_iter().zip(func_params.into_iter()) {
                     let param_type = param
                         .eval_type(&mut self.0.symbols, ctx)
                         .map_err(TypeCheckerError::TypeEval)?;
@@ -175,7 +177,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
                         .eval_type(&mut self.0.symbols, ctx)
                         .map_err(TypeCheckerError::TypeEval)?;
 
-                    self.add_constraint(ctx[st_attr].type_sig, val_type);
+                    self.add_constraint((*ctx[st_attr].type_sig).clone(), val_type);
                 }
             }
             Expr::StructAccess(_) => {}
@@ -209,7 +211,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
                     .items
                     .clone()
                     .into_iter()
-                    .zip(ctx[enm_val].items.clone().into_iter())
+                    .zip((*ctx[enm_val].items).clone().into_iter())
                 {
                     let arg_type = arg
                         .eval_type(&mut self.0.symbols, ctx)
@@ -239,8 +241,8 @@ impl<'a> TypeInferrer<'a, '_> {
     fn resolve_constraints(&mut self, ctx: &mut IrCtx<'a>) -> Result<(), TypeCheckerError<'a>> {
         let mut unresolvable_count = 0;
         while let Some(TypeConstraint(type_a, type_b)) = self.0.constraints.pop_front() {
-            let type_a = *self.0.substitutions.get(&type_a).unwrap_or(&type_a);
-            let type_b = *self.0.substitutions.get(&type_b).unwrap_or(&type_b);
+            let type_a = (*self.0.substitutions.get(&type_a).unwrap_or(&type_a)).clone();
+            let type_b = (*self.0.substitutions.get(&type_b).unwrap_or(&type_b)).clone();
 
             // println!(
             //     "TYPE CONSTRAINT :: {} == {}",
@@ -248,7 +250,7 @@ impl<'a> TypeInferrer<'a, '_> {
             //     type_b.format(ctx)
             // );
 
-            match (ctx[type_a].clone(), ctx[type_b].clone()) {
+            match (ctx[&type_a].clone(), ctx[&type_b].clone()) {
                 (TypeSignatureValue::TypeVariable(_), TypeSignatureValue::TypeVariable(_)) => {
                     if unresolvable_count < self.0.constraints.len() {
                         unresolvable_count += 1;
@@ -272,8 +274,8 @@ impl<'a> TypeInferrer<'a, '_> {
                     if tup_a.len() != tup_b.len() {
                         return Err(TypeCheckerError::ConflictingTypes(type_a, type_b));
                     }
-                    for (val_a, val_b) in tup_a.into_iter().zip(tup_b.into_iter()) {
-                        self.add_constraint(val_a, val_b);
+                    for (val_a, val_b) in (*tup_a).iter().zip((*tup_b).iter()) {
+                        self.add_constraint(val_a.clone(), val_b.clone());
                     }
                 }
                 (
@@ -287,22 +289,28 @@ impl<'a> TypeInferrer<'a, '_> {
                     },
                 ) => {
                     if args_a.len() != args_b.len() {
-                        return Err(TypeCheckerError::FuncArgCountMismatch(type_a, type_b));
+                        return Err(TypeCheckerError::FunctionError(
+                            FunctionError::ArgCountMismatch(type_a, type_b),
+                        ));
                     }
 
-                    self.add_constraint(return_type_a, return_type_b);
-                    for (arg_a, arg_b) in args_a.into_iter().zip(args_b.into_iter()) {
+                    self.add_constraint((*return_type_a).clone(), (*return_type_b).clone());
+                    for (arg_a, arg_b) in (*args_a)
+                        .clone()
+                        .into_iter()
+                        .zip((*args_b).clone().into_iter())
+                    {
                         self.add_constraint(arg_a, arg_b);
                     }
                 }
                 _ => {
                     unresolvable_count = 0;
-                    if coerce(type_a, type_b, ctx).is_none() {
-                        println!(
-                            "CONFLICTING TYPES: {} /= {}",
-                            type_a.format(ctx),
-                            type_b.format(ctx)
-                        );
+                    if coerce(&type_a, &type_b, ctx).is_none() {
+                        // println!(
+                        //     "CONFLICTING TYPES: {} /= {}",
+                        //     type_a.format(ctx),
+                        //     type_b.format(ctx)
+                        // );
                         return Err(TypeCheckerError::ConflictingTypes(type_a, type_b));
                     }
                 }
@@ -339,15 +347,18 @@ impl<'a> TypeInferrer<'a, '_> {
         }
 
         let mut return_types = Vec::new();
-        return_types.push(ctx[func].return_type);
+        return_types.push((*ctx[func].return_type).clone());
         collect_return_types(self, ctx, ctx[func].body, &mut return_types)?;
 
         if return_types.len() == 1 {
-            self.add_constraint(return_types[0], ctx.get_builtin_type_sig(BuiltinType::Void))
+            self.add_constraint(
+                return_types[0].clone(),
+                ctx.get_builtin_type_sig(BuiltinType::Void),
+            )
         }
 
         for i in 1..return_types.len() {
-            self.add_constraint(return_types[i - 1], return_types[i]);
+            self.add_constraint(return_types[i - 1].clone(), return_types[i].clone());
         }
 
         Ok(())
@@ -487,7 +498,9 @@ mod tests {
         let mut ir = lowered_ir("func f(a: Number) {}; f(2, 3)").unwrap();
         assert_matches!(
             type_check(&mut ir),
-            Err(TypeCheckerError::FuncCallWrongArgAmount(_))
+            Err(TypeCheckerError::FunctionError(
+                FunctionError::FuncCallWrongArgAmount(_)
+            ))
         );
     }
 

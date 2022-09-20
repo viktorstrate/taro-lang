@@ -52,7 +52,7 @@ pub enum TranspilerError<'a> {
     Parse(ParserError<'a>),
     SymbolCollectError(LowerAstResult<'a>, SymbolCollectionError<'a>),
     SymbolResolveError(LowerAstResult<'a>, SymbolResolutionError<'a>),
-    TypeCheck(LowerAstResult<'a>, TypeCheckerError<'a>),
+    TypeCheck(TypeChecker<'a>, LowerAstResult<'a>, TypeCheckerError<'a>),
     Write(std::io::Error),
 }
 
@@ -74,7 +74,7 @@ fn transpile<'a, W: Write>(writer: &mut W, input: &'a str) -> Result<(), Transpi
     let mut type_checker = TypeChecker::new(&mut la.ctx, sym_resolver);
     match type_checker.type_check(&mut la) {
         Ok(_) => {}
-        Err(err) => return Err(TranspilerError::TypeCheck(la, err)),
+        Err(err) => return Err(TranspilerError::TypeCheck(type_checker, la, err)),
     }
 
     match format_ir(writer, &mut la.ctx, type_checker.symbols, &mut la.ir) {

@@ -6,7 +6,10 @@ use crate::{
 use super::{
     expression::Expr,
     identifier::{Ident, IdentKey, Identifiable},
-    type_signature::{Mutability, TypeEvalError, TypeSignature, TypeSignatureValue, Typed},
+    type_signature::{
+        Mutability, TypeEvalError, TypeSignature, TypeSignatureContext, TypeSignatureParent,
+        TypeSignatureValue, Typed,
+    },
     NodeRef,
 };
 
@@ -20,7 +23,7 @@ pub struct Struct<'a> {
 pub struct StructAttr<'a> {
     pub name: LateInit<Ident<'a>>,
     pub mutability: Mutability,
-    pub type_sig: TypeSignature<'a>,
+    pub type_sig: LateInit<TypeSignature<'a>>,
     pub default_value: Option<NodeRef<'a, Expr<'a>>>,
 }
 
@@ -83,7 +86,14 @@ impl<'a> Typed<'a> for NodeRef<'a, Struct<'a>> {
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
         let name = *ctx[*self].name;
-        Ok(ctx.get_type_sig(TypeSignatureValue::Struct { name }))
+        Ok(ctx.get_type_sig(
+            TypeSignatureValue::Struct { name },
+            TypeSignatureContext {
+                parent: TypeSignatureParent::Struct(*self),
+                type_span: None,
+            }
+            .alloc(),
+        ))
     }
 }
 
@@ -96,15 +106,15 @@ impl<'a> Typed<'a> for NodeRef<'a, StructAttr<'a>> {
         match ctx[*self].default_value {
             Some(value) => value.eval_type(symbols, ctx),
             None => {
-                let type_sig = ctx[*self].type_sig;
-                debug_assert!(!matches!(ctx[type_sig], TypeSignatureValue::Unresolved(_)));
+                let type_sig = (*ctx[*self].type_sig).clone();
+                debug_assert!(!matches!(ctx[&type_sig], TypeSignatureValue::Unresolved(_)));
                 Ok(type_sig)
             }
         }
     }
 
-    fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
-        Some(ctx[*self].type_sig)
+    fn specified_type(&self, ctx: &IrCtx<'a>) -> Option<TypeSignature<'a>> {
+        Some((*ctx[*self].type_sig).clone())
     }
 
     fn specify_type(
@@ -112,7 +122,7 @@ impl<'a> Typed<'a> for NodeRef<'a, StructAttr<'a>> {
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
-        ctx[*self].type_sig = new_type;
+        ctx[*self].type_sig = new_type.into();
         Ok(())
     }
 }
@@ -139,9 +149,16 @@ impl<'a> Typed<'a> for NodeRef<'a, StructInit<'a>> {
             .lookup_struct(ctx, symbols)
             .ok_or(TypeEvalError::UnknownIdent(*ctx[*self].struct_name))?;
 
-        Ok(ctx.get_type_sig(TypeSignatureValue::Struct {
-            name: *ctx[st].name,
-        }))
+        Ok(ctx.get_type_sig(
+            TypeSignatureValue::Struct {
+                name: *ctx[st].name,
+            },
+            TypeSignatureContext {
+                parent: TypeSignatureParent::StructInit(*self),
+                type_span: None,
+            }
+            .alloc(),
+        ))
     }
 }
 
@@ -162,7 +179,7 @@ impl<'a> NodeRef<'a, StructAccess<'a>> {
         symbols: &mut SymbolTableZipper<'a>,
     ) -> Result<NodeRef<'a, StructAttr<'a>>, TypeEvalError<'a>> {
         let st_type = ctx[*self].struct_expr.clone().eval_type(symbols, ctx)?;
-        let struct_name = match &ctx[st_type] {
+        let struct_name = match &ctx[&st_type] {
             TypeSignatureValue::Struct { name } => *name,
             _ => return Err(TypeEvalError::AccessNonStruct(st_type)),
         };

@@ -42,7 +42,7 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
             .cloned()
             .unwrap_or(type_sig);
 
-        match ctx[new_type] {
+        match ctx[&new_type] {
             TypeSignatureValue::TypeVariable(_) => self.0.found_undeterminable_types = true,
             _ => {}
         }
@@ -62,9 +62,11 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
         };
 
         // Make sure type sig is resolved before proceeding
-        ctx[mem_acc].type_sig = self.visit_type_sig(ctx, &mut (), ctx[mem_acc].type_sig)?;
+        ctx[mem_acc].type_sig = self
+            .visit_type_sig(ctx, &mut (), (*ctx[mem_acc].type_sig).clone())?
+            .into();
 
-        let enm_init = match &ctx[ctx[mem_acc].type_sig] {
+        let enm_init = match &ctx[&*ctx[mem_acc].type_sig] {
             TypeSignatureValue::Enum { name } => EnumInit {
                 enum_name: *name,
                 enum_value: *ctx[mem_acc].member_name,

@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use crate::{
-    ir::{context::IrCtx},
+    ir::{context::IrCtx, node::identifier::Identifiable},
     parser::Span,
     symbols::symbol_table::SymbolCollectionError,
 };
@@ -30,12 +30,20 @@ impl<'a, W: Write> ErrorMessage<'a, &IrCtx<'a>, W> for SymbolCollectionError<'a>
 
     fn err_msg(&self, w: &mut W, ctx: &IrCtx<'a>) -> Result<(), std::io::Error> {
         match self {
-            SymbolCollectionError::SymbolAlreadyExistsInScope { new, existing: _ } => {
-                new.get_span(ctx)
-                    .unwrap()
-                    .format_spanned_code(w, "this symbol has already been defined")?;
+            SymbolCollectionError::SymbolAlreadyExistsInScope { new, existing } => {
+                new.get_span(ctx).unwrap().format_spanned_code(
+                    w,
+                    Some("a symbol of this name has already been defined"),
+                )?;
 
-                // let existing_name = ctx[*existing].name(ctx);
+                let existing_name = ctx[*existing].name(ctx);
+
+                writeln!(w)?;
+
+                existing_name
+                    .get_span(ctx)
+                    .unwrap()
+                    .format_spanned_code(w, Some("it was first declared here"))?;
 
                 Ok(())
             }

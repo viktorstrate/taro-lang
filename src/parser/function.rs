@@ -3,7 +3,7 @@ use nom::{
     combinator::{map, opt},
     error::context,
     multi::separated_list0,
-    sequence::{preceded, tuple},
+    sequence::{pair, preceded, tuple},
 };
 
 use crate::ast::node::{
@@ -13,50 +13,62 @@ use crate::ast::node::{
 };
 
 use super::{
-    identifier::identifier, spaced, statement::statement, surround_brackets,
+    identifier::identifier, spaced, span, statement::statement, surround_brackets,
     type_signature::type_signature, ws, BracketType, Input, Res,
 };
 
 pub fn function_decl(i: Input<'_>) -> Res<Input<'_>, Function<'_>> {
     // func IDENT "(" FUNC_ARGS ")" [-> RETURN_SIG] "{" BODY "}"
 
-    let (i, _) = spaced(tuple((tag("func"), ws)))(i)?;
-    let (i, name) = context("function name", identifier)(i)?;
-
-    let (i, args) = surround_brackets(BracketType::Round, function_args)(i)?;
-    let (i, return_type) = return_signature(i)?;
-    let (i, body) = context(
-        "function body",
-        surround_brackets(BracketType::Curly, statement),
-    )(i)?;
-
-    Ok((
-        i,
-        Function {
+    map(
+        pair(
+            span(tuple((
+                preceded(
+                    spaced(tuple((tag("func"), ws))),
+                    context("function name", identifier),
+                ),
+                surround_brackets(BracketType::Round, function_args),
+                return_signature,
+            ))),
+            context(
+                "function body",
+                surround_brackets(BracketType::Curly, statement),
+            ),
+        ),
+        |((span, (name, args, return_type)), body)| Function {
             name: Some(name),
             args,
             return_type,
             body: Box::new(body),
+            span,
         },
-    ))
+    )(i)
 }
 
 pub fn function_expr(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
     // "(" FUNC_ARGS ")" [-> RETURN_SIG] "{" BODY "}"
 
-    let (i, args) = surround_brackets(BracketType::Round, function_args)(i)?;
-    let (i, return_type) = return_signature(i)?;
-    let (i, body) = surround_brackets(BracketType::Curly, statement)(i)?;
-
-    Ok((
-        i,
-        ExprValue::Function(Function {
-            name: None,
-            args,
-            return_type,
-            body: Box::new(body),
-        }),
-    ))
+    map(
+        pair(
+            span(pair(
+                surround_brackets(BracketType::Round, function_args),
+                return_signature,
+            )),
+            context(
+                "function body",
+                surround_brackets(BracketType::Curly, statement),
+            ),
+        ),
+        |((span, (args, return_type)), body)| {
+            ExprValue::Function(Function {
+                name: None,
+                args,
+                return_type,
+                body: Box::new(body),
+                span,
+            })
+        },
+    )(i)
 }
 
 fn return_signature(i: Input<'_>) -> Res<Input<'_>, Option<TypeSignature<'_>>> {

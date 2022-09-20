@@ -30,7 +30,7 @@ pub enum Stmt<'a> {
 pub struct VarDecl<'a> {
     pub name: LateInit<Ident<'a>>,
     pub mutability: Mutability,
-    pub type_sig: TypeSignature<'a>,
+    pub type_sig: LateInit<TypeSignature<'a>>,
     pub value: NodeRef<'a, Expr<'a>>,
 }
 
@@ -49,8 +49,8 @@ impl<'a> Typed<'a> for NodeRef<'a, VarDecl<'a>> {
         ctx[*self].value.clone().eval_type(symbols, ctx)
     }
 
-    fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
-        Some(ctx[*self].type_sig)
+    fn specified_type(&self, ctx: &IrCtx<'a>) -> Option<TypeSignature<'a>> {
+        Some((*ctx[*self].type_sig).clone())
     }
 
     fn specify_type(
@@ -58,7 +58,7 @@ impl<'a> Typed<'a> for NodeRef<'a, VarDecl<'a>> {
         ctx: &mut IrCtx<'a>,
         new_type: TypeSignature<'a>,
     ) -> Result<(), TypeEvalError<'a>> {
-        ctx[*self].type_sig = new_type;
+        ctx[*self].type_sig = new_type.into();
         Ok(())
     }
 }

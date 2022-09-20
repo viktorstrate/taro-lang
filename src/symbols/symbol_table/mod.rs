@@ -157,7 +157,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
         }
     }
 
-    fn specified_type(&self, ctx: &mut IrCtx<'a>) -> Option<TypeSignature<'a>> {
+    fn specified_type(&self, ctx: &IrCtx<'a>) -> Option<TypeSignature<'a>> {
         match ctx[*self].clone() {
             SymbolValueItem::BuiltinType(_) => None,
             SymbolValueItem::VarDecl(var) => var.specified_type(ctx),
@@ -208,7 +208,7 @@ impl<'a> SymbolTable<'a> {
                 .map_err(
                     move |err| SymbolCollectionError::SymbolAlreadyExistsInScope {
                         new: ident,
-                        existing: err.value,
+                        existing: err.entry.get().clone(),
                     },
                 )?;
         }
@@ -280,7 +280,7 @@ mod tests {
 
         match ir.ctx[sym_val] {
             SymbolValueItem::VarDecl(var_decl) => {
-                assert_matches!(ir.ctx[ir.ctx[var_decl].value], Expr::BoolLiteral(true));
+                assert_matches!(ir.ctx[ir.ctx[var_decl].value], Expr::BoolLiteral(true, _));
             }
             _ => assert!(false),
         }
