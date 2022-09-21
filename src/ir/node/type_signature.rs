@@ -3,6 +3,7 @@ use std::{fmt::Debug, hash::Hash, ops::Deref, rc::Rc};
 use id_arena::Id;
 
 use crate::{
+    error_message::error_formatter::Spanned,
     ir::{context::IrCtx, late_init::LateInit},
     parser::Span,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
@@ -113,8 +114,8 @@ pub enum TypeSignatureValue<'a> {
     Tuple(LateInit<Vec<TypeSignature<'a>>>),
 }
 
-impl<'a> TypeSignature<'a> {
-    pub fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+impl<'a> Spanned<'a> for TypeSignature<'a> {
+    fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
         if let Some(span) = self.context.type_span.clone() {
             return Some(span);
         }
@@ -125,22 +126,7 @@ impl<'a> TypeSignature<'a> {
             TypeSignatureParent::Enum(_) => todo!(),
             TypeSignatureParent::EnumValue(_) => todo!(),
             TypeSignatureParent::EnumInit(_) => todo!(),
-            TypeSignatureParent::Expr(expr) => match &ctx[*expr] {
-                Expr::StringLiteral(_, span) => Some(span.clone()),
-                Expr::NumberLiteral(_, span) => Some(span.clone()),
-                Expr::BoolLiteral(_, span) => Some(span.clone()),
-                Expr::Function(_) => todo!(),
-                Expr::FunctionCall(_) => todo!(),
-                Expr::Identifier(_) => todo!(),
-                Expr::StructInit(_) => todo!(),
-                Expr::StructAccess(_) => todo!(),
-                Expr::TupleAccess(_) => todo!(),
-                Expr::EscapeBlock(_) => todo!(),
-                Expr::Assignment(_) => todo!(),
-                Expr::Tuple(_) => todo!(),
-                Expr::EnumInit(_) => todo!(),
-                Expr::UnresolvedMemberAccess(_) => todo!(),
-            },
+            TypeSignatureParent::Expr(expr) => expr.get_span(ctx),
             TypeSignatureParent::Function(func) => Some(ctx[*func].span.clone()),
             TypeSignatureParent::FunctionArg { parent_func: _ } => todo!(),
             TypeSignatureParent::FunctionReturn { parent_func: _ } => todo!(),

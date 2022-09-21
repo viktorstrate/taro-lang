@@ -6,6 +6,7 @@ use crate::{
         context::IrCtx,
         ir_walker::walk_ir,
         node::{
+            assignment::Assignment,
             enumeration::{EnumInit, EnumValue},
             function::FunctionCall,
             identifier::Ident,
@@ -40,7 +41,7 @@ pub enum TypeCheckerError<'a> {
     UndeterminableTypes,
     TypeEval(TypeEvalError<'a>),
     LookupError(Ident<'a>),
-    AssignmentError(AssignmentError<'a>),
+    AssignmentError(NodeRef<'a, Assignment<'a>>, AssignmentError<'a>),
     StructError(StructTypeError<'a>),
     FunctionError(FunctionError<'a>),
     UnknownEnumValue {

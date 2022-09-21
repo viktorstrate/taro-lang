@@ -5,7 +5,10 @@ use crate::{
     symbols::symbol_table::SymbolCollectionError,
 };
 
-use super::{ErrMsg, ErrorMessage};
+use super::{
+    error_formatter::{format_span_items, ErrMsgType, SpanItem, Spanned},
+    ErrMsg, ErrorMessage,
+};
 
 impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W>
     for SymbolCollectionError<'a>
@@ -16,19 +19,26 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W>
                 span: new.get_span(ctx),
                 title: Box::new(|w| write!(w, "symbol already exists in scope")),
                 msg: Box::new(|w| {
-                    new.get_span(ctx).unwrap().format_spanned_code(
-                        w,
-                        Some("a symbol of this name has already been defined"),
-                    )?;
-
                     let existing_name = ctx[*existing].name(ctx);
 
-                    writeln!(w)?;
-
-                    existing_name
-                        .get_span(ctx)
-                        .unwrap()
-                        .format_spanned_code(w, Some("it was first declared here"))?;
+                    format_span_items(
+                        w,
+                        &mut [
+                            SpanItem {
+                                span: new.get_span(ctx).unwrap(),
+                                msg: Some(
+                                    "a symbol of this name has already been defined".to_owned(),
+                                ),
+                                err_type: ErrMsgType::Err,
+                            },
+                            SpanItem {
+                                span: existing_name.get_span(ctx).unwrap(),
+                                msg: Some("symbol was first declared here".to_owned()),
+                                err_type: ErrMsgType::Text,
+                            },
+                        ],
+                        &[],
+                    )?;
 
                     Ok(())
                 }),

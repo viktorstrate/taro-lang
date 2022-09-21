@@ -338,7 +338,7 @@ pub fn walk_expr<'a, W: IrWalker<'a>>(
             Ok(())
         }
         Expr::StructInit(st_init) => walk_struct_init(walker, ctx, scope, st_init),
-        Expr::Identifier(ident) => {
+        Expr::Identifier(ident, _) => {
             walker.visit_ident(ctx, scope, *ident)?;
             Ok(())
         }

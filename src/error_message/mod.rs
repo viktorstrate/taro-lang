@@ -7,43 +7,9 @@ use crate::{
 };
 use std::io::Write;
 
+pub mod error_formatter;
 pub mod sym_collect_errors;
 pub mod type_check_errors;
-
-impl<'a> Span<'a> {
-    fn format_spanned_code(
-        &self,
-        w: &mut impl Write,
-        msg: Option<&str>,
-    ) -> Result<(), std::io::Error> {
-        let mut lines = self.source.lines();
-
-        if self.line > 0 {
-            lines.advance_by(self.line - 1).unwrap();
-        }
-
-        let line = lines.next().unwrap();
-
-        if !self.fragment.contains("\n") {
-            writeln!(w, "{} | {}", self.line, line)?;
-            write!(
-                w,
-                "{}{}",
-                " ".repeat(3 + self.offset),
-                "^".repeat(self.fragment.len()),
-            )?;
-            if let Some(msg) = msg {
-                writeln!(w, " - {}", msg)?;
-            } else {
-                writeln!(w)?;
-            }
-        } else {
-            todo!()
-        }
-
-        Ok(())
-    }
-}
 
 pub struct ErrMsg<'a, 'ret, W: Write> {
     pub span: Option<Span<'a>>,
@@ -69,6 +35,8 @@ where
         }
 
         (*err_msg.msg)(w)?;
+
+        writeln!(w)?;
 
         w.flush()
     }

@@ -1,4 +1,5 @@
 use crate::{
+    error_message::error_formatter::Spanned,
     ir::{context::IrCtx, late_init::LateInit},
     parser::Span,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
@@ -27,7 +28,7 @@ pub enum Expr<'a> {
     BoolLiteral(bool, Span<'a>),
     Function(NodeRef<'a, Function<'a>>),
     FunctionCall(NodeRef<'a, FunctionCall<'a>>),
-    Identifier(LateInit<Ident<'a>>),
+    Identifier(LateInit<Ident<'a>>, Span<'a>),
     StructInit(NodeRef<'a, StructInit<'a>>),
     StructAccess(NodeRef<'a, StructAccess<'a>>),
     TupleAccess(NodeRef<'a, TupleAccess<'a>>),
@@ -80,7 +81,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
             )),
             Expr::Function(func) => func.eval_type(symbols, ctx),
             Expr::FunctionCall(call) => call.eval_type(symbols, ctx),
-            Expr::Identifier(ident) => {
+            Expr::Identifier(ident, _) => {
                 let sym_val = symbols
                     .lookup(ctx, *ident)
                     .ok_or(TypeEvalError::UnknownIdent(*ident))?;
@@ -108,7 +109,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
             Expr::BoolLiteral(_, _) => None,
             Expr::Function(func) => func.specified_type(ctx),
             Expr::FunctionCall(call) => call.specified_type(ctx),
-            Expr::Identifier(_) => None,
+            Expr::Identifier(_, _) => None,
             Expr::StructInit(st_init) => st_init.specified_type(ctx),
             Expr::StructAccess(_) => None,
             Expr::EscapeBlock(block) => block.specified_type(ctx),
@@ -131,7 +132,7 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
             Expr::BoolLiteral(_, _) => Ok(()),
             Expr::Function(func) => func.specify_type(ctx, new_type),
             Expr::FunctionCall(call) => call.specify_type(ctx, new_type),
-            Expr::Identifier(_) => Ok(()),
+            Expr::Identifier(_, _) => Ok(()),
             Expr::StructInit(st_init) => st_init.specify_type(ctx, new_type),
             Expr::StructAccess(_) => Ok(()),
             Expr::EscapeBlock(block) => block.specify_type(ctx, new_type),
@@ -140,6 +141,27 @@ impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
             Expr::TupleAccess(tup_acc) => tup_acc.specify_type(ctx, new_type),
             Expr::EnumInit(enm_init) => enm_init.specify_type(ctx, new_type),
             Expr::UnresolvedMemberAccess(mem_acc) => mem_acc.specify_type(ctx, new_type),
+        }
+    }
+}
+
+impl<'a> Spanned<'a> for NodeRef<'a, Expr<'a>> {
+    fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+        match ctx[*self].clone() {
+            Expr::StringLiteral(_, span) => Some(span),
+            Expr::NumberLiteral(_, span) => Some(span),
+            Expr::BoolLiteral(_, span) => Some(span),
+            Expr::Function(_) => todo!(),
+            Expr::FunctionCall(_) => todo!(),
+            Expr::Identifier(_, span) => Some(span),
+            Expr::StructInit(_) => todo!(),
+            Expr::StructAccess(_) => todo!(),
+            Expr::TupleAccess(_) => todo!(),
+            Expr::EscapeBlock(_) => todo!(),
+            Expr::Assignment(_) => todo!(),
+            Expr::Tuple(_) => todo!(),
+            Expr::EnumInit(_) => todo!(),
+            Expr::UnresolvedMemberAccess(_) => todo!(),
         }
     }
 }

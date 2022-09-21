@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use nom::{
     bytes::complete::tag,
     character::complete::{digit1, multispace0, multispace1},
@@ -102,12 +104,32 @@ pub fn decimal(i: Input<'_>) -> Res<Input<'_>, Input<'_>> {
     digit1(i)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq)]
 pub struct Span<'a> {
     pub line: usize,
     pub offset: usize,
     pub fragment: &'a str,
     pub source: &'a str,
+}
+
+impl<'a> Ord for Span<'a> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
+impl<'a> PartialOrd for Span<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self.line.partial_cmp(&other.line) {
+            Some(core::cmp::Ordering::Equal) => {}
+            ord => return ord,
+        }
+        match self.offset.partial_cmp(&other.offset) {
+            Some(core::cmp::Ordering::Equal) => {}
+            ord => return ord,
+        }
+        Some(Ordering::Equal)
+    }
 }
 
 impl<'a> Span<'a> {
@@ -119,6 +141,15 @@ impl<'a> Span<'a> {
             offset: start.get_utf8_column(),
             fragment: &start.fragment()[0..len],
             source: start.extra.source,
+        }
+    }
+
+    pub fn empty() -> Span<'a> {
+        Span {
+            line: 0,
+            offset: 0,
+            fragment: "",
+            source: "",
         }
     }
 }

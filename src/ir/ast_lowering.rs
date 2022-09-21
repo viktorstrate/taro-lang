@@ -8,6 +8,7 @@ use crate::{
             type_signature::{TypeSignature, TypeSignatureContext, TypeSignatureParent},
         },
     },
+    parser::Span,
 };
 
 use super::{
@@ -330,13 +331,15 @@ impl<'a> IrCtx<'a> {
             )
             .allocate(self),
             crate::ast::node::expression::ExprValue::Identifier(id) => {
-                let id_expr = Expr::Identifier(LateInit::empty()).allocate(self);
+                let id_expr = Expr::Identifier(LateInit::empty(), Span::empty()).allocate(self);
+
+                let span = id.span.clone();
 
                 let unresolved_ident = self
                     .make_unresolved_ident(id, IdentParent::IdentExpr(id_expr).into())
                     .into();
 
-                self[id_expr] = Expr::Identifier(unresolved_ident);
+                self[id_expr] = Expr::Identifier(unresolved_ident, span);
 
                 id_expr
             }

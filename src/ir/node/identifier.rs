@@ -1,6 +1,7 @@
 use id_arena::Id;
 
 use crate::{
+    error_message::error_formatter::Spanned,
     ir::{context::IrCtx, late_init::LateInit},
     parser::Span,
 };
@@ -47,9 +48,9 @@ impl<'a> Into<Id<IdentValue<'a>>> for Ident<'a> {
     }
 }
 
-impl<'a> Ident<'a> {
-    pub fn get_span(self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
-        match &ctx[self] {
+impl<'a> Spanned<'a> for Ident<'a> {
+    fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+        match &ctx[*self] {
             IdentValue::Resolved(id) => match id {
                 ResolvedIdentValue::Named { def_span, name: _ } => Some(def_span.clone()),
                 ResolvedIdentValue::Anonymous => None,
@@ -147,7 +148,7 @@ impl<'a> IdentParent<'a> {
             IdentParent::FuncDeclName(func) => ctx[*func].name = new_ident.into(),
             IdentParent::FuncDeclArgName(func_arg) => ctx[*func_arg].name = new_ident.into(),
             IdentParent::IdentExpr(id_expr) => match &mut ctx[*id_expr] {
-                Expr::Identifier(id) => *id = new_ident.into(),
+                Expr::Identifier(id, _) => *id = new_ident.into(),
                 _ => unreachable!(),
             },
             IdentParent::TypeSigName(type_sig) => match &mut ctx.types[*type_sig] {

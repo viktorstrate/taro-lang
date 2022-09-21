@@ -31,7 +31,7 @@ fn check_assignment_expr<'a>(
     expr: NodeRef<'a, Expr<'a>>,
 ) -> Result<(), TypeCheckerError<'a>> {
     match ctx[expr].clone() {
-        Expr::Identifier(ident) => {
+        Expr::Identifier(ident, _) => {
             let sym = symbols
                 .lookup(ctx, *ident)
                 .ok_or(TypeCheckerError::LookupError(*ident))?;
@@ -40,12 +40,14 @@ fn check_assignment_expr<'a>(
                 SymbolValueItem::VarDecl(var_decl) => {
                     if ctx[*var_decl].mutability == Mutability::Immutable {
                         return Err(TypeCheckerError::AssignmentError(
+                            asg,
                             AssignmentError::ImmutableAssignment(*ident),
                         ));
                     }
                 }
                 _ => {
                     return Err(TypeCheckerError::AssignmentError(
+                        asg,
                         AssignmentError::NotLValue(ctx[asg].lhs),
                     ));
                 }
@@ -58,6 +60,7 @@ fn check_assignment_expr<'a>(
 
             if ctx[attr].mutability == Mutability::Immutable {
                 return Err(TypeCheckerError::AssignmentError(
+                    asg,
                     AssignmentError::ImmutableAssignment(ctx[st_access].attr_name),
                 ));
             }
@@ -66,6 +69,7 @@ fn check_assignment_expr<'a>(
         }
         _ => {
             return Err(TypeCheckerError::AssignmentError(
+                asg,
                 AssignmentError::NotLValue(ctx[asg].lhs),
             ));
         }
@@ -107,6 +111,7 @@ mod tests {
         assert_matches!(
             type_check(&mut ir),
             Err(TypeCheckerError::AssignmentError(
+                _,
                 AssignmentError::ImmutableAssignment(_)
             ))
         );

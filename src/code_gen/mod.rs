@@ -248,7 +248,7 @@ fn format_expr<'a, 'ctx, W: Write>(
             )?;
             gen.write(")")
         }
-        Expr::Identifier(ident) => gen.write_ident(*ident),
+        Expr::Identifier(ident, _) => gen.write_ident(*ident),
         Expr::StructInit(st_init) => {
             gen.symbols
                 .enter_scope(&gen.ctx, *gen.ctx[st_init].scope_name)

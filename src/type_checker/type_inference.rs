@@ -152,7 +152,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
                     self.add_constraint(arg, param_type)
                 }
             }
-            Expr::Identifier(_) => {}
+            Expr::Identifier(_, _) => {}
             Expr::StructInit(st_init) => {
                 let st_name = *ctx[st_init].struct_name;
                 let st = self
