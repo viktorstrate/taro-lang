@@ -17,7 +17,13 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W>
         match self {
             SymbolCollectionError::SymbolAlreadyExistsInScope { new, existing } => ErrMsg {
                 span: new.get_span(ctx),
-                title: Box::new(|w| write!(w, "symbol already exists in scope")),
+                title: Box::new(|w| {
+                    write!(
+                        w,
+                        "symbol '{}' already exists in scope",
+                        new.value(ctx).unwrap()
+                    )
+                }),
                 msg: Box::new(|w| {
                     let existing_name = ctx[*existing].name(ctx);
 

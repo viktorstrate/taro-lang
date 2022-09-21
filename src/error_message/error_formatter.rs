@@ -57,10 +57,6 @@ pub fn format_span_items<'a>(
 
     for (i, item) in items.iter().enumerate() {
         if item.span.line > current_line {
-            if current_line > 0 {
-                writeln!(w)?;
-            }
-
             let offset = item.span.line - current_line - 1;
             lines.advance_by(offset).unwrap();
             current_line += offset + 1;
@@ -103,6 +99,7 @@ pub fn format_span_items<'a>(
                     }
                 }
             }
+            line_msgs.clear();
         }
     }
 
@@ -120,54 +117,3 @@ pub fn format_span_items<'a>(
 
     Ok(())
 }
-
-// pub fn format_err_msg<'a>(w: impl Write, msg: SpanMsg<'a>) -> Result<(), std::io::Error> {
-//     let Some(msg_txt) = msg.msg else {
-//         return Ok(())
-//     };
-
-//     let prefix = match msg.msg_type {
-//         SpanMsgType::Text => "",
-//         SpanMsgType::Warn => "warn: ",
-//         SpanMsgType::Err => "error: ",
-//         SpanMsgType::Note => "note: ",
-//         SpanMsgType::Help => "help: ",
-//     };
-
-//     writeln!(w, "{}{}", prefix, msg_txt)
-// }
-
-// impl<'a> Span<'a> {
-//     pub fn format_spanned_code(
-//         &self,
-//         w: &mut impl Write,
-//         msg: Option<&str>,
-//     ) -> Result<(), std::io::Error> {
-//         let mut lines = self.source.lines();
-
-//         if self.line > 0 {
-//             lines.advance_by(self.line - 1).unwrap();
-//         }
-
-//         let line = lines.next().unwrap();
-
-//         if !self.fragment.contains("\n") {
-//             writeln!(w, "{} | {}", self.line, line)?;
-//             write!(
-//                 w,
-//                 "{}{}",
-//                 " ".repeat(3 + self.offset),
-//                 "^".repeat(self.fragment.len()),
-//             )?;
-//             if let Some(msg) = msg {
-//                 writeln!(w, " {}", msg)?;
-//             } else {
-//                 writeln!(w)?;
-//             }
-//         } else {
-//             todo!()
-//         }
-
-//         Ok(())
-//     }
-// }

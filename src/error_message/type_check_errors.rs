@@ -26,18 +26,18 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (&'ret TypeChecker<'a>, &'
                     let a_fmt = a.format(ctx);
                     let b_fmt = b.format(ctx);
 
-                    if let Some(span) = b.get_span(ctx) {
-                        messages.push(SpanItem {
-                            span,
-                            msg: Some(format!("of type '{}'", b_fmt)),
-                            err_type: ErrMsgType::Note,
-                        });
-                    }
-
                     if let Some(span) = a.get_span(ctx) {
                         messages.push(SpanItem {
                             span,
                             msg: Some(format!("of type '{}'", a_fmt)),
+                            err_type: ErrMsgType::Note,
+                        });
+                    }
+
+                    if let Some(span) = b.get_span(ctx) {
+                        messages.push(SpanItem {
+                            span,
+                            msg: Some(format!("of type '{}'", b_fmt)),
                             err_type: ErrMsgType::Note,
                         });
                     }
@@ -48,7 +48,7 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (&'ret TypeChecker<'a>, &'
                         &[ErrRemark {
                             msg: format!(
                                 "expected type '{}'\n         found type '{}'",
-                                b_fmt, a_fmt
+                                a_fmt, b_fmt
                             ),
                             err_type: ErrMsgType::Note,
                         }],

@@ -61,11 +61,18 @@ impl<'a> Spanned<'a> for Ident<'a> {
     }
 }
 
-// impl<'a> From<Id<IdentValue<'a>>> for Ident<'a> {
-//     fn from(id: Id<IdentValue<'a>>) -> Self {
-//         Self { id }
-//     }
-// }
+impl<'a> Ident<'a> {
+    pub fn value(&self, ctx: &IrCtx<'a>) -> Option<&'a str> {
+        match &ctx[*self] {
+            IdentValue::Resolved(resolved) => match resolved {
+                ResolvedIdentValue::Named { def_span: _, name } => Some(*name),
+                ResolvedIdentValue::Anonymous => None,
+                ResolvedIdentValue::BuiltinType(builtin) => Some(builtin.name()),
+            },
+            IdentValue::Unresolved(ident) => Some(ident.value),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum IdentValue<'a> {
