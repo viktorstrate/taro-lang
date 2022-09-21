@@ -7,7 +7,10 @@
 #![deny(rust_2018_idioms)]
 #![feature(iter_advance_by)]
 
-use std::io::{BufRead, Write};
+use std::{
+    io::{BufRead, Write},
+    process::exit,
+};
 
 use code_gen::format_ir;
 use error_message::ErrorMessage;
@@ -42,6 +45,7 @@ fn main() -> std::io::Result<()> {
 
     if let Err(err) = transpile(&mut std::io::stdout(), &input) {
         err.format_err(&mut std::io::stderr(), ())?;
+        exit(1);
     }
 
     Ok(())

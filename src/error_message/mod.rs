@@ -2,7 +2,7 @@ use crate::{
     ir::context::IrCtx,
     parser::{ParserError, Span},
     symbols::{symbol_resolver::SymbolResolutionError, symbol_table::SymbolCollectionError},
-    type_checker::{TypeChecker, TypeCheckerError},
+    type_checker::TypeCheckerError,
     TranspilerError,
 };
 use std::io::Write;
@@ -45,106 +45,70 @@ impl<'a> Span<'a> {
     }
 }
 
-pub trait ErrorMessage<'a, T, W>
+pub struct ErrMsg<'a, 'ret, W: Write> {
+    pub span: Option<Span<'a>>,
+    pub title: Box<dyn Fn(&mut W) -> Result<(), std::io::Error> + 'ret>,
+    pub msg: Box<dyn Fn(&mut W) -> Result<(), std::io::Error> + 'ret>,
+}
+
+pub trait ErrorMessage<'a: 'ret, 'ret, T, W>
 where
-    T: Copy,
     W: Write,
 {
-    fn err_span(&self, ctx: T) -> Option<Span<'a>>;
-    fn err_title(&self, w: &mut W, ctx: T) -> Result<(), std::io::Error>;
-    fn err_msg(&self, w: &mut W, ctx: T) -> Result<(), std::io::Error>;
+    fn err_msg(&'ret self, ctx: T) -> ErrMsg<'a, 'ret, W>;
 
-    fn format_err(&self, w: &mut W, ctx: T) -> Result<(), std::io::Error> {
+    fn format_err(&'ret self, w: &mut W, ctx: T) -> Result<(), std::io::Error> {
+        let err_msg = self.err_msg(ctx);
+
         write!(w, "error: ")?;
-        self.err_title(w, ctx)?;
+        (*err_msg.title)(w)?;
         writeln!(w)?;
 
-        if let Some(span) = self.err_span(ctx) {
+        if let Some(span) = err_msg.span {
             writeln!(w, "/path/to/file.taro:{}:{}\n", span.line, span.offset)?;
         }
 
-        self.err_msg(w, ctx)?;
-        writeln!(w)?;
+        (*err_msg.msg)(w)?;
 
         w.flush()
     }
 }
 
-impl<'a, W: Write> ErrorMessage<'a, (), W> for ParserError<'a> {
-    fn err_span(&self, _: ()) -> Option<Span<'a>> {
-        todo!()
-    }
-
-    fn err_title(&self, _w: &mut W, _: ()) -> Result<(), std::io::Error> {
-        todo!()
-    }
-
-    fn err_msg(&self, _w: &mut W, _: ()) -> Result<(), std::io::Error> {
+impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (), W> for ParserError<'a> {
+    fn err_msg(&self, _ctx: ()) -> ErrMsg<'a, 'ret, W> {
         todo!()
     }
 }
 
-impl<'a, W: Write> ErrorMessage<'a, &IrCtx<'a>, W> for SymbolResolutionError<'a> {
-    fn err_span(&self, _ctx: &IrCtx<'a>) -> Option<Span<'a>> {
-        todo!()
-    }
-
-    fn err_title(&self, _w: &mut W, _ctx: &IrCtx<'a>) -> Result<(), std::io::Error> {
-        todo!()
-    }
-
-    fn err_msg(&self, _w: &mut W, _ctx: &IrCtx<'a>) -> Result<(), std::io::Error> {
+impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W>
+    for SymbolResolutionError<'a>
+{
+    fn err_msg(&self, _ctx: &IrCtx<'a>) -> ErrMsg<'a, 'ret, W> {
         todo!()
     }
 }
 
-impl<'a, W: Write> ErrorMessage<'a, (), W> for TranspilerError<'a> {
-    fn err_span(&self, _ctx: ()) -> Option<Span<'a>> {
+impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (), W> for TranspilerError<'a> {
+    fn err_msg(&'ret self, _ctx: ()) -> ErrMsg<'a, 'ret, W> {
         match self {
-            TranspilerError::Parse(err) => {
-                <ParserError<'a> as ErrorMessage<'a, (), W>>::err_span(err, ())
-            }
+            TranspilerError::Parse(err) => ParserError::err_msg(err, ()),
             TranspilerError::SymbolCollectError(la, err) => {
-                <SymbolCollectionError<'a> as ErrorMessage<'a, &IrCtx<'a>, W>>::err_span(
-                    err, &la.ctx,
-                )
+                SymbolCollectionError::err_msg(err, &la.ctx)
             }
             TranspilerError::SymbolResolveError(la, err) => {
-                <SymbolResolutionError<'a> as ErrorMessage<'a, &IrCtx<'a>, W>>::err_span(
-                    err, &la.ctx,
-                )
+                SymbolResolutionError::err_msg(err, &la.ctx)
             }
             TranspilerError::TypeCheck(type_check, la, err) => {
-                <TypeCheckerError<'a> as ErrorMessage<'a, (&TypeChecker<'a>, &IrCtx<'a>), W>>::err_span(
-                    err,
-                    (type_check, &la.ctx),
-                )
+                TypeCheckerError::err_msg(err, (type_check, &la.ctx))
             }
-            TranspilerError::Write(_) => None,
-        }
-    }
-
-    fn err_title(&self, w: &mut W, ctx: ()) -> Result<(), std::io::Error> {
-        match self {
-            TranspilerError::Parse(err) => err.err_title(w, ctx),
-            TranspilerError::SymbolCollectError(la, err) => err.err_title(w, &la.ctx),
-            TranspilerError::SymbolResolveError(la, err) => err.err_title(w, &la.ctx),
-            TranspilerError::TypeCheck(type_checker, la, err) => {
-                err.err_title(w, (type_checker, &la.ctx))
+            TranspilerError::Write(err) => {
+                let err_msg = err.to_string();
+                ErrMsg {
+                    span: None,
+                    title: Box::new(|w| write!(w, "IO write error")),
+                    msg: Box::new(move |w| writeln!(w, "{}", err_msg)),
+                }
             }
-            TranspilerError::Write(_) => write!(w, "IO write error"),
-        }
-    }
-
-    fn err_msg(&self, w: &mut W, ctx: ()) -> Result<(), std::io::Error> {
-        match self {
-            TranspilerError::Parse(err) => err.err_msg(w, ctx),
-            TranspilerError::SymbolCollectError(la, err) => err.err_msg(w, &la.ctx),
-            TranspilerError::SymbolResolveError(la, err) => err.err_msg(w, &la.ctx),
-            TranspilerError::TypeCheck(type_checker, la, err) => {
-                err.err_msg(w, (type_checker, &la.ctx))
-            }
-            TranspilerError::Write(err) => write!(w, "{}", err.to_string()),
         }
     }
 }

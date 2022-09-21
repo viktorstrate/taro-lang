@@ -2,52 +2,42 @@ use std::io::Write;
 
 use crate::{
     ir::{context::IrCtx, node::identifier::Identifiable},
-    parser::Span,
     symbols::symbol_table::SymbolCollectionError,
 };
 
-use super::ErrorMessage;
+use super::{ErrMsg, ErrorMessage};
 
-impl<'a, W: Write> ErrorMessage<'a, &IrCtx<'a>, W> for SymbolCollectionError<'a> {
-    fn err_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W>
+    for SymbolCollectionError<'a>
+{
+    fn err_msg(&'ret self, ctx: &'ret IrCtx<'a>) -> ErrMsg<'a, 'ret, W> {
         match self {
-            SymbolCollectionError::SymbolAlreadyExistsInScope { new, existing: _ } => {
-                new.get_span(ctx)
-            }
-            SymbolCollectionError::ScopeNotFound(scp) => scp.get_span(ctx),
-        }
-    }
+            SymbolCollectionError::SymbolAlreadyExistsInScope { new, existing } => ErrMsg {
+                span: new.get_span(ctx),
+                title: Box::new(|w| write!(w, "symbol already exists in scope")),
+                msg: Box::new(|w| {
+                    new.get_span(ctx).unwrap().format_spanned_code(
+                        w,
+                        Some("a symbol of this name has already been defined"),
+                    )?;
 
-    fn err_title(&self, w: &mut W, _ctx: &IrCtx<'a>) -> Result<(), std::io::Error> {
-        match self {
-            SymbolCollectionError::SymbolAlreadyExistsInScope {
-                new: _,
-                existing: _,
-            } => write!(w, "symbol already exists in scope"),
-            SymbolCollectionError::ScopeNotFound(_) => write!(w, "scope not found"),
-        }
-    }
+                    let existing_name = ctx[*existing].name(ctx);
 
-    fn err_msg(&self, w: &mut W, ctx: &IrCtx<'a>) -> Result<(), std::io::Error> {
-        match self {
-            SymbolCollectionError::SymbolAlreadyExistsInScope { new, existing } => {
-                new.get_span(ctx).unwrap().format_spanned_code(
-                    w,
-                    Some("a symbol of this name has already been defined"),
-                )?;
+                    writeln!(w)?;
 
-                let existing_name = ctx[*existing].name(ctx);
+                    existing_name
+                        .get_span(ctx)
+                        .unwrap()
+                        .format_spanned_code(w, Some("it was first declared here"))?;
 
-                writeln!(w)?;
-
-                existing_name
-                    .get_span(ctx)
-                    .unwrap()
-                    .format_spanned_code(w, Some("it was first declared here"))?;
-
-                Ok(())
-            }
-            SymbolCollectionError::ScopeNotFound(_) => todo!(),
+                    Ok(())
+                }),
+            },
+            SymbolCollectionError::ScopeNotFound(scp) => ErrMsg {
+                span: scp.get_span(ctx),
+                title: Box::new(|w| write!(w, "scope not found")),
+                msg: Box::new(|_w| todo!()),
+            },
         }
     }
 }
