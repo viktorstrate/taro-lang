@@ -1,13 +1,16 @@
-use crate::ir::{
-    context::IrCtx,
-    ir_walker::IrWalker,
-    node::{
-        enumeration::EnumInit,
-        expression::Expr,
-        identifier::{Ident, IdentParent, Identifiable},
-        type_signature::{TypeSignature, TypeSignatureValue},
-        IrAlloc, NodeRef,
+use crate::{
+    ir::{
+        context::IrCtx,
+        ir_walker::IrWalker,
+        node::{
+            enumeration::EnumInit,
+            expression::Expr,
+            identifier::{Ident, IdentParent, Identifiable},
+            type_signature::{TypeSignature, TypeSignatureValue},
+            IrAlloc, NodeRef,
+        },
     },
+    symbols::symbol_resolver::SymbolResolutionError,
 };
 
 use super::{type_inference::TypeInferrer, TypeChecker, TypeCheckerError};
@@ -77,7 +80,12 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
                 self.0.found_undeterminable_types = true;
                 return Ok(());
             }
-            _ => unreachable!("Only enums inits can have anonymous base"),
+            _ => {
+                return Err(TypeCheckerError::AnonymousEnumInitNonEnum(
+                    mem_acc,
+                    (*ctx[mem_acc].type_sig).clone(),
+                ))
+            }
         };
 
         let enm_expr = Expr::EnumInit(enm_init);
@@ -90,21 +98,25 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
             .0
             .symbols
             .lookup(ctx, enm_name)
-            .ok_or(TypeCheckerError::LookupError(enm_name))?
+            .ok_or(TypeCheckerError::SymbolResolutionError(
+                SymbolResolutionError::UnknownIdentifier(enm_name),
+            ))?
             .unwrap_enum(ctx);
         let (_, enm_val) = enm.lookup_value(ctx, ctx[enm_init].enum_value).ok_or(
-            TypeCheckerError::UnknownEnumValue {
-                enum_name: enm_name,
+            TypeCheckerError::SymbolResolutionError(SymbolResolutionError::UnknownEnumValue {
+                enm,
                 enum_value: ctx[enm_init].enum_value,
-            },
+            }),
         )?;
         ctx[enm_init].enum_value = *ctx[enm_val].name;
 
-        let sym_id = self
-            .0
-            .symbols
-            .lookup(ctx, enm_name)
-            .ok_or(TypeCheckerError::LookupError(enm_name))?;
+        let sym_id =
+            self.0
+                .symbols
+                .lookup(ctx, enm_name)
+                .ok_or(TypeCheckerError::SymbolResolutionError(
+                    SymbolResolutionError::UnknownIdentifier(enm_name),
+                ))?;
 
         ctx[enm_init].enum_name = Ident {
             id: (*&ctx[sym_id]).name(ctx).id,

@@ -1,13 +1,18 @@
-use crate::ir::{
-    context::IrCtx,
-    ir_walker::{IrWalker, ScopeValue},
-    node::{
-        expression::Expr,
-        function::Function,
-        statement::{Stmt, StmtBlock},
-        type_signature::{BuiltinType, TypeEvalError, TypeSignature, TypeSignatureValue, Typed},
-        NodeRef,
+use crate::{
+    ir::{
+        context::IrCtx,
+        ir_walker::{IrWalker, ScopeValue},
+        node::{
+            expression::Expr,
+            function::Function,
+            statement::{Stmt, StmtBlock},
+            type_signature::{
+                BuiltinType, TypeEvalError, TypeSignature, TypeSignatureValue, Typed,
+            },
+            NodeRef,
+        },
     },
+    symbols::symbol_resolver::SymbolResolutionError,
 };
 
 use super::{coercion::coerce, FunctionError, TypeChecker, TypeCheckerError};
@@ -199,12 +204,16 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
             }
             Expr::Tuple(_) => {}
             Expr::EnumInit(enm_init) => {
-                let enm = enm_init
-                    .lookup_enum(ctx, &mut self.0.symbols)
-                    .ok_or(TypeCheckerError::LookupError(ctx[enm_init].enum_name))?;
+                let enm = enm_init.lookup_enum(ctx, &mut self.0.symbols).ok_or(
+                    TypeCheckerError::SymbolResolutionError(
+                        SymbolResolutionError::UnknownIdentifier(ctx[enm_init].enum_name),
+                    ),
+                )?;
                 let enm_val = enm
                     .lookup_value(ctx, ctx[enm_init].enum_value)
-                    .ok_or(TypeCheckerError::LookupError(ctx[enm_init].enum_name))?
+                    .ok_or(TypeCheckerError::SymbolResolutionError(
+                        SymbolResolutionError::UnknownIdentifier(ctx[enm_init].enum_name),
+                    ))?
                     .1;
 
                 for (arg, item_type) in ctx[enm_init]

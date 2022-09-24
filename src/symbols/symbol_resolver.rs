@@ -4,7 +4,7 @@ use crate::ir::{
     context::IrCtx,
     ir_walker::{walk_expr, IrWalker, ScopeValue},
     node::{
-        enumeration::EnumInit,
+        enumeration::{Enum, EnumInit},
         expression::Expr,
         function::FunctionCall,
         identifier::{Ident, IdentParent, IdentValue, Identifiable},
@@ -14,7 +14,7 @@ use crate::ir::{
     },
 };
 
-use super::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolTable, SymbolValue};
+use super::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolTable};
 
 pub struct SymbolResolver<'a> {
     pub symbols: SymbolTableZipper<'a>,
@@ -32,9 +32,9 @@ impl<'a> SymbolResolver<'a> {
 pub enum SymbolResolutionError<'a> {
     UnknownIdentifier(Ident<'a>),
     TypeEval(TypeEvalError<'a>),
-    InitNonEnum(SymbolValue<'a>),
     UnknownEnumValue {
-        enum_name: Ident<'a>,
+        enm: NodeRef<'a, Enum<'a>>,
+        // enum_name: Ident<'a>,
         enum_value: Ident<'a>,
     },
 }
@@ -134,18 +134,6 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                     .map_err(SymbolResolutionError::TypeEval)?;
 
                 let new_expr = match &ctx[&obj_type] {
-                    // TypeSignatureValue::Function {
-                    //     args: _,
-                    //     return_type: _,
-                    // } => {
-                    //     let func_call = FunctionCall {
-                    //         func: obj,
-                    //         params: ctx[mem_acc].items.clone(),
-                    //     }
-                    //     .allocate(ctx);
-
-                    //     Expr::FunctionCall(func_call)
-                    // }
                     TypeSignatureValue::Struct { name: _ } => {
                         let st_acc = StructAccess {
                             struct_expr: obj,
@@ -252,7 +240,7 @@ pub fn resolve_ident<'a>(
 
                 let (_, enm_val) = enm.lookup_value(ctx, ctx[enm_init].enum_value).ok_or(
                     SymbolResolutionError::UnknownEnumValue {
-                        enum_name: enm_name,
+                        enm,
                         enum_value: ctx[enm_init].enum_value,
                     },
                 )?;

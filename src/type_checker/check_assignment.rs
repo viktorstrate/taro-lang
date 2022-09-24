@@ -9,7 +9,10 @@ use crate::{
             NodeRef,
         },
     },
-    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolValueItem},
+    symbols::{
+        symbol_resolver::SymbolResolutionError,
+        symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolValueItem},
+    },
 };
 
 use super::TypeCheckerError;
@@ -32,9 +35,12 @@ fn check_assignment_expr<'a>(
 ) -> Result<(), TypeCheckerError<'a>> {
     match ctx[expr].clone() {
         Expr::Identifier(ident, _) => {
-            let sym = symbols
-                .lookup(ctx, *ident)
-                .ok_or(TypeCheckerError::LookupError(*ident))?;
+            let sym =
+                symbols
+                    .lookup(ctx, *ident)
+                    .ok_or(TypeCheckerError::SymbolResolutionError(
+                        SymbolResolutionError::UnknownIdentifier(*ident),
+                    ))?;
 
             match &ctx[sym] {
                 SymbolValueItem::VarDecl(var_decl) => {

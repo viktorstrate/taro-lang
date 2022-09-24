@@ -1,5 +1,4 @@
 use crate::{
-    ir::context::IrCtx,
     parser::{ParserError, Span},
     symbols::{symbol_resolver::SymbolResolutionError, symbol_table::SymbolCollectionError},
     type_checker::TypeCheckerError,
@@ -7,8 +6,12 @@ use crate::{
 };
 use std::io::Write;
 
+
+
 pub mod error_formatter;
+pub mod error_msg_utils;
 pub mod sym_collect_errors;
+pub mod sym_resolution_errors;
 pub mod type_check_errors;
 
 pub struct ErrMsg<'a, 'ret, W: Write> {
@@ -44,14 +47,6 @@ where
 
 impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (), W> for ParserError<'a> {
     fn err_msg(&self, _ctx: ()) -> ErrMsg<'a, 'ret, W> {
-        todo!()
-    }
-}
-
-impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W>
-    for SymbolResolutionError<'a>
-{
-    fn err_msg(&self, _ctx: &IrCtx<'a>) -> ErrMsg<'a, 'ret, W> {
         todo!()
     }
 }

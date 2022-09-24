@@ -7,7 +7,10 @@ use crate::{
             NodeRef,
         },
     },
-    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
+    symbols::{
+        symbol_resolver::SymbolResolutionError,
+        symbol_table::symbol_table_zipper::SymbolTableZipper,
+    },
 };
 
 use super::TypeCheckerError;
@@ -26,7 +29,9 @@ pub fn check_struct_init<'a>(
     let st_name = *ctx[st_init].struct_name;
     let st = st_init
         .lookup_struct(ctx, symbols)
-        .ok_or(TypeCheckerError::LookupError(st_name))?;
+        .ok_or(TypeCheckerError::SymbolResolutionError(
+            SymbolResolutionError::UnknownIdentifier(st_name),
+        ))?;
 
     // Check that all attributes without default values are declared
     for attr in ctx[st].attrs.clone() {

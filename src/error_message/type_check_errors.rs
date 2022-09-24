@@ -69,7 +69,6 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (&'ret TypeChecker<'a>, &'
                 msg: Box::new(|_w| todo!()),
             },
             TypeCheckerError::TypeEval(_) => todo!(),
-            TypeCheckerError::LookupError(_) => todo!(),
             TypeCheckerError::AssignmentError(asg, err) => match err {
                 AssignmentError::ImmutableAssignment(id) => ErrMsg {
                     span: id.get_span(ctx),
@@ -103,11 +102,9 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (&'ret TypeChecker<'a>, &'
             },
             TypeCheckerError::StructError(_) => todo!(),
             TypeCheckerError::FunctionError(_) => todo!(),
-            TypeCheckerError::UnknownEnumValue {
-                enum_name: _,
-                enum_value: _,
-            } => todo!(),
             TypeCheckerError::EnumInitArgCountMismatch(_, _) => todo!(),
+            TypeCheckerError::AnonymousEnumInitNonEnum(_, _) => todo!(),
+            TypeCheckerError::SymbolResolutionError(sym_res_err) => sym_res_err.err_msg(ctx),
         }
     }
 }

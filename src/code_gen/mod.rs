@@ -227,6 +227,8 @@ fn format_expr<'a, 'ctx, W: Write>(
                 .enter_scope(&gen.ctx, *gen.ctx[func].name)
                 .expect("function scope should exist");
 
+            gen.write("(")?;
+
             format_func_args(gen, gen.ctx[func].args.clone())?;
             gen.write(" => {")?;
 
@@ -234,10 +236,9 @@ fn format_expr<'a, 'ctx, W: Write>(
 
             gen.symbols.exit_scope(&gen.ctx).unwrap();
 
-            gen.write("}")
+            gen.write("})")
         }
         Expr::FunctionCall(call) => {
-            println!("GEN FUNC CALL");
             format_expr(gen, gen.ctx[call].func)?;
             gen.write("(")?;
             format_with_separator(

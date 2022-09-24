@@ -9,13 +9,14 @@ use crate::{
             assignment::Assignment,
             enumeration::{EnumInit, EnumValue},
             function::FunctionCall,
-            identifier::Ident,
+            member_access::UnresolvedMemberAccess,
             type_signature::{TypeEvalError, TypeSignature},
             NodeRef,
         },
     },
     symbols::{
-        symbol_resolver::SymbolResolver, symbol_table::symbol_table_zipper::SymbolTableZipper,
+        symbol_resolver::{SymbolResolutionError, SymbolResolver},
+        symbol_table::symbol_table_zipper::SymbolTableZipper,
     },
 };
 
@@ -37,18 +38,20 @@ pub mod types_walker;
 
 #[derive(Debug)]
 pub enum TypeCheckerError<'a> {
+    SymbolResolutionError(SymbolResolutionError<'a>),
     ConflictingTypes(TypeSignature<'a>, TypeSignature<'a>),
     UndeterminableTypes,
     TypeEval(TypeEvalError<'a>),
-    LookupError(Ident<'a>),
+    // LookupError(Ident<'a>),
     AssignmentError(NodeRef<'a, Assignment<'a>>, AssignmentError<'a>),
     StructError(StructTypeError<'a>),
     FunctionError(FunctionError<'a>),
-    UnknownEnumValue {
-        enum_name: Ident<'a>,
-        enum_value: Ident<'a>,
-    },
+    // UnknownEnumValue {
+    //     enum_name: Ident<'a>,
+    //     enum_value: Ident<'a>,
+    // },
     EnumInitArgCountMismatch(NodeRef<'a, EnumInit<'a>>, NodeRef<'a, EnumValue<'a>>),
+    AnonymousEnumInitNonEnum(NodeRef<'a, UnresolvedMemberAccess<'a>>, TypeSignature<'a>),
 }
 
 #[derive(Debug)]

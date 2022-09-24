@@ -3,7 +3,10 @@ use crate::{
         context::IrCtx,
         node::{enumeration::EnumInit, NodeRef},
     },
-    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
+    symbols::{
+        symbol_resolver::SymbolResolutionError,
+        symbol_table::symbol_table_zipper::SymbolTableZipper,
+    },
 };
 
 use super::TypeCheckerError;
@@ -16,11 +19,15 @@ pub fn check_enum_init<'a>(
     let enm_name = ctx[enm_init].enum_name;
     let enm = enm_init
         .lookup_enum(ctx, symbols)
-        .ok_or(TypeCheckerError::LookupError(enm_name))?;
+        .ok_or(TypeCheckerError::SymbolResolutionError(
+            SymbolResolutionError::UnknownIdentifier(enm_name),
+        ))?;
 
     let enm_val = enm
         .lookup_value(ctx, ctx[enm_init].enum_value)
-        .ok_or(TypeCheckerError::LookupError(enm_name))?
+        .ok_or(TypeCheckerError::SymbolResolutionError(
+            SymbolResolutionError::UnknownIdentifier(enm_name),
+        ))?
         .1;
 
     if ctx[enm_val].items.len() != ctx[enm_init].items.len() {
