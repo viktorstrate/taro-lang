@@ -417,7 +417,7 @@ mod tests {
         );
         assert_eq!(
             output2.unwrap(),
-            "const f = () => {return true;};\nconst x = f();\n"
+            "const f = (() => {return true;});\nconst x = f();\n"
         );
     }
 
@@ -436,7 +436,7 @@ mod tests {
             output.unwrap(),
             "function Foo (bar) {\n\
             this.bar = bar}\n\
-            const x = new Foo(() => {});\n\
+            const x = new Foo((() => {}));\n\
             x.bar();\n"
         )
     }
