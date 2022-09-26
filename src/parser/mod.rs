@@ -137,10 +137,21 @@ impl<'a> Span<'a> {
     pub fn new(start: Input<'a>, end: Input<'a>) -> Span<'a> {
         let len = end.location_offset() - start.location_offset();
 
+        // trim span
+        let mut fragment = &start.fragment()[0..len];
+        let trim_start = fragment.chars().take_while(|c| c.is_whitespace()).count();
+        let trim_end = fragment
+            .chars()
+            .rev()
+            .take_while(|c| c.is_whitespace())
+            .count();
+
+        fragment = &fragment[trim_start..(len - trim_end)];
+
         Span {
             line: start.location_line() as usize,
-            offset: start.get_utf8_column(),
-            fragment: &start.fragment()[0..len],
+            offset: start.get_utf8_column() + trim_start,
+            fragment,
             source: start.extra.source,
         }
     }

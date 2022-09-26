@@ -14,51 +14,60 @@ use super::{identifier::identifier, spaced, span, surround_brackets, BracketType
 pub fn type_signature(i: Input<'_>) -> Res<Input<'_>, TypeSignature<'_>> {
     context(
         "type signature",
-        map(
-            span(alt((type_sig_func, type_sig_base, type_sig_tuple))),
-            |(span, value)| TypeSignature { span, value },
-        ),
+        alt((type_sig_func, type_sig_base, type_sig_tuple)),
     )(i)
 }
 
-fn type_sig_base(i: Input<'_>) -> Res<Input<'_>, TypeSignatureValue<'_>> {
+fn type_sig_base(i: Input<'_>) -> Res<Input<'_>, TypeSignature<'_>> {
     // IDENT
 
-    context("base type", map(identifier, TypeSignatureValue::Base))(i)
+    context(
+        "base type",
+        map(identifier, |id| TypeSignature {
+            span: id.span.clone(),
+            value: TypeSignatureValue::Base(id),
+        }),
+    )(i)
 }
 
-fn type_sig_func(i: Input<'_>) -> Res<Input<'_>, TypeSignatureValue<'_>> {
+fn type_sig_func(i: Input<'_>) -> Res<Input<'_>, TypeSignature<'_>> {
     // "(" TYPE_SIG , ... ")" "->" TYPE_SIG
 
     context(
         "function type",
         map(
-            tuple((
+            span(tuple((
                 surround_brackets(
                     BracketType::Round,
                     separated_list0(spaced(tag(",")), type_signature),
                 ),
                 preceded(spaced(tag("->")), type_signature),
-            )),
-            |(args, return_type)| TypeSignatureValue::Function {
-                args,
-                return_type: Box::new(return_type),
+            ))),
+            |(span, (args, return_type))| TypeSignature {
+                span,
+                value: TypeSignatureValue::Function {
+                    args,
+                    return_type: Box::new(return_type),
+                },
             },
         ),
     )(i)
 }
 
-fn type_sig_tuple(i: Input<'_>) -> Res<Input<'_>, TypeSignatureValue<'_>> {
+fn type_sig_tuple(i: Input<'_>) -> Res<Input<'_>, TypeSignature<'_>> {
     // "(" TYPE_SIG , ... ")"
 
     context(
         "tuple type",
         map(
-            surround_brackets(
+            span(surround_brackets(
                 BracketType::Round,
                 separated_list0(spaced(tag(",")), type_signature),
-            ),
-            TypeSignatureValue::Tuple,
+            )),
+            |(span, items)| TypeSignature {
+                span,
+                value: TypeSignatureValue::Tuple(items),
+            },
         ),
     )(i)
 }
@@ -78,7 +87,7 @@ mod tests {
     #[test]
     fn test_base_type() {
         assert_matches!(
-            type_signature(new_input("Boolean")).unwrap().1,
+            type_signature(new_input("Boolean ")).unwrap().1,
             TypeSignature {
                 span: Span {
                     line: _,

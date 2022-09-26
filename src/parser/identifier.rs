@@ -1,9 +1,9 @@
 use nom::{
-    character::complete::{satisfy},
+    character::complete::satisfy,
     combinator::{map, recognize, verify},
     error::context,
     multi::many0,
-    sequence::{pair},
+    sequence::pair,
 };
 
 use crate::ast::node::identifier::Ident;
@@ -41,7 +41,7 @@ mod tests {
     #[test]
     fn test_valid_identifier() {
         assert_eq!(
-            identifier(new_input("hello123")).unwrap().1.value,
+            identifier(new_input(" hello123  ")).unwrap().1.value,
             "hello123"
         );
     }

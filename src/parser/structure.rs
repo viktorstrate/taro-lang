@@ -56,9 +56,9 @@ pub fn struct_attrs<'a>(i: Input<'a>) -> Res<Input<'a>, Vec<StructAttr<'a>>> {
             |(span, (mutability, name, type_sig, default_value))| StructAttr {
                 name,
                 mutability,
-                type_sig,
+                type_sig: dbg!(type_sig),
                 default_value,
-                span,
+                span: dbg!(span),
             },
         )(i)
     };
