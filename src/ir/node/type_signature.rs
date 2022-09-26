@@ -130,9 +130,9 @@ impl<'a> Spanned<'a> for TypeSignature<'a> {
             TypeSignatureParent::Function(func) => Some(ctx[*func].span.clone()),
             TypeSignatureParent::FunctionArg { parent_func: _ } => todo!(),
             TypeSignatureParent::FunctionReturn { parent_func: _ } => todo!(),
-            TypeSignatureParent::FunctionDefArg(_) => todo!(),
+            TypeSignatureParent::FunctionDefArg(arg) => arg.get_span(ctx),
             TypeSignatureParent::FunctionDefReturn(_) => todo!(),
-            TypeSignatureParent::Struct(_) => todo!(),
+            TypeSignatureParent::Struct(st) => st.get_span(ctx),
             TypeSignatureParent::StructInit(_) => todo!(),
             TypeSignatureParent::StructAttr(_) => todo!(),
             TypeSignatureParent::Tuple(_) => todo!(),
@@ -140,7 +140,7 @@ impl<'a> Spanned<'a> for TypeSignature<'a> {
                 attr: _,
                 parent_tuple: _,
             } => todo!(),
-            TypeSignatureParent::EscapeBlock(_) => todo!(),
+            TypeSignatureParent::EscapeBlock(esc) => esc.get_span(ctx),
             TypeSignatureParent::MemberAccess(_) => todo!(),
         };
 
@@ -165,7 +165,6 @@ impl<'a> Spanned<'a> for TypeSignature<'a> {
 
 #[derive(Debug)]
 pub enum TypeEvalError<'a> {
-    Expression(Expr<'a>),
     CallNonFunction(TypeSignature<'a>),
     FuncWrongNumberOfArgs {
         func: NodeRef<'a, Function<'a>>,

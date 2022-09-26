@@ -27,11 +27,23 @@ impl Default for ErrMsgType {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialOrd, Ord)]
 pub struct SpanItem<'a> {
     pub span: Span<'a>,
     pub msg: Option<String>,
     pub err_type: ErrMsgType,
+}
+
+impl<'a> Eq for SpanItem<'a> {}
+
+impl<'a> PartialEq for SpanItem<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.span.line == other.span.line
+            && self.span.offset == other.span.offset
+            && self.span.fragment == other.span.fragment
+            && self.msg == other.msg
+            && self.err_type == other.err_type
+    }
 }
 
 pub struct ErrRemark {
@@ -83,10 +95,15 @@ pub fn format_span_items<'a>(
                 line_msgs.push_back((msg, start_offset));
             }
         } else {
+            dbg!(&item);
             todo!()
         }
 
         if item == items.last().unwrap() || items[i + 1].span.line > item.span.line {
+            if line_msgs.is_empty() {
+                write!(w, "\n\n")?;
+            }
+
             for (i, (current_msg, _)) in line_msgs.iter().enumerate().rev() {
                 writeln!(w, " {}", current_msg)?;
 
@@ -112,7 +129,7 @@ pub fn format_span_items<'a>(
             ErrMsgType::Hint => "hint: ",
         };
 
-        writeln!(w, "{}{}", prefix, remark.msg)?;
+        writeln!(w, "{}{}\n", prefix, remark.msg)?;
     }
 
     Ok(())

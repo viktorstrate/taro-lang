@@ -1,7 +1,7 @@
 use crate::{
     ir::{
         context::IrCtx,
-        node::{enumeration::EnumInit, NodeRef},
+        node::{enumeration::EnumInit, type_signature::TypeEvalError, NodeRef},
     },
     symbols::{
         symbol_resolver::SymbolResolutionError,
@@ -20,13 +20,13 @@ pub fn check_enum_init<'a>(
     let enm = enm_init
         .lookup_enum(ctx, symbols)
         .ok_or(TypeCheckerError::SymbolResolutionError(
-            SymbolResolutionError::UnknownIdentifier(enm_name),
+            SymbolResolutionError::TypeEval(TypeEvalError::UnknownIdent(enm_name)),
         ))?;
 
     let enm_val = enm
         .lookup_value(ctx, ctx[enm_init].enum_value)
         .ok_or(TypeCheckerError::SymbolResolutionError(
-            SymbolResolutionError::UnknownIdentifier(enm_name),
+            SymbolResolutionError::TypeEval(TypeEvalError::UnknownIdent(enm_name)),
         ))?
         .1;
 

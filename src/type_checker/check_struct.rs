@@ -4,6 +4,7 @@ use crate::{
         node::{
             identifier::{Ident, IdentKey},
             structure::StructInit,
+            type_signature::TypeEvalError,
             NodeRef,
         },
     },
@@ -17,7 +18,7 @@ use super::TypeCheckerError;
 
 #[derive(Debug)]
 pub enum StructTypeError<'a> {
-    MissingAttribute(Ident<'a>),
+    MissingAttribute(NodeRef<'a, StructInit<'a>>, Ident<'a>),
     UnknownAttribute(Ident<'a>),
 }
 
@@ -30,7 +31,7 @@ pub fn check_struct_init<'a>(
     let st = st_init
         .lookup_struct(ctx, symbols)
         .ok_or(TypeCheckerError::SymbolResolutionError(
-            SymbolResolutionError::UnknownIdentifier(st_name),
+            SymbolResolutionError::TypeEval(TypeEvalError::UnknownIdent(st_name)),
         ))?;
 
     // Check that all attributes without default values are declared
@@ -44,7 +45,8 @@ pub fn check_struct_init<'a>(
                 .is_none()
             {
                 return Err(TypeCheckerError::StructError(
-                    StructTypeError::MissingAttribute(attr_name),
+                    st,
+                    StructTypeError::MissingAttribute(st_init, attr_name),
                 ));
             }
         }
@@ -60,6 +62,7 @@ pub fn check_struct_init<'a>(
             .is_none()
         {
             return Err(TypeCheckerError::StructError(
+                st,
                 StructTypeError::UnknownAttribute(attr_name),
             ));
         }

@@ -5,7 +5,7 @@ use nom::{
     combinator::{map, opt},
     error::context,
     multi::separated_list0,
-    sequence::{preceded, tuple},
+    sequence::{pair, preceded, tuple},
 };
 
 use crate::ast::node::structure::{Struct, StructAttr, StructInit, StructInitValue};
@@ -72,26 +72,25 @@ pub fn struct_attrs<'a>(i: Input<'a>) -> Res<Input<'a>, Vec<StructAttr<'a>>> {
 pub fn struct_init_expr(i: Input<'_>) -> Res<Input<'_>, StructInit<'_>> {
     // IDENT "{" <IDENT: EXPR> , ... "}"
 
-    let (i, struct_name) = identifier(i)?;
+    let struct_init_value = map(
+        span(tuple((identifier, preceded(spaced(tag(":")), expression)))),
+        |(span, (name, value))| StructInitValue { name, value, span },
+    );
 
-    let (i, values) = surround_brackets(
-        BracketType::Curly,
-        separated_list0(
-            spaced(tag(",")),
-            map(
-                span(tuple((identifier, preceded(spaced(tag(":")), expression)))),
-                |(span, (name, value))| StructInitValue { name, value, span },
+    map(
+        span(pair(
+            identifier,
+            surround_brackets(
+                BracketType::Curly,
+                separated_list0(spaced(tag(",")), struct_init_value),
             ),
-        ),
-    )(i)?;
-
-    Ok((
-        i,
-        StructInit {
+        )),
+        |(span, (struct_name, values))| StructInit {
             struct_name,
             values,
+            span,
         },
-    ))
+    )(i)
 }
 
 #[cfg(test)]
@@ -139,6 +138,7 @@ mod tests {
             ExprValue::StructInit(StructInit {
                 struct_name: name,
                 values,
+                span: _,
             }) => {
                 assert_eq!(name, test_ident("StructName"));
                 assert_eq!(values.len(), 1);

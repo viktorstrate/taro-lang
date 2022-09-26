@@ -30,11 +30,9 @@ impl<'a> SymbolResolver<'a> {
 
 #[derive(Debug)]
 pub enum SymbolResolutionError<'a> {
-    UnknownIdentifier(Ident<'a>),
     TypeEval(TypeEvalError<'a>),
     UnknownEnumValue {
         enm: NodeRef<'a, Enum<'a>>,
-        // enum_name: Ident<'a>,
         enum_value: Ident<'a>,
     },
 }
@@ -94,10 +92,12 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
     ) -> Result<crate::ir::node::type_signature::TypeSignature<'a>, Self::Error> {
         let updated_type_sig = match ctx[&type_sig].clone() {
             TypeSignatureValue::Unresolved(ident) => {
-                let sym_val = self
-                    .symbols
-                    .lookup(ctx, ident)
-                    .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
+                let sym_val =
+                    self.symbols
+                        .lookup(ctx, ident)
+                        .ok_or(SymbolResolutionError::TypeEval(
+                            TypeEvalError::UnknownIdent(ident),
+                        ))?;
 
                 let mut new_type = sym_val
                     .eval_type(&mut self.symbols, ctx)
@@ -200,25 +200,31 @@ pub fn resolve_ident<'a>(
 
                 let st = symbols
                     .lookup(ctx, st_name)
-                    .ok_or(SymbolResolutionError::UnknownIdentifier(st_name))?
+                    .ok_or(SymbolResolutionError::TypeEval(
+                        TypeEvalError::UnknownIdent(st_name),
+                    ))?
                     .unwrap_struct(ctx);
 
                 let attr = st
                     .lookup_attr(ident, ctx)
-                    .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
+                    .ok_or(SymbolResolutionError::TypeEval(
+                        TypeEvalError::UnknownIdent(ident),
+                    ))?;
 
                 Some(*ctx[attr].name)
             }
             IdentParent::StructAccessAttrName(st_access) => {
-                let st_attr = st_access
-                    .lookup_attr(ctx, symbols)
-                    .map_err(|_| SymbolResolutionError::UnknownIdentifier(ident))?;
+                let st_attr = st_access.lookup_attr(ctx, symbols).map_err(|_| {
+                    SymbolResolutionError::TypeEval(TypeEvalError::UnknownIdent(ident))
+                })?;
 
                 match ctx[&*ctx[st_attr].type_sig].clone() {
                     TypeSignatureValue::Unresolved(type_ident) => {
                         let resolved_type_sig = symbols
                             .lookup(ctx, type_ident)
-                            .ok_or(SymbolResolutionError::UnknownIdentifier(type_ident))?
+                            .ok_or(SymbolResolutionError::TypeEval(
+                                TypeEvalError::UnknownIdent(type_ident),
+                            ))?
                             .clone()
                             .eval_type(symbols, ctx)
                             .map_err(SymbolResolutionError::TypeEval)?;
@@ -235,7 +241,9 @@ pub fn resolve_ident<'a>(
 
                 let enm = symbols
                     .lookup(ctx, enm_name)
-                    .ok_or(SymbolResolutionError::UnknownIdentifier(enm_name))?
+                    .ok_or(SymbolResolutionError::TypeEval(
+                        TypeEvalError::UnknownIdent(enm_name),
+                    ))?
                     .unwrap_enum(ctx);
 
                 let (_, enm_val) = enm.lookup_value(ctx, ctx[enm_init].enum_value).ok_or(
@@ -251,7 +259,9 @@ pub fn resolve_ident<'a>(
             _ => {
                 let sym_id = symbols
                     .lookup(ctx, ident)
-                    .ok_or(SymbolResolutionError::UnknownIdentifier(ident))?;
+                    .ok_or(SymbolResolutionError::TypeEval(
+                        TypeEvalError::UnknownIdent(ident),
+                    ))?;
 
                 let sym = *&ctx[sym_id];
                 Some(sym.name(ctx).into())

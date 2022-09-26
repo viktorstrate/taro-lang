@@ -88,14 +88,18 @@ fn function_arg(i: Input<'_>) -> Res<Input<'_>, FunctionArg<'_>> {
     context(
         "function argument",
         map(
-            tuple((
+            span(tuple((
                 identifier,
                 context(
                     "argument type",
                     opt(preceded(spaced(tag(":")), type_signature)),
                 ),
-            )),
-            |(name, type_sig)| FunctionArg { name, type_sig },
+            ))),
+            |(span, (name, type_sig))| FunctionArg {
+                name,
+                type_sig,
+                span,
+            },
         ),
     )(i)
 }

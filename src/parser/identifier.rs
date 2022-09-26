@@ -1,26 +1,23 @@
 use nom::{
-    character::complete::{multispace0, satisfy},
+    character::complete::{satisfy},
     combinator::{map, recognize, verify},
     error::context,
     multi::many0,
-    sequence::{pair, preceded},
+    sequence::{pair},
 };
 
 use crate::ast::node::identifier::Ident;
 
-use super::{span, Input, Res};
+use super::{spaced, span, Input, Res};
 
 const RESERVED_KEYWORDS: &'static [&str] =
     &["struct", "func", "return", "let", "var", "true", "false"];
 
 pub fn identifier(i: Input<'_>) -> Res<Input<'_>, Ident<'_>> {
-    let ident_base = preceded(
-        multispace0,
-        recognize(pair(
-            satisfy(|c| c.is_alphabetic() || ['_', '$'].contains(&c)),
-            many0(satisfy(|c| c.is_alphanumeric() || ['_', '$'].contains(&c))),
-        )),
-    );
+    let ident_base = recognize(pair(
+        satisfy(|c| c.is_alphabetic() || ['_', '$'].contains(&c)),
+        many0(satisfy(|c| c.is_alphanumeric() || ['_', '$'].contains(&c))),
+    ));
 
     let not_keyword_ident = context(
         "identifier",
@@ -29,7 +26,10 @@ pub fn identifier(i: Input<'_>) -> Res<Input<'_>, Ident<'_>> {
         })),
     );
 
-    map(not_keyword_ident, |(span, val)| Ident { span, value: *val })(i)
+    map(spaced(not_keyword_ident), |(span, val)| Ident {
+        span,
+        value: *val,
+    })(i)
 }
 
 #[cfg(test)]

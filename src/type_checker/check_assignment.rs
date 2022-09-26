@@ -5,7 +5,7 @@ use crate::{
             assignment::Assignment,
             expression::Expr,
             identifier::Ident,
-            type_signature::{Mutability, TypeSignature},
+            type_signature::{Mutability, TypeEvalError},
             NodeRef,
         },
     },
@@ -21,10 +21,6 @@ use super::TypeCheckerError;
 pub enum AssignmentError<'a> {
     ImmutableAssignment(Ident<'a>),
     NotLValue(NodeRef<'a, Expr<'a>>),
-    TypesMismatch {
-        lhs: TypeSignature<'a>,
-        rhs: TypeSignature<'a>,
-    },
 }
 
 fn check_assignment_expr<'a>(
@@ -39,7 +35,7 @@ fn check_assignment_expr<'a>(
                 symbols
                     .lookup(ctx, *ident)
                     .ok_or(TypeCheckerError::SymbolResolutionError(
-                        SymbolResolutionError::UnknownIdentifier(*ident),
+                        SymbolResolutionError::TypeEval(TypeEvalError::UnknownIdent(*ident)),
                     ))?;
 
             match &ctx[sym] {

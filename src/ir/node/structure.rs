@@ -1,5 +1,7 @@
 use crate::{
+    error_message::error_formatter::Spanned,
     ir::{context::IrCtx, late_init::LateInit},
+    parser::Span,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
@@ -32,6 +34,7 @@ pub struct StructInit<'a> {
     pub struct_name: LateInit<Ident<'a>>,
     pub scope_name: LateInit<Ident<'a>>,
     pub values: Vec<NodeRef<'a, StructInitValue<'a>>>,
+    pub span: Span<'a>,
 }
 
 #[derive(Debug)]
@@ -76,6 +79,24 @@ impl<'a> Identifiable<'a> for StructAttr<'a> {
 impl<'a> Identifiable<'a> for StructInit<'a> {
     fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
         *self.scope_name
+    }
+}
+
+impl<'a> Spanned<'a> for NodeRef<'a, Struct<'a>> {
+    fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+        ctx[*self].name.get_span(ctx)
+    }
+}
+
+impl<'a> Spanned<'a> for NodeRef<'a, StructAttr<'a>> {
+    fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+        ctx[*self].name.get_span(ctx)
+    }
+}
+
+impl<'a> Spanned<'a> for NodeRef<'a, StructInit<'a>> {
+    fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+        Some(ctx[*self].span.clone())
     }
 }
 

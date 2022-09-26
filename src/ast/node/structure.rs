@@ -25,6 +25,7 @@ pub struct StructAttr<'a> {
 pub struct StructInit<'a> {
     pub struct_name: Ident<'a>,
     pub values: Vec<StructInitValue<'a>>,
+    pub span: Span<'a>,
 }
 
 #[derive(Debug, Clone)]

@@ -8,7 +8,9 @@ use nom::{
 
 use crate::ast::node::escape_block::EscapeBlock;
 
-use super::{spaced, surround_brackets, type_signature::type_signature, BracketType, Input, Res};
+use super::{
+    spaced, span, surround_brackets, type_signature::type_signature, BracketType, Input, Res,
+};
 
 pub fn escape_block(i: Input<'_>) -> Res<Input<'_>, EscapeBlock<'_>> {
     // "@" [TYPE_SIG] "{" CONTENT "}"
@@ -16,13 +18,14 @@ pub fn escape_block(i: Input<'_>) -> Res<Input<'_>, EscapeBlock<'_>> {
     context(
         "escape block",
         map(
-            pair(
+            span(pair(
                 preceded(spaced(tag("@")), opt(type_signature)),
                 surround_brackets(BracketType::Curly, escape_block_content),
-            ),
-            |(type_sig, content)| EscapeBlock {
+            )),
+            |(span, (type_sig, content))| EscapeBlock {
                 content: content.trim(),
                 type_sig,
+                span,
             },
         ),
     )(i)
@@ -61,7 +64,8 @@ mod tests {
             .1,
             EscapeBlock {
                 content: "const f = ({ a }) => { console.log({a}) }; f()",
-                type_sig: None
+                type_sig: None,
+                span: _
             }
         )
     }

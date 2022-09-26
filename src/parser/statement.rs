@@ -17,8 +17,14 @@ use crate::{
 };
 
 use super::{
-    enumeration::enumeration, function::function_decl, identifier::identifier, spaced, span,
-    structure::structure, type_signature::type_signature, Input, Res,
+    comment::{comment},
+    enumeration::enumeration,
+    function::function_decl,
+    identifier::identifier,
+    spaced, span,
+    structure::structure,
+    type_signature::type_signature,
+    Input, Res,
 };
 
 pub fn statement<'a>(i: Input<'a>) -> Res<Input<'a>, Stmt<'a>> {
@@ -51,6 +57,7 @@ pub fn single_statement(i: Input<'_>) -> Res<Input<'_>, Stmt<'_>> {
         "statement",
         map(
             span(alt((
+                map(comment, StmtValue::Comment),
                 map(variable_decl, StmtValue::VariableDecl),
                 map(function_decl, StmtValue::FunctionDecl),
                 map(structure, StmtValue::StructDecl),

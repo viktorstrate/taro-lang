@@ -6,7 +6,7 @@ use crate::{
             enumeration::EnumInit,
             expression::Expr,
             identifier::{Ident, IdentParent, Identifiable},
-            type_signature::{TypeSignature, TypeSignatureValue},
+            type_signature::{TypeEvalError, TypeSignature, TypeSignatureValue},
             IrAlloc, NodeRef,
         },
     },
@@ -99,7 +99,7 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
             .symbols
             .lookup(ctx, enm_name)
             .ok_or(TypeCheckerError::SymbolResolutionError(
-                SymbolResolutionError::UnknownIdentifier(enm_name),
+                SymbolResolutionError::TypeEval(TypeEvalError::UnknownIdent(enm_name)),
             ))?
             .unwrap_enum(ctx);
         let (_, enm_val) = enm.lookup_value(ctx, ctx[enm_init].enum_value).ok_or(
@@ -115,7 +115,7 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
                 .symbols
                 .lookup(ctx, enm_name)
                 .ok_or(TypeCheckerError::SymbolResolutionError(
-                    SymbolResolutionError::UnknownIdentifier(enm_name),
+                    SymbolResolutionError::TypeEval(TypeEvalError::UnknownIdent(enm_name)),
                 ))?;
 
         ctx[enm_init].enum_name = Ident {

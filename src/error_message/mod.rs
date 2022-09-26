@@ -6,13 +6,12 @@ use crate::{
 };
 use std::io::Write;
 
-
-
 pub mod error_formatter;
 pub mod error_msg_utils;
 pub mod sym_collect_errors;
 pub mod sym_resolution_errors;
 pub mod type_check_errors;
+pub mod type_eval_errors;
 
 pub struct ErrMsg<'a, 'ret, W: Write> {
     pub span: Option<Span<'a>>,
@@ -47,7 +46,7 @@ where
 
 impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (), W> for ParserError<'a> {
     fn err_msg(&self, _ctx: ()) -> ErrMsg<'a, 'ret, W> {
-        todo!()
+        panic!("PARSER ERROR: {}", self.to_string());
     }
 }
 

@@ -92,6 +92,7 @@ impl<'a> IrCtx<'a> {
                         let func_arg = FunctionArg {
                             name: LateInit::empty(),
                             type_sig: LateInit::empty(),
+                            span: arg.span,
                         }
                         .allocate(ctx);
 
@@ -237,6 +238,7 @@ impl<'a> IrCtx<'a> {
                 crate::ast::node::statement::StmtValue::Return(expr) => {
                     acc.push(Stmt::Return(ctx.lower_expr(expr)).allocate(ctx));
                 }
+                crate::ast::node::statement::StmtValue::Comment(_) => {}
             };
         }
 
@@ -268,6 +270,7 @@ impl<'a> IrCtx<'a> {
                         let func_arg = FunctionArg {
                             name: LateInit::empty(),
                             type_sig: LateInit::empty(),
+                            span: arg.span,
                         }
                         .allocate(self);
 
@@ -348,6 +351,7 @@ impl<'a> IrCtx<'a> {
                     struct_name: LateInit::empty(),
                     scope_name: LateInit::empty(),
                     values: Vec::new(),
+                    span: st_init.span,
                 }
                 .allocate(self);
 
@@ -400,6 +404,7 @@ impl<'a> IrCtx<'a> {
                 let esc_blk = EscapeBlock {
                     content: esc.content,
                     type_sig: LateInit::empty(),
+                    span: esc.span,
                 }
                 .allocate(self);
 

@@ -1,6 +1,7 @@
 use crate::parser::Span;
 
 use super::{
+    comment::Comment,
     enumeration::Enum,
     expression::Expr,
     function::Function,
@@ -24,6 +25,7 @@ pub enum StmtValue<'a> {
     Compound(Vec<Stmt<'a>>),
     Expression(Expr<'a>),
     Return(Expr<'a>),
+    Comment(Comment<'a>),
 }
 
 #[derive(Debug, Clone)]

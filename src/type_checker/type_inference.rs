@@ -205,14 +205,16 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
             Expr::Tuple(_) => {}
             Expr::EnumInit(enm_init) => {
                 let enm = enm_init.lookup_enum(ctx, &mut self.0.symbols).ok_or(
-                    TypeCheckerError::SymbolResolutionError(
-                        SymbolResolutionError::UnknownIdentifier(ctx[enm_init].enum_name),
-                    ),
+                    TypeCheckerError::SymbolResolutionError(SymbolResolutionError::TypeEval(
+                        TypeEvalError::UnknownIdent(ctx[enm_init].enum_name),
+                    )),
                 )?;
                 let enm_val = enm
                     .lookup_value(ctx, ctx[enm_init].enum_value)
                     .ok_or(TypeCheckerError::SymbolResolutionError(
-                        SymbolResolutionError::UnknownIdentifier(ctx[enm_init].enum_name),
+                        SymbolResolutionError::TypeEval(TypeEvalError::UnknownIdent(
+                            ctx[enm_init].enum_name,
+                        )),
                     ))?
                     .1;
 
@@ -266,6 +268,7 @@ impl<'a> TypeInferrer<'a, '_> {
                         self.add_constraint(type_a, type_b);
                     } else {
                         // No more constraints can be resolved
+                        self.add_constraint(type_a, type_b);
                         self.0.found_undeterminable_types = true;
                         return Ok(());
                     }

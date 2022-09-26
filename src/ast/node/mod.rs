@@ -1,4 +1,5 @@
 pub mod assignment;
+pub mod comment;
 pub mod enumeration;
 pub mod escape_block;
 pub mod expression;

@@ -12,22 +12,7 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W>
 {
     fn err_msg(&'ret self, ctx: &'ret IrCtx<'a>) -> ErrMsg<'a, 'ret, W> {
         match self {
-            SymbolResolutionError::UnknownIdentifier(id) => ErrMsg {
-                span: id.get_span(ctx),
-                title: Box::new(|w| write!(w, "unknown identifier '{}'", id.value(ctx).unwrap())),
-                msg: Box::new(|w| {
-                    format_span_items(
-                        w,
-                        &mut [SpanItem {
-                            span: id.get_span(ctx).unwrap(),
-                            msg: Some("identifier unknown".to_owned()),
-                            err_type: ErrMsgType::Err,
-                        }],
-                        &[],
-                    )
-                }),
-            },
-            SymbolResolutionError::TypeEval(_) => todo!(),
+            SymbolResolutionError::TypeEval(err) => err.err_msg(ctx),
             SymbolResolutionError::UnknownEnumValue { enm, enum_value } => ErrMsg {
                 span: enum_value.get_span(ctx),
                 title: Box::new(|w| {

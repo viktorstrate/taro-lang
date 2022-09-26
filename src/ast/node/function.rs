@@ -15,6 +15,7 @@ pub struct Function<'a> {
 pub struct FunctionArg<'a> {
     pub name: Ident<'a>,
     pub type_sig: Option<TypeSignature<'a>>,
+    pub span: Span<'a>,
 }
 
 #[derive(Debug, Clone)]

@@ -10,6 +10,7 @@ use crate::{
             enumeration::{EnumInit, EnumValue},
             function::FunctionCall,
             member_access::UnresolvedMemberAccess,
+            structure::Struct,
             type_signature::{TypeEvalError, TypeSignature},
             NodeRef,
         },
@@ -39,17 +40,12 @@ pub mod types_walker;
 #[derive(Debug)]
 pub enum TypeCheckerError<'a> {
     SymbolResolutionError(SymbolResolutionError<'a>),
+    TypeEval(TypeEvalError<'a>),
     ConflictingTypes(TypeSignature<'a>, TypeSignature<'a>),
     UndeterminableTypes,
-    TypeEval(TypeEvalError<'a>),
-    // LookupError(Ident<'a>),
     AssignmentError(NodeRef<'a, Assignment<'a>>, AssignmentError<'a>),
-    StructError(StructTypeError<'a>),
+    StructError(NodeRef<'a, Struct<'a>>, StructTypeError<'a>),
     FunctionError(FunctionError<'a>),
-    // UnknownEnumValue {
-    //     enum_name: Ident<'a>,
-    //     enum_value: Ident<'a>,
-    // },
     EnumInitArgCountMismatch(NodeRef<'a, EnumInit<'a>>, NodeRef<'a, EnumValue<'a>>),
     AnonymousEnumInitNonEnum(NodeRef<'a, UnresolvedMemberAccess<'a>>, TypeSignature<'a>),
 }

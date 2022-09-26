@@ -1,4 +1,5 @@
 use crate::{
+    error_message::error_formatter::Spanned,
     ir::context::IrCtx,
     ir::{late_init::LateInit, node::type_signature::TypeSignatureValue},
     parser::Span,
@@ -57,6 +58,7 @@ impl<'a> NodeRef<'a, Function<'a>> {
 pub struct FunctionArg<'a> {
     pub name: LateInit<Ident<'a>>,
     pub type_sig: LateInit<TypeSignature<'a>>,
+    pub span: Span<'a>,
 }
 
 #[derive(Debug)]
@@ -74,6 +76,12 @@ impl<'a> Identifiable<'a> for Function<'a> {
 impl<'a> Identifiable<'a> for FunctionArg<'a> {
     fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
         *self.name
+    }
+}
+
+impl<'a> Spanned<'a> for NodeRef<'a, FunctionArg<'a>> {
+    fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+        Some(ctx[*self].span.clone())
     }
 }
 
