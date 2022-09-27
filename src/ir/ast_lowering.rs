@@ -464,6 +464,7 @@ impl<'a> IrCtx<'a> {
                     member_name: LateInit::empty(),
                     items,
                     type_sig: LateInit::empty(),
+                    span: mem_acc.span,
                 }
                 .allocate(self);
 

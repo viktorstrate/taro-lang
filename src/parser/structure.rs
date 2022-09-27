@@ -169,6 +169,7 @@ mod tests {
                     object,
                     member_name,
                     items,
+                    span: _,
                 } => {
                     assert_matches!(
                         object,

@@ -1,5 +1,7 @@
 use crate::{
+    error_message::error_formatter::Spanned,
     ir::{context::IrCtx, late_init::LateInit},
+    parser::Span,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
@@ -46,6 +48,8 @@ pub struct EnumInit<'a> {
     pub enum_name: Ident<'a>,
     pub enum_value: Ident<'a>,
     pub items: Vec<NodeRef<'a, Expr<'a>>>,
+    pub items_span: Option<Span<'a>>,
+    pub span: Span<'a>,
 }
 
 impl<'a> NodeRef<'a, EnumInit<'a>> {
@@ -57,6 +61,12 @@ impl<'a> NodeRef<'a, EnumInit<'a>> {
         symbols
             .lookup(ctx, ctx[*self].enum_name)
             .map(|sym| sym.unwrap_enum(ctx))
+    }
+}
+
+impl<'a> Spanned<'a> for NodeRef<'a, EnumInit<'a>> {
+    fn get_span(&self, ctx: &IrCtx<'a>) -> Option<crate::parser::Span<'a>> {
+        Some(ctx[*self].span.clone())
     }
 }
 

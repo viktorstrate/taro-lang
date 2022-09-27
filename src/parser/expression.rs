@@ -50,7 +50,11 @@ enum ExprTailChain<'a> {
         args: Vec<Expr<'a>>,
         args_span: Span<'a>,
     },
-    MemberAccess(Ident<'a>, Option<(Span<'a>, Vec<Expr<'a>>)>),
+    MemberAccess {
+        member_name: Ident<'a>,
+        items: Option<(Span<'a>, Vec<Expr<'a>>)>,
+        span: Span<'a>,
+    },
     TupleAccess(usize),
 }
 
@@ -95,13 +99,16 @@ fn expr_tail_chain<'a>(
                         args_span,
                     }))
                 }
-                ExprTailChain::MemberAccess(member_name, items) => {
-                    ExprValue::MemberAccess(Box::new(MemberAccess {
-                        object: Some(acc),
-                        member_name,
-                        items,
-                    }))
-                }
+                ExprTailChain::MemberAccess {
+                    member_name,
+                    items,
+                    span,
+                } => ExprValue::MemberAccess(Box::new(MemberAccess {
+                    object: Some(acc),
+                    member_name,
+                    items,
+                    span,
+                })),
                 ExprTailChain::TupleAccess(attr) => ExprValue::TupleAccess(TupleAccess {
                     tuple_expr: Box::new(acc),
                     attr,
@@ -132,8 +139,15 @@ fn tail_func_call(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
 
 fn tail_member_access(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
     map(
-        pair(preceded(spaced(tag(".")), identifier), opt(span(expr_args))),
-        |(member_name, items)| ExprTailChain::MemberAccess(member_name, items),
+        span(pair(
+            preceded(spaced(tag(".")), identifier),
+            opt(span(expr_args)),
+        )),
+        |(span, (member_name, items))| ExprTailChain::MemberAccess {
+            member_name,
+            items,
+            span,
+        },
     )(i)
 }
 
@@ -184,12 +198,16 @@ pub fn expr_anon_member_access(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
     // "." IDENT [ "(" EXPR+ ")" ]
 
     map(
-        pair(preceded(spaced(tag(".")), identifier), opt(span(expr_args))),
-        |(member_name, items)| {
+        span(pair(
+            preceded(spaced(tag(".")), identifier),
+            opt(span(expr_args)),
+        )),
+        |(span, (member_name, items))| {
             ExprValue::MemberAccess(Box::new(MemberAccess {
                 object: None,
                 member_name,
                 items,
+                span,
             }))
         },
     )(i)
@@ -284,6 +302,7 @@ mod tests {
                     object: _,
                     member_name,
                     items,
+                    span: _,
                 } => {
                     assert_eq!(items.unwrap().1.len(), 1);
                     assert_eq!(member_name, test_ident("next"));

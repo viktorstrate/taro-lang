@@ -70,12 +70,21 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
             .into();
 
         let enm_init = match &ctx[&*ctx[mem_acc].type_sig] {
-            TypeSignatureValue::Enum { name } => EnumInit {
-                enum_name: *name,
-                enum_value: *ctx[mem_acc].member_name,
-                items: ctx[mem_acc].items.clone().map(|i| i.0).unwrap_or_default(),
+            TypeSignatureValue::Enum { name } => {
+                let items = match ctx[mem_acc].items.clone() {
+                    Some((items, span)) => (Some(items), Some(span)),
+                    None => (None, None),
+                };
+
+                EnumInit {
+                    enum_name: *name,
+                    enum_value: *ctx[mem_acc].member_name,
+                    items: items.0.unwrap_or_default(),
+                    items_span: items.1,
+                    span: ctx[mem_acc].span.clone(),
+                }
+                .allocate(ctx)
             }
-            .allocate(ctx),
             TypeSignatureValue::TypeVariable(_) => {
                 self.0.found_undeterminable_types = true;
                 return Ok(());

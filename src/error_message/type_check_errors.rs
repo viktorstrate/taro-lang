@@ -290,7 +290,51 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (&'ret TypeChecker<'a>, &'
                     }
                 }
             },
-            TypeCheckerError::EnumInitArgCountMismatch(_, _) => todo!(),
+            TypeCheckerError::EnumInitArgCountMismatch(enm_init, enm_val) => {
+                let init_arg_count = ctx[*enm_init].items.len();
+                let enm_arg_count = ctx[*enm_val].items.len();
+
+                let init_span = ctx[*enm_init]
+                    .items_span
+                    .clone()
+                    .unwrap_or_else(|| ctx[*enm_init].span.clone());
+
+                ErrMsg {
+                    span: Some(init_span.clone()),
+                    title: Box::new(move |w| {
+                        write!(
+                            w,
+                            "expected {} {} when initializing enum, got {}",
+                            enm_arg_count,
+                            if enm_arg_count == 1 {
+                                "argument"
+                            } else {
+                                "arguments"
+                            },
+                            init_arg_count
+                        )
+                    }),
+                    msg: Box::new(move |w| {
+                        format_span_items(
+                            w,
+                            &mut [SpanItem {
+                                span: init_span.clone(),
+                                msg: Some(format!(
+                                    "expected {} {} here",
+                                    enm_arg_count,
+                                    if enm_arg_count == 1 {
+                                        "argument"
+                                    } else {
+                                        "arguments"
+                                    }
+                                )),
+                                err_type: ErrMsgType::Err,
+                            }],
+                            &[],
+                        )
+                    }),
+                }
+            }
             TypeCheckerError::AnonymousEnumInitNonEnum(_, _) => todo!(),
             TypeCheckerError::SymbolResolutionError(sym_res_err) => sym_res_err.err_msg(ctx),
         }

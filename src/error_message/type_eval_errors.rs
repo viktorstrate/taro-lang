@@ -10,7 +10,11 @@ use super::{
 impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W> for TypeEvalError<'a> {
     fn err_msg(&'ret self, ctx: &'ret IrCtx<'a>) -> ErrMsg<'a, 'ret, W> {
         match self {
-            TypeEvalError::CallNonFunction(_) => todo!(),
+            TypeEvalError::CallNonFunction(type_sig) => ErrMsg {
+                span: type_sig.get_span(ctx),
+                title: Box::new(|w| write!(w, "call non-function")),
+                msg: Box::new(|w| format_span_items(w, &mut [], &[])),
+            },
             TypeEvalError::FuncWrongNumberOfArgs {
                 func: _,
                 expected: _,

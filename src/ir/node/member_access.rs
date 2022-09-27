@@ -17,6 +17,7 @@ pub struct UnresolvedMemberAccess<'a> {
     pub member_name: LateInit<Ident<'a>>,
     pub items: Option<(Vec<NodeRef<'a, Expr<'a>>>, Span<'a>)>,
     pub type_sig: LateInit<TypeSignature<'a>>,
+    pub span: Span<'a>,
 }
 
 impl<'a> Typed<'a> for NodeRef<'a, UnresolvedMemberAccess<'a>> {

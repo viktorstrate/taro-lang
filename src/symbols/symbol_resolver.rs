@@ -160,10 +160,17 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                         }
                     }
                     TypeSignatureValue::Enum { name } => {
+                        let items = match ctx[mem_acc].items.clone() {
+                            Some((items, span)) => (Some(items), Some(span)),
+                            None => (None, None),
+                        };
+
                         let enm_init = EnumInit {
                             enum_name: *name,
                             enum_value: *ctx[mem_acc].member_name,
-                            items: ctx[mem_acc].items.clone().map(|i| i.0).unwrap_or_default(),
+                            items: items.0.unwrap_or_default(),
+                            items_span: items.1,
+                            span: ctx[mem_acc].span.clone(),
                         }
                         .allocate(ctx);
 
