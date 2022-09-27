@@ -141,11 +141,14 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
                     }
                 };
 
-                let func_params = ctx[call].params.clone();
+                let func_params = ctx[call].args.clone();
 
                 if args.len() != func_params.len() {
                     return Err(TypeCheckerError::FunctionError(
-                        FunctionError::FuncCallWrongArgAmount(call),
+                        FunctionError::FuncCallWrongArgAmount {
+                            call,
+                            func_type: func_type_sig,
+                        },
                     ));
                 }
 
@@ -511,7 +514,10 @@ mod tests {
         assert_matches!(
             type_check(&mut ir),
             Err(TypeCheckerError::FunctionError(
-                FunctionError::FuncCallWrongArgAmount(_)
+                FunctionError::FuncCallWrongArgAmount {
+                    call: _,
+                    func_type: _
+                }
             ))
         );
     }

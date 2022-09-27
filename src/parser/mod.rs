@@ -1,11 +1,10 @@
 use std::cmp::Ordering;
 
 use nom::{
-    bytes::complete::tag,
+    bytes::complete::{tag},
     character::complete::{digit1, multispace0, multispace1},
     error::VerboseError,
-    sequence::{delimited, preceded},
-    AsChar, IResult, InputTakeAtPosition,
+    sequence::{delimited, preceded}, IResult,
 };
 use nom_locate::{position, LocatedSpan};
 
@@ -48,13 +47,13 @@ pub fn new_input(input: &str) -> Input<'_> {
     Input::new_extra(input, ParserContext { source: input })
 }
 
-pub fn spaced<F, I, O>(mut parser: F) -> impl FnMut(I) -> Res<I, O>
+pub fn spaced<'a, F, O>(mut parser: F) -> impl FnMut(Input<'a>) -> Res<Input<'a>, O>
 where
-    F: FnMut(I) -> Res<I, O>,
-    I: InputTakeAtPosition,
-    <I as InputTakeAtPosition>::Item: AsChar + Clone,
+    F: FnMut(Input<'a>) -> Res<Input<'a>, O>,
+    // I: InputTakeAtPosition,
+    // <I as InputTakeAtPosition>::Item: AsChar + Clone,
 {
-    return move |i: I| {
+    return move |i: Input<'a>| {
         let (i, _) = multispace0(i)?;
         let (i, res) = parser(i)?;
         let (i, _) = multispace0(i)?;

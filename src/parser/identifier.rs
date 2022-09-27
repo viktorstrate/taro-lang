@@ -1,14 +1,14 @@
 use nom::{
-    character::complete::satisfy,
+    character::complete::{multispace0, satisfy},
     combinator::{map, recognize, verify},
     error::context,
     multi::many0,
-    sequence::pair,
+    sequence::{pair, preceded},
 };
 
 use crate::ast::node::identifier::Ident;
 
-use super::{spaced, span, Input, Res};
+use super::{span, Input, Res};
 
 const RESERVED_KEYWORDS: &'static [&str] =
     &["struct", "func", "return", "let", "var", "true", "false"];
@@ -26,9 +26,8 @@ pub fn identifier(i: Input<'_>) -> Res<Input<'_>, Ident<'_>> {
         })),
     );
 
-    map(spaced(not_keyword_ident), |(span, val)| Ident {
-        span,
-        value: *val,
+    map(preceded(multispace0, not_keyword_ident), |(span, val)| {
+        Ident { span, value: *val }
     })(i)
 }
 

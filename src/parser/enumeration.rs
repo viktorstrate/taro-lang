@@ -84,4 +84,30 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn test_enum_no_args() {
+        let enm = enumeration(new_input("enum Test {\nfirst\nsecond\nlast }"))
+            .unwrap()
+            .1;
+
+        assert_eq!(enm.name, test_ident("Test"));
+        assert_eq!(
+            enm.values,
+            vec![
+                EnumValue {
+                    name: test_ident("first"),
+                    items: vec![]
+                },
+                EnumValue {
+                    name: test_ident("second"),
+                    items: vec![]
+                },
+                EnumValue {
+                    name: test_ident("last"),
+                    items: vec![]
+                }
+            ]
+        );
+    }
 }

@@ -53,7 +53,10 @@ pub enum TypeCheckerError<'a> {
 #[derive(Debug)]
 pub enum FunctionError<'a> {
     ArgCountMismatch(TypeSignature<'a>, TypeSignature<'a>),
-    FuncCallWrongArgAmount(NodeRef<'a, FunctionCall<'a>>),
+    FuncCallWrongArgAmount {
+        call: NodeRef<'a, FunctionCall<'a>>,
+        func_type: TypeSignature<'a>,
+    },
 }
 
 #[derive(Debug)]

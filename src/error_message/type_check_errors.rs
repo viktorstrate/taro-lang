@@ -1,7 +1,10 @@
 use std::io::Write;
 
 use crate::{
-    ir::{context::IrCtx, node::type_signature::TypeSignature},
+    ir::{
+        context::IrCtx,
+        node::type_signature::{TypeSignature, TypeSignatureValue},
+    },
     type_checker::{
         check_assignment::AssignmentError, check_struct::StructTypeError, FunctionError,
         TypeChecker, TypeCheckerError,
@@ -160,11 +163,11 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (&'ret TypeChecker<'a>, &'
                     }),
                 },
             },
-            TypeCheckerError::StructError(st, st_err) => match st_err {
-                StructTypeError::MissingAttribute(st_init, id) => {
-                    let st_name = *ctx[*st].name;
+            TypeCheckerError::StructError(st, st_err) => {
+                let st_name = *ctx[*st].name;
 
-                    ErrMsg {
+                match st_err {
+                    StructTypeError::MissingAttribute(st_init, id) => ErrMsg {
                         span: id.get_span(ctx),
                         title: Box::new(move |w| {
                             write!(
@@ -198,13 +201,94 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (&'ret TypeChecker<'a>, &'
                                 }],
                             )
                         }),
+                    },
+                    StructTypeError::UnknownAttribute(id) => ErrMsg {
+                        span: id.get_span(ctx),
+                        title: Box::new(move |w| {
+                            write!(
+                                w,
+                                "unknown attribute `{}` for struct `{}`",
+                                id.value(ctx).unwrap(),
+                                st_name.value(ctx).unwrap()
+                            )
+                        }),
+                        msg: Box::new(|w| {
+                            format_span_items(
+                                w,
+                                &mut [SpanItem {
+                                    span: id.get_span(ctx).unwrap(),
+                                    msg: Some("struct attribute unknown".to_owned()),
+                                    err_type: ErrMsgType::Err,
+                                }],
+                                &[],
+                            )
+                        }),
+                    },
+                }
+            }
+            TypeCheckerError::FunctionError(func_err) => match func_err {
+                FunctionError::ArgCountMismatch(a, b) => ErrMsg {
+                    span: a.get_span(ctx),
+                    title: Box::new(|w| write!(w, "function types have different arguments")),
+                    msg: Box::new(move |w| {
+                        let mut spans = Vec::new();
+
+                        for t in [a, b] {
+                            let args = match &ctx[t] {
+                                TypeSignatureValue::Function {
+                                    args,
+                                    return_type: _,
+                                } => args.len(),
+                                _ => unreachable!(),
+                            };
+
+                            spans.push(SpanItem {
+                                span: t.get_span(ctx).unwrap(),
+                                msg: Some(format!(
+                                    "expects {} {}",
+                                    args,
+                                    if args == 1 { "argument" } else { "arguments" }
+                                )),
+                                err_type: ErrMsgType::Err,
+                            });
+                        }
+
+                        format_span_items(w, &mut spans, &[])
+                    }),
+                },
+                FunctionError::FuncCallWrongArgAmount { call, func_type } => {
+                    let args_span = ctx[*call].args_span.clone();
+
+                    let expected = match &ctx[func_type] {
+                        TypeSignatureValue::Function {
+                            args,
+                            return_type: _,
+                        } => args.len(),
+                        _ => unreachable!(),
+                    };
+                    let actual = ctx[*call].args.len();
+
+                    ErrMsg {
+                        span: Some(args_span.clone()),
+                        title: Box::new(|w| {
+                            write!(w, "function call has wrong number of arguments")
+                        }),
+                        msg: Box::new(move |w| {
+                            format_span_items(
+                                w,
+                                &mut [SpanItem {
+                                    span: args_span.clone(),
+                                    msg: Some(format!(
+                                        "expected {} arguments, found {}",
+                                        expected, actual
+                                    )),
+                                    err_type: ErrMsgType::Err,
+                                }],
+                                &[],
+                            )
+                        }),
                     }
                 }
-                StructTypeError::UnknownAttribute(_) => todo!(),
-            },
-            TypeCheckerError::FunctionError(func_err) => match func_err {
-                FunctionError::ArgCountMismatch(_, _) => todo!(),
-                FunctionError::FuncCallWrongArgAmount(_) => todo!(),
             },
             TypeCheckerError::EnumInitArgCountMismatch(_, _) => todo!(),
             TypeCheckerError::AnonymousEnumInitNonEnum(_, _) => todo!(),

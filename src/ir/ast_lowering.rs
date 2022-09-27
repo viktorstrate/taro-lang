@@ -324,11 +324,12 @@ impl<'a> IrCtx<'a> {
             crate::ast::node::expression::ExprValue::FunctionCall(func_call) => Expr::FunctionCall(
                 FunctionCall {
                     func: self.lower_expr(func_call.func),
-                    params: func_call
-                        .params
+                    args: func_call
+                        .args
                         .into_iter()
                         .map(|param| self.lower_expr(param))
                         .collect(),
+                    args_span: func_call.args_span,
                 }
                 .allocate(self),
             )
@@ -448,11 +449,14 @@ impl<'a> IrCtx<'a> {
             .allocate(self),
             crate::ast::node::expression::ExprValue::MemberAccess(mem_acc) => {
                 let object = mem_acc.object.map(|obj| self.lower_expr(obj));
-                let items = mem_acc.items.map(|items| {
-                    items
-                        .into_iter()
-                        .map(|item| self.lower_expr(item))
-                        .collect()
+                let items = mem_acc.items.map(|(span, items)| {
+                    (
+                        items
+                            .into_iter()
+                            .map(|item| self.lower_expr(item))
+                            .collect(),
+                        span,
+                    )
                 });
 
                 let mem_acc_ref = UnresolvedMemberAccess {

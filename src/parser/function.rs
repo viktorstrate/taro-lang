@@ -205,7 +205,7 @@ mod tests {
                     }
                 );
 
-                assert_eq!(func_call.params.len(), 2);
+                assert_eq!(func_call.args.len(), 2);
             }
             _ => assert!(false),
         }
@@ -228,8 +228,8 @@ mod tests {
                         value: ExprValue::FunctionCall(func_call_inner),
                     } => {
                         assert_eq!(span.fragment, "f(10)");
-                        assert_eq!(func_call_outer.params.len(), 1);
-                        assert_eq!(func_call_inner.params.len(), 1);
+                        assert_eq!(func_call_outer.args.len(), 1);
+                        assert_eq!(func_call_inner.args.len(), 1);
                     }
                     _ => assert!(false),
                 }

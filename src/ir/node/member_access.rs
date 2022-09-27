@@ -1,5 +1,6 @@
 use crate::{
     ir::{context::IrCtx, late_init::LateInit},
+    parser::Span,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
@@ -14,7 +15,7 @@ use super::{
 pub struct UnresolvedMemberAccess<'a> {
     pub object: Option<NodeRef<'a, Expr<'a>>>,
     pub member_name: LateInit<Ident<'a>>,
-    pub items: Option<Vec<NodeRef<'a, Expr<'a>>>>,
+    pub items: Option<(Vec<NodeRef<'a, Expr<'a>>>, Span<'a>)>,
     pub type_sig: LateInit<TypeSignature<'a>>,
 }
 

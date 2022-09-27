@@ -46,8 +46,11 @@ pub fn expression(i: Input<'_>) -> Res<Input<'_>, Expr<'_>> {
 }
 
 enum ExprTailChain<'a> {
-    FuncCall(Vec<Expr<'a>>),
-    MemberAccess(Ident<'a>, Option<Vec<Expr<'a>>>),
+    FuncCall {
+        args: Vec<Expr<'a>>,
+        args_span: Span<'a>,
+    },
+    MemberAccess(Ident<'a>, Option<(Span<'a>, Vec<Expr<'a>>)>),
     TupleAccess(usize),
 }
 
@@ -85,10 +88,11 @@ fn expr_tail_chain<'a>(
         || base.clone(),
         |acc, (expr_tail, end)| {
             let expr_val = match expr_tail {
-                ExprTailChain::FuncCall(func_args) => {
+                ExprTailChain::FuncCall { args, args_span } => {
                     ExprValue::FunctionCall(Box::new(FunctionCall {
                         func: acc,
-                        params: func_args,
+                        args,
+                        args_span,
                     }))
                 }
                 ExprTailChain::MemberAccess(member_name, items) => {
@@ -121,12 +125,14 @@ pub fn expr_args(i: Input<'_>) -> Res<Input<'_>, Vec<Expr<'_>>> {
 }
 
 fn tail_func_call(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
-    map(expr_args, ExprTailChain::FuncCall)(i)
+    map(span(expr_args), |(args_span, args)| {
+        ExprTailChain::FuncCall { args, args_span }
+    })(i)
 }
 
 fn tail_member_access(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
     map(
-        pair(preceded(spaced(tag(".")), identifier), opt(expr_args)),
+        pair(preceded(spaced(tag(".")), identifier), opt(span(expr_args))),
         |(member_name, items)| ExprTailChain::MemberAccess(member_name, items),
     )(i)
 }
@@ -178,7 +184,7 @@ pub fn expr_anon_member_access(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
     // "." IDENT [ "(" EXPR+ ")" ]
 
     map(
-        pair(preceded(spaced(tag(".")), identifier), opt(expr_args)),
+        pair(preceded(spaced(tag(".")), identifier), opt(span(expr_args))),
         |(member_name, items)| {
             ExprValue::MemberAccess(Box::new(MemberAccess {
                 object: None,
@@ -279,7 +285,7 @@ mod tests {
                     member_name,
                     items,
                 } => {
-                    assert_eq!(items.unwrap().len(), 1);
+                    assert_eq!(items.unwrap().1.len(), 1);
                     assert_eq!(member_name, test_ident("next"));
                     assert_eq!(span.fragment, "base()().first.next(123)");
                 }
@@ -373,7 +379,7 @@ mod tests {
                 };
 
                 assert_eq!(mem_acc.member_name, test_ident("v4"));
-                assert_matches!(mem_acc.items.unwrap().len(), 4);
+                assert_matches!(mem_acc.items.unwrap().1.len(), 4);
             }
             expr => assert!(false, "Expected EnumInit expression, got {expr:?}"),
         }

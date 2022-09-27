@@ -346,7 +346,7 @@ pub fn walk_expr<'a, W: IrWalker<'a>>(
         Expr::NumberLiteral(_, _) => Ok(()),
         Expr::BoolLiteral(_, _) => Ok(()),
         Expr::FunctionCall(func_call) => {
-            for param in ctx[func_call].params.clone() {
+            for param in ctx[func_call].args.clone() {
                 walk_expr(walker, ctx, scope, param)?;
             }
 
@@ -388,7 +388,7 @@ pub fn walk_expr<'a, W: IrWalker<'a>>(
         }
         Expr::UnresolvedMemberAccess(mem_acc) => {
             if ctx[mem_acc].items.is_some() {
-                for item in ctx[mem_acc].items.clone().unwrap() {
+                for item in ctx[mem_acc].items.clone().unwrap().0 {
                     walk_expr(walker, ctx, scope, item)?;
                 }
             }

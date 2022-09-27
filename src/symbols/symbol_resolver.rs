@@ -144,12 +144,13 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                         ctx[st_acc].attr_name.parent =
                             IdentParent::StructAccessAttrName(st_acc).into();
 
-                        if let Some(params) = ctx[mem_acc].items.clone() {
+                        if let Some((args, args_span)) = ctx[mem_acc].items.clone() {
                             let st_acc_expr = Expr::StructAccess(st_acc).allocate(ctx);
 
                             let func_call = FunctionCall {
                                 func: st_acc_expr,
-                                params,
+                                args,
+                                args_span,
                             }
                             .allocate(ctx);
 
@@ -162,7 +163,7 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                         let enm_init = EnumInit {
                             enum_name: *name,
                             enum_value: *ctx[mem_acc].member_name,
-                            items: ctx[mem_acc].items.clone().unwrap_or_default(),
+                            items: ctx[mem_acc].items.clone().map(|i| i.0).unwrap_or_default(),
                         }
                         .allocate(ctx);
 

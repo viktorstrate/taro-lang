@@ -244,7 +244,7 @@ fn format_expr<'a, 'ctx, W: Write>(
             format_with_separator(
                 gen,
                 ", ",
-                gen.ctx[call].params.clone().into_iter(),
+                gen.ctx[call].args.clone().into_iter(),
                 format_expr,
             )?;
             gen.write(")")

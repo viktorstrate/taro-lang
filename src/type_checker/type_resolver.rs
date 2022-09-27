@@ -73,7 +73,7 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
             TypeSignatureValue::Enum { name } => EnumInit {
                 enum_name: *name,
                 enum_value: *ctx[mem_acc].member_name,
-                items: ctx[mem_acc].items.clone().unwrap_or_default(),
+                items: ctx[mem_acc].items.clone().map(|i| i.0).unwrap_or_default(),
             }
             .allocate(ctx),
             TypeSignatureValue::TypeVariable(_) => {

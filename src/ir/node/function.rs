@@ -64,7 +64,8 @@ pub struct FunctionArg<'a> {
 #[derive(Debug)]
 pub struct FunctionCall<'a> {
     pub func: NodeRef<'a, Expr<'a>>,
-    pub params: Vec<NodeRef<'a, Expr<'a>>>,
+    pub args: Vec<NodeRef<'a, Expr<'a>>>,
+    pub args_span: Span<'a>,
 }
 
 impl<'a> Identifiable<'a> for Function<'a> {

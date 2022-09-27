@@ -21,5 +21,6 @@ pub struct FunctionArg<'a> {
 #[derive(Debug, Clone)]
 pub struct FunctionCall<'a> {
     pub func: Expr<'a>,
-    pub params: Vec<Expr<'a>>,
+    pub args: Vec<Expr<'a>>,
+    pub args_span: Span<'a>,
 }
