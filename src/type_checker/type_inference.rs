@@ -136,6 +136,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
                     } => args.clone(),
                     _ => {
                         return Err(TypeCheckerError::TypeEval(TypeEvalError::CallNonFunction(
+                            call,
                             func_type_sig,
                         )));
                     }
@@ -481,7 +482,7 @@ mod tests {
         let mut ir = lowered_ir("let val = true; val()").unwrap();
 
         match type_check(&mut ir) {
-            Err(TypeCheckerError::TypeEval(TypeEvalError::CallNonFunction(expr_type))) => {
+            Err(TypeCheckerError::TypeEval(TypeEvalError::CallNonFunction(_, expr_type))) => {
                 assert_eq!(expr_type, ir.ctx.get_builtin_type_sig(BuiltinType::Boolean))
             }
             _ => assert!(false),

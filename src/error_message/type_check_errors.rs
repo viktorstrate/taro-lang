@@ -335,7 +335,31 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (&'ret TypeChecker<'a>, &'
                     }),
                 }
             }
-            TypeCheckerError::AnonymousEnumInitNonEnum(_, _) => todo!(),
+            TypeCheckerError::AnonymousEnumInitNonEnum(mem_acc, type_sig) => ErrMsg {
+                span: mem_acc.get_span(ctx),
+                title: Box::new(move |w| write!(w, "anonymous enumeration of non-enumeration")),
+                msg: Box::new(move |w| {
+                    format_span_items(
+                        w,
+                        &mut [
+                            SpanItem {
+                                span: mem_acc.get_span(ctx).unwrap(),
+                                msg: Some(format!("trying to initialize an anonymous enumeration")),
+                                err_type: ErrMsgType::Err,
+                            },
+                            SpanItem {
+                                span: type_sig.get_span(ctx).unwrap(),
+                                msg: Some(format!(
+                                    "expected enumeration type here, found {}",
+                                    type_sig.format(ctx)
+                                )),
+                                err_type: ErrMsgType::Err,
+                            },
+                        ],
+                        &[],
+                    )
+                }),
+            },
             TypeCheckerError::SymbolResolutionError(sym_res_err) => sym_res_err.err_msg(ctx),
         }
     }

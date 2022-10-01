@@ -13,7 +13,7 @@ use super::{
     enumeration::{Enum, EnumInit, EnumValue},
     escape_block::EscapeBlock,
     expression::Expr,
-    function::{Function, FunctionArg},
+    function::{Function, FunctionArg, FunctionCall},
     identifier::{Ident, IdentParent},
     member_access::UnresolvedMemberAccess,
     statement::VarDecl,
@@ -165,7 +165,7 @@ impl<'a> Spanned<'a> for TypeSignature<'a> {
 
 #[derive(Debug)]
 pub enum TypeEvalError<'a> {
-    CallNonFunction(TypeSignature<'a>),
+    CallNonFunction(NodeRef<'a, FunctionCall<'a>>, TypeSignature<'a>),
     FuncWrongNumberOfArgs {
         func: NodeRef<'a, Function<'a>>,
         expected: usize,
@@ -179,7 +179,6 @@ pub enum TypeEvalError<'a> {
         access_item: usize,
     },
     UnknownIdent(Ident<'a>),
-    UndeterminableType(Ident<'a>),
 }
 
 impl<'a> PartialEq for TypeSignatureValue<'a> {
@@ -331,11 +330,8 @@ impl<'a> TypeSignature<'a> {
     pub fn format(&self, ctx: &IrCtx<'a>) -> String {
         match ctx[self].clone() {
             TypeSignatureValue::Builtin(builtin) => builtin.name().to_owned(),
-            TypeSignatureValue::Unresolved(id) => format!("UNRESOLVED [{:?}]", ctx[id]),
-            TypeSignatureValue::TypeVariable(_var) => {
-                //format!("TYPE_VAR [{:?}]", var.index()),
-                "[unknown]".to_owned()
-            }
+            TypeSignatureValue::Unresolved(id) => id.value(ctx).unwrap().to_owned(),
+            TypeSignatureValue::TypeVariable(_var) => "[unknown]".to_owned(),
             TypeSignatureValue::Function { args, return_type } => format!(
                 "({}) -> {}",
                 (*args)
@@ -346,8 +342,8 @@ impl<'a> TypeSignature<'a> {
                     .collect::<String>(),
                 return_type.format(ctx)
             ),
-            TypeSignatureValue::Struct { name } => format!("STRUCT {:?}", ctx[name]),
-            TypeSignatureValue::Enum { name } => format!("ENUM {:?}", ctx[name]),
+            TypeSignatureValue::Struct { name } => format!("[struct {}]", name.value(ctx).unwrap()),
+            TypeSignatureValue::Enum { name } => format!("[enum {}]", name.value(ctx).unwrap()),
             TypeSignatureValue::Tuple(vals) => format!(
                 "({})",
                 (*vals)

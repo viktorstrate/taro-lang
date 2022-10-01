@@ -184,7 +184,7 @@ impl<'a> Typed<'a> for NodeRef<'a, FunctionCall<'a>> {
                 args: _,
                 return_type,
             } => Ok((**return_type).clone()),
-            _wrong_type => Err(TypeEvalError::CallNonFunction(type_sig)),
+            _wrong_type => Err(TypeEvalError::CallNonFunction(*self, type_sig)),
         }
     }
 }

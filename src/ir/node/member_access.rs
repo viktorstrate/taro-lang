@@ -1,4 +1,5 @@
 use crate::{
+    error_message::error_formatter::Spanned,
     ir::{context::IrCtx, late_init::LateInit},
     parser::Span,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
@@ -18,6 +19,12 @@ pub struct UnresolvedMemberAccess<'a> {
     pub items: Option<(Vec<NodeRef<'a, Expr<'a>>>, Span<'a>)>,
     pub type_sig: LateInit<TypeSignature<'a>>,
     pub span: Span<'a>,
+}
+
+impl<'a> Spanned<'a> for NodeRef<'a, UnresolvedMemberAccess<'a>> {
+    fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+        Some(ctx[*self].span.clone())
+    }
 }
 
 impl<'a> Typed<'a> for NodeRef<'a, UnresolvedMemberAccess<'a>> {
