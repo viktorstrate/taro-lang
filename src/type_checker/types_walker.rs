@@ -138,7 +138,7 @@ mod tests {
 
         match res {
             Err(TypeCheckerError::TypeEval(TypeEvalError::UnknownIdent(id))) => {
-                println!("UNKNOWN ID: {:?}", ir.ctx[id])
+                panic!("UNKNOWN ID: {:?}", ir.ctx[id])
             }
             _ => {}
         }

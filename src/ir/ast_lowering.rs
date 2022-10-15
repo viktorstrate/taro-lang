@@ -349,18 +349,32 @@ impl<'a> IrCtx<'a> {
             }
             crate::ast::node::expression::ExprValue::StructInit(st_init) => {
                 let struct_init = StructInit {
-                    struct_name: LateInit::empty(),
+                    type_sig: LateInit::empty(),
                     scope_name: LateInit::empty(),
                     values: Vec::new(),
                     span: st_init.span,
                 }
                 .allocate(self);
 
-                self[struct_init].struct_name = self
-                    .make_unresolved_ident(
-                        st_init.struct_name,
-                        IdentParent::StructInitStructName(struct_init).into(),
-                    )
+                self[struct_init].type_sig = st_init
+                    .struct_name
+                    .map(|struct_name| {
+                        let st_ident = self.make_unresolved_ident(
+                            struct_name.clone(),
+                            IdentParent::StructInitStructName(struct_init).into(),
+                        );
+                        self.get_type_sig(
+                            TypeSignatureValue::Unresolved(st_ident),
+                            TypeSignatureContext {
+                                parent: TypeSignatureParent::StructInit(struct_init),
+                                type_span: Some(struct_name.span.clone()),
+                            }
+                            .alloc(),
+                        )
+                    })
+                    .unwrap_or_else(|| {
+                        self.make_type_var(TypeSignatureParent::StructInit(struct_init))
+                    })
                     .into();
 
                 self[struct_init].scope_name = self

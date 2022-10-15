@@ -12,7 +12,7 @@ pub struct LateInit<T> {
 
 fn expect_init<U>(opt: Option<U>) -> U {
     debug_assert!(opt.is_some(), "dereferenced uninitialized LateInit value");
-    unsafe { opt.unwrap_unchecked() }
+    opt.unwrap()
 }
 
 impl<T> LateInit<T> {

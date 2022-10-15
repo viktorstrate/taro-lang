@@ -6,7 +6,7 @@ use crate::{
         node::{
             expression::Expr,
             function::{Function, FunctionArg},
-            identifier::{Ident, IdentValue, ResolvedIdentValue},
+            identifier::{Ident, IdentKey, IdentValue, ResolvedIdentValue},
             module::Module,
             statement::{Stmt, StmtBlock, VarDecl},
             structure::Struct,
@@ -126,7 +126,7 @@ fn format_struct<'a, 'ctx, W: Write>(
         },
     )?;
 
-    gen.write("}")?;
+    gen.write("\n}")?;
 
     gen.symbols.exit_scope(&gen.ctx).unwrap();
 
@@ -255,12 +255,12 @@ fn format_expr<'a, 'ctx, W: Write>(
                 .enter_scope(&gen.ctx, *gen.ctx[st_init].scope_name)
                 .expect("struct init scope should exist");
             gen.write("new ")?;
-            gen.write_ident(*gen.ctx[st_init].struct_name)?;
+            gen.write_ident(st_init.struct_name(&gen.ctx).unwrap())?;
             gen.write("(")?;
 
             let st = gen
                 .symbols
-                .lookup(&gen.ctx, *gen.ctx[st_init].struct_name)
+                .lookup(&gen.ctx, st_init.struct_name(&gen.ctx).unwrap())
                 .unwrap()
                 .unwrap_struct(&gen.ctx);
 
@@ -274,7 +274,7 @@ fn format_expr<'a, 'ctx, W: Write>(
                 let attr_val = gen.ctx[st_init]
                     .values
                     .iter()
-                    .find(|val| *gen.ctx[**val].name == *attr_name);
+                    .find(|val| IdentKey::idents_eq(gen.ctx, *gen.ctx[**val].name, *attr_name));
                 if let Some(val) = attr_val {
                     format_expr(gen, gen.ctx[*val].value)
                 } else {
@@ -435,7 +435,8 @@ mod tests {
         assert_eq!(
             output.unwrap(),
             "function Foo (bar) {\n\
-            this.bar = bar}\n\
+            this.bar = bar\n\
+            }\n\
             const x = new Foo((() => {}));\n\
             x.bar();\n"
         )
@@ -453,7 +454,8 @@ mod tests {
             output.unwrap(),
             "function Test (defaultVal, noDefault) {\n\
             this.defaultVal = defaultVal ?? 123;\n\
-            this.noDefault = noDefault}\n\
+            this.noDefault = noDefault\n\
+            }\n\
             const testVar = new Test(null, false);\n\
             const val = testVar.defaultVal;\n"
         );
@@ -500,5 +502,21 @@ mod tests {
             output.unwrap(),
             "\nconst ipValue = [0, [192, 168, 0, 1]];\n"
         );
+    }
+
+    #[test]
+    fn test_implicit_struct() {
+        let output = final_codegen(
+            "
+            struct Foo {\n\
+                let x: Number\n\
+            }\n\
+            let a: Foo = { x: 32 }",
+        );
+
+        assert_eq!(
+            output.unwrap(),
+            "function Foo (x) {\nthis.x = x\n}\nconst a = new Foo(32);\n"
+        )
     }
 }

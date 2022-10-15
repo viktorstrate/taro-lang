@@ -1,11 +1,11 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::streaming::char,
+    character::{complete::multispace0, streaming::char},
     combinator::{map, opt},
     error::context,
     multi::separated_list0,
-    sequence::{pair, preceded, tuple},
+    sequence::{preceded, tuple},
 };
 
 use crate::ast::node::structure::{Struct, StructAttr, StructInit, StructInitValue};
@@ -78,14 +78,15 @@ pub fn struct_init_expr(i: Input<'_>) -> Res<Input<'_>, StructInit<'_>> {
     );
 
     map(
-        span(pair(
-            identifier,
+        span(tuple((
+            opt(identifier),
+            multispace0,
             surround_brackets(
                 BracketType::Curly,
                 separated_list0(spaced(tag(",")), struct_init_value),
             ),
-        )),
-        |(span, (struct_name, values))| StructInit {
+        ))),
+        |(span, (struct_name, _, values))| StructInit {
             struct_name,
             values,
             span,
@@ -140,7 +141,7 @@ mod tests {
                 values,
                 span: _,
             }) => {
-                assert_eq!(name, test_ident("StructName"));
+                assert_eq!(name, Some(test_ident("StructName")));
                 assert_eq!(values.len(), 1);
                 assert_eq!(values[0].name, test_ident("attr"));
                 assert_matches!(

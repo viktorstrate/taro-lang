@@ -31,7 +31,7 @@ pub struct StructAttr<'a> {
 
 #[derive(Debug)]
 pub struct StructInit<'a> {
-    pub struct_name: LateInit<Ident<'a>>,
+    pub type_sig: LateInit<TypeSignature<'a>>,
     pub scope_name: LateInit<Ident<'a>>,
     pub values: Vec<NodeRef<'a, StructInitValue<'a>>>,
     pub span: Span<'a>,
@@ -154,8 +154,12 @@ impl<'a> NodeRef<'a, StructInit<'a>> {
         ctx: &IrCtx<'a>,
         symbols: &SymbolTableZipper<'a>,
     ) -> Option<NodeRef<'a, Struct<'a>>> {
+        let Some(struct_name) = self.struct_name(ctx) else {
+            return None;
+        };
+
         symbols
-            .lookup(ctx, *ctx[*self].struct_name)
+            .lookup(ctx, struct_name)
             .map(|val| val.unwrap_struct(ctx))
     }
 }
@@ -163,23 +167,10 @@ impl<'a> NodeRef<'a, StructInit<'a>> {
 impl<'a> Typed<'a> for NodeRef<'a, StructInit<'a>> {
     fn eval_type(
         &self,
-        symbols: &mut SymbolTableZipper<'a>,
+        _symbols: &mut SymbolTableZipper<'a>,
         ctx: &mut IrCtx<'a>,
     ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
-        let st = self
-            .lookup_struct(ctx, symbols)
-            .ok_or(TypeEvalError::UnknownIdent(*ctx[*self].struct_name))?;
-
-        Ok(ctx.get_type_sig(
-            TypeSignatureValue::Struct {
-                name: *ctx[st].name,
-            },
-            TypeSignatureContext {
-                parent: TypeSignatureParent::StructInit(*self),
-                type_span: None,
-            }
-            .alloc(),
-        ))
+        Ok((*ctx[*self].type_sig).clone())
     }
 }
 
@@ -241,6 +232,15 @@ impl<'a> NodeRef<'a, StructAccess<'a>> {
         recursive_lookup(&mut result, *self, ctx, symbols)?;
 
         Ok(result)
+    }
+}
+
+impl<'a> NodeRef<'a, StructInit<'a>> {
+    pub fn struct_name(&self, ctx: &IrCtx<'a>) -> Option<Ident<'a>> {
+        match &ctx[&*ctx[*self].type_sig] {
+            TypeSignatureValue::Struct { name } => Some(*name),
+            _ => None,
+        }
     }
 }
 

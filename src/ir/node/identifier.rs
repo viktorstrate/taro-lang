@@ -141,7 +141,12 @@ impl<'a> IdentParent<'a> {
             IdentParent::StructDeclAttrName(st_attr) => ctx[*st_attr].name = new_ident.into(),
             IdentParent::StructInitValueName(st_val) => ctx[*st_val].name = new_ident.into(),
             IdentParent::StructInitStructName(st_init) => {
-                ctx[*st_init].struct_name = new_ident.into()
+                ctx[*st_init].type_sig = ctx
+                    .get_type_sig(
+                        TypeSignatureValue::Struct { name: new_ident },
+                        ctx[*st_init].type_sig.context.clone(),
+                    )
+                    .into();
             }
             IdentParent::StructInitScopeName(st_init) => {
                 ctx[*st_init].scope_name = new_ident.into()

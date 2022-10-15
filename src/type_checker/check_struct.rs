@@ -27,7 +27,9 @@ pub fn check_struct_init<'a>(
     symbols: &mut SymbolTableZipper<'a>,
     st_init: NodeRef<'a, StructInit<'a>>,
 ) -> Result<(), TypeCheckerError<'a>> {
-    let st_name = *ctx[st_init].struct_name;
+    let st_name = st_init.struct_name(ctx).expect("should be resolved by now");
+    // .struct_name
+    // .expect("struct_name should have been resolved by now");
     let st = st_init
         .lookup_struct(ctx, symbols)
         .ok_or(TypeCheckerError::SymbolResolutionError(

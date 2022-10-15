@@ -204,22 +204,24 @@ pub fn resolve_ident<'a>(
     let resolved_ident = match &ctx[ident] {
         IdentValue::Unresolved(_) => match *ident.parent {
             IdentParent::StructInitValueName(st_val) => {
-                let st_name = *ctx[ctx[st_val].parent].struct_name;
+                if let Some(st_name) = ctx[st_val].parent.struct_name(ctx) {
+                    let st = symbols
+                        .lookup(ctx, st_name)
+                        .ok_or(SymbolResolutionError::TypeEval(
+                            TypeEvalError::UnknownIdent(st_name),
+                        ))?
+                        .unwrap_struct(ctx);
 
-                let st = symbols
-                    .lookup(ctx, st_name)
-                    .ok_or(SymbolResolutionError::TypeEval(
-                        TypeEvalError::UnknownIdent(st_name),
-                    ))?
-                    .unwrap_struct(ctx);
+                    let attr =
+                        st.lookup_attr(ident, ctx)
+                            .ok_or(SymbolResolutionError::TypeEval(
+                                TypeEvalError::UnknownIdent(ident),
+                            ))?;
 
-                let attr = st
-                    .lookup_attr(ident, ctx)
-                    .ok_or(SymbolResolutionError::TypeEval(
-                        TypeEvalError::UnknownIdent(ident),
-                    ))?;
-
-                Some(*ctx[attr].name)
+                    Some(*ctx[attr].name)
+                } else {
+                    None
+                }
             }
             IdentParent::StructAccessAttrName(st_access) => {
                 let st_attr = st_access.lookup_attr(ctx, symbols).map_err(|_| {

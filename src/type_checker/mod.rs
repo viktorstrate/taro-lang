@@ -94,8 +94,10 @@ impl<'a> TypeChecker<'a> {
             let mut type_resolver = TypeResolver::new(&la.ctx, &mut type_inferrer);
             walk_ir(&mut type_resolver, la)?;
 
-            let mut type_checker = EndTypeChecker::new(&la.ctx, &mut type_resolver);
-            walk_ir(&mut type_checker, la)?;
+            if !type_resolver.0.needs_rerun {
+                let mut type_checker = EndTypeChecker::new(&la.ctx, &mut type_resolver);
+                walk_ir(&mut type_checker, la)?;
+            }
         }
 
         if self.found_undeterminable_types {

@@ -1,7 +1,7 @@
 use crate::{
     ir::{
         context::IrCtx,
-        ir_walker::IrWalker,
+        ir_walker::{IrWalker, ScopeValue},
         node::{
             enumeration::EnumInit,
             expression::Expr,
@@ -18,6 +18,73 @@ use super::{type_inference::TypeInferrer, TypeChecker, TypeCheckerError};
 #[derive(Debug)]
 pub struct TypeResolver<'a, 'b>(pub &'b mut TypeChecker<'a>);
 
+impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
+    type Error = TypeCheckerError<'a>;
+    type Scope = ();
+
+    fn visit_scope_begin(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        _parent: &mut Self::Scope,
+        value: ScopeValue<'a>,
+    ) -> Result<(), TypeCheckerError<'a>> {
+        value.visit_scope_begin(ctx, &mut self.0.symbols);
+        Ok(())
+    }
+
+    fn visit_scope_end(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        _parent: &mut Self::Scope,
+        _child: Self::Scope,
+        _value: ScopeValue<'a>,
+    ) -> Result<(), TypeCheckerError<'a>> {
+        self.0
+            .symbols
+            .exit_scope(ctx)
+            .expect("scope should not be global scope");
+
+        Ok(())
+    }
+
+    fn visit_ordered_symbol(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        _scope: &mut Self::Scope,
+    ) -> Result<(), Self::Error> {
+        self.0.symbols.visit_next_symbol(ctx);
+        Ok(())
+    }
+
+    fn visit_type_sig(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        _scope: &mut Self::Scope,
+        type_sig: TypeSignature<'a>,
+    ) -> Result<TypeSignature<'a>, Self::Error> {
+        let new_type = self.0.substitutions.get(&type_sig).cloned();
+
+        if let Some(t) = &new_type {
+            // struct_init uses type_sig to resolve the struct definition which can be used to infer the attributes
+            if let TypeSignatureValue::Struct { name: _ } = ctx[t] {
+                self.0.needs_rerun = true;
+            }
+        }
+
+        Ok(new_type.unwrap_or(type_sig))
+    }
+
+    fn visit_expr(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        _scope: &mut Self::Scope,
+        expr: NodeRef<'a, Expr<'a>>,
+    ) -> Result<(), Self::Error> {
+        self.resolve_member_access(ctx, expr)?;
+        Ok(())
+    }
+}
+
 impl<'a, 'b> TypeResolver<'a, 'b> {
     pub fn new(
         ctx: &IrCtx<'a>,
@@ -27,38 +94,12 @@ impl<'a, 'b> TypeResolver<'a, 'b> {
 
         TypeResolver(type_inferrer.0)
     }
-}
 
-impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
-    type Error = TypeCheckerError<'a>;
-
-    fn visit_type_sig(
+    fn resolve_member_access(
         &mut self,
         ctx: &mut IrCtx<'a>,
-        _scope: &mut Self::Scope,
-        type_sig: TypeSignature<'a>,
-    ) -> Result<TypeSignature<'a>, Self::Error> {
-        let new_type = self
-            .0
-            .substitutions
-            .get(&type_sig)
-            .cloned()
-            .unwrap_or(type_sig);
-
-        match ctx[&new_type] {
-            TypeSignatureValue::TypeVariable(_) => self.0.found_undeterminable_types = true,
-            _ => {}
-        }
-
-        Ok(new_type)
-    }
-
-    fn visit_expr(
-        &mut self,
-        ctx: &mut IrCtx<'a>,
-        _scope: &mut Self::Scope,
         expr: NodeRef<'a, Expr<'a>>,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<(), TypeCheckerError<'a>> {
         let mem_acc = match &ctx[expr] {
             Expr::UnresolvedMemberAccess(mem_acc) => *mem_acc,
             _ => return Ok(()),
@@ -134,7 +175,47 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
 
         // New types can now potentially be inferred
         self.0.needs_rerun = true;
-
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
+
+    use crate::ir::test_utils::utils::{lowered_ir, type_check};
+
+    #[test]
+    fn test_unresolved_struct_name() {
+        let mut ir = lowered_ir(
+            "
+        struct Foo {
+            let hello: String
+        }
+
+        let a: Foo = { hello: \"world\" }
+        ",
+        )
+        .unwrap();
+        assert_matches!(type_check(&mut ir), Ok(_));
+    }
+
+    #[test]
+    fn test_unresolved_nested_struct_name() {
+        let mut ir = lowered_ir(
+            "
+        struct Foo {
+            let bar: Bar
+        }
+
+        struct Bar {
+            let val: Number
+        }
+
+        let a: Foo = { bar: { val: 42 } }
+        ",
+        )
+        .unwrap();
+        assert_matches!(type_check(&mut ir), Ok(_));
     }
 }

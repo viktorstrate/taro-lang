@@ -67,7 +67,10 @@ pub mod utils {
         let ast = parse_ast(&input).map_err(TranspilerError::Parse)?;
         let mut lowered_ast = lower_ast(ast);
 
-        let type_checker = type_check(&mut lowered_ast).unwrap();
+        let type_checker = match type_check(&mut lowered_ast) {
+            Ok(type_checker) => type_checker,
+            Err(err) => panic!("TYPE CHECK ERROR: {:?}", err),
+        };
 
         let ctx = &mut lowered_ast.ctx;
         let ir = &mut lowered_ast.ir;

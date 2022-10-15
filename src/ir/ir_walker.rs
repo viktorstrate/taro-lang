@@ -414,10 +414,16 @@ pub fn walk_struct_init<'a, W: IrWalker<'a>>(
 ) -> Result<(), W::Error> {
     let mut child_scope = walker.visit_scope_begin(ctx, scope, ScopeValue::StructInit(st_init))?;
 
-    let st_name = *ctx[st_init].struct_name;
     let scp_name = *ctx[st_init].scope_name;
 
-    walker.visit_ident(ctx, &mut child_scope, st_name)?;
+    ctx[st_init].type_sig = walk_type_sig(
+        walker,
+        ctx,
+        &mut child_scope,
+        (*ctx[st_init].type_sig).clone(),
+    )?
+    .into();
+
     walker.visit_ident(ctx, &mut child_scope, scp_name)?;
 
     for value in ctx[st_init].values.clone() {
@@ -478,7 +484,7 @@ pub fn walk_type_sig<'a, W: IrWalker<'a>>(
                 type_sig.context,
             )
         }
-        TypeSignatureValue::TypeVariable(_) => return Ok(type_sig),
+        TypeSignatureValue::TypeVariable(_) => type_sig,
     };
 
     // let new_type_sig = ctx.get_type_sig(new_type_sig);
