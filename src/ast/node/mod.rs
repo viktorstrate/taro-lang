@@ -3,6 +3,7 @@ pub mod comment;
 pub mod enumeration;
 pub mod escape_block;
 pub mod expression;
+pub mod external;
 pub mod function;
 pub mod identifier;
 pub mod member_access;

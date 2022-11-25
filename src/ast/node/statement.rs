@@ -4,6 +4,7 @@ use super::{
     comment::Comment,
     enumeration::Enum,
     expression::Expr,
+    external::ExternalObject,
     function::Function,
     identifier::Ident,
     structure::Struct,
@@ -26,6 +27,7 @@ pub enum StmtValue<'a> {
     Expression(Expr<'a>),
     Return(Expr<'a>),
     Comment(Comment<'a>),
+    ExternObj(ExternalObject<'a>),
 }
 
 #[derive(Debug, Clone)]

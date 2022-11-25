@@ -6,6 +6,7 @@ use crate::{
 use super::{
     enumeration::Enum,
     expression::Expr,
+    external::ExternalObject,
     function::Function,
     identifier::{Ident, Identifiable},
     structure::Struct,
@@ -24,6 +25,7 @@ pub enum Stmt<'a> {
     EnumDecl(NodeRef<'a, Enum<'a>>),
     Expression(NodeRef<'a, Expr<'a>>),
     Return(NodeRef<'a, Expr<'a>>),
+    ExternObj(NodeRef<'a, ExternalObject<'a>>),
 }
 
 #[derive(Debug)]

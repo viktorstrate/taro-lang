@@ -569,4 +569,15 @@ mod tests {
             Err(TypeCheckerError::UndeterminableTypes)
         );
     }
+
+    #[test]
+    fn test_external_object() {
+        let mut ir =
+            lowered_ir("external foo: (Number) -> String; let x: Boolean = foo(2)").unwrap();
+        assert_type_mismatch(
+            type_check(&mut ir),
+            ir.ctx.get_builtin_type_sig(BuiltinType::String),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Boolean),
+        );
+    }
 }

@@ -3,6 +3,7 @@ use crate::{
     ir::{
         late_init::LateInit,
         node::{
+            external::ExternalObject,
             identifier::IdentParent,
             statement::Stmt,
             type_signature::{TypeSignature, TypeSignatureContext, TypeSignatureParent},
@@ -239,6 +240,25 @@ impl<'a> IrCtx<'a> {
                     acc.push(Stmt::Return(ctx.lower_expr(expr)).allocate(ctx));
                 }
                 crate::ast::node::statement::StmtValue::Comment(_) => {}
+                crate::ast::node::statement::StmtValue::ExternObj(ast_obj) => {
+                    let obj = ExternalObject {
+                        ident: LateInit::empty(),
+                        type_sig: LateInit::empty(),
+                        span: ast_obj.span,
+                    }
+                    .allocate(ctx);
+
+                    ctx[obj].ident = ctx
+                        .make_ident(ast_obj.ident, IdentParent::ExternObjName(obj))
+                        .into();
+
+                    ctx[obj].type_sig = ast_obj
+                        .type_sig
+                        .into_ir_type(ctx, TypeSignatureParent::ExternObjType(obj))
+                        .into();
+
+                    acc.push(Stmt::ExternObj(obj).allocate(ctx));
+                }
             };
         }
 

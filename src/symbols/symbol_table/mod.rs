@@ -6,6 +6,7 @@ use crate::ir::{
     context::{IrArenaType, IrCtx},
     node::{
         enumeration::{Enum, EnumValue},
+        external::ExternalObject,
         function::{Function, FunctionArg},
         identifier::{Ident, IdentKey, Identifiable, ResolvedIdentValue},
         statement::VarDecl,
@@ -72,6 +73,7 @@ pub enum SymbolValueItem<'a> {
     StructInit(NodeRef<'a, StructInit<'a>>),
     EnumDecl(NodeRef<'a, Enum<'a>>),
     EnumValue(NodeRef<'a, EnumValue<'a>>),
+    ExternalObject(NodeRef<'a, ExternalObject<'a>>),
 }
 
 impl<'a> Into<Id<SymbolValueItem<'a>>> for SymbolValue<'a> {
@@ -110,6 +112,7 @@ impl<'a> Identifiable<'a> for SymbolValueItem<'a> {
             SymbolValueItem::StructInit(st_init) => ctx[*st_init].name(ctx),
             SymbolValueItem::EnumDecl(enm) => ctx[*enm].name(ctx),
             SymbolValueItem::EnumValue(enm_val) => ctx[*enm_val].name(ctx),
+            SymbolValueItem::ExternalObject(obj) => ctx[*obj].name(ctx),
         }
     }
 }
@@ -154,6 +157,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValueItem::StructInit(st_init) => st_init.eval_type(symbols, ctx),
             SymbolValueItem::EnumDecl(enm) => enm.eval_type(symbols, ctx),
             SymbolValueItem::EnumValue(enm_val) => enm_val.eval_type(symbols, ctx),
+            SymbolValueItem::ExternalObject(obj) => obj.eval_type(symbols, ctx),
         }
     }
 
@@ -168,6 +172,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValueItem::StructInit(st_init) => st_init.specified_type(ctx),
             SymbolValueItem::EnumDecl(enm) => enm.specified_type(ctx),
             SymbolValueItem::EnumValue(enm_val) => enm_val.specified_type(ctx),
+            SymbolValueItem::ExternalObject(obj) => obj.specified_type(ctx),
         }
     }
 
@@ -186,6 +191,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValueItem::StructInit(st_init) => st_init.specify_type(ctx, new_type),
             SymbolValueItem::EnumDecl(enm) => enm.specify_type(ctx, new_type),
             SymbolValueItem::EnumValue(enm_val) => enm_val.specify_type(ctx, new_type),
+            SymbolValueItem::ExternalObject(obj) => obj.specify_type(ctx, new_type),
         }
     }
 }

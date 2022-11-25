@@ -163,6 +163,7 @@ fn format_stmt<'a, 'ctx, W: Write>(
             format_expr(gen, expr)?;
             gen.write(";")
         }
+        Stmt::ExternObj(_) => Ok(()),
     }
 }
 
