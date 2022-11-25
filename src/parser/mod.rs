@@ -1,10 +1,11 @@
 use std::cmp::Ordering;
 
 use nom::{
-    bytes::complete::{tag},
+    bytes::complete::tag,
     character::complete::{digit1, multispace0, multispace1},
     error::VerboseError,
-    sequence::{delimited, preceded}, IResult,
+    sequence::{delimited, preceded},
+    IResult,
 };
 use nom_locate::{position, LocatedSpan};
 
@@ -14,6 +15,7 @@ pub mod comment;
 pub mod enumeration;
 pub mod escape_block;
 pub mod expression;
+pub mod external;
 pub mod function;
 pub mod identifier;
 pub mod module;

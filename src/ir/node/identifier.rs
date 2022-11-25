@@ -10,6 +10,7 @@ use std::{fmt::Debug, hash::Hash};
 use super::{
     enumeration::{Enum, EnumInit, EnumValue},
     expression::Expr,
+    external::ExternalObject,
     function::{Function, FunctionArg},
     member_access::UnresolvedMemberAccess,
     statement::VarDecl,
@@ -131,6 +132,7 @@ pub enum IdentParent<'a> {
     IdentExpr(NodeRef<'a, Expr<'a>>),
     TypeSigName(Id<TypeSignatureValue<'a>>),
     MemberAccessMemberName(NodeRef<'a, UnresolvedMemberAccess<'a>>),
+    ExternObjName(NodeRef<'a, ExternalObject<'a>>),
     BuiltinIdent,
 }
 
@@ -173,6 +175,7 @@ impl<'a> IdentParent<'a> {
                 ctx[*mem_acc].member_name = new_ident.into()
             }
             IdentParent::BuiltinIdent => panic!("builtin ident cannot be changed"),
+            IdentParent::ExternObjName(obj) => ctx[*obj].ident = new_ident.into(),
         }
     }
 }

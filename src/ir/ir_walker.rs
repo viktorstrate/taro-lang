@@ -279,6 +279,11 @@ pub fn walk_stmt<'a, W: IrWalker<'a>>(
             let expr = expr;
             walk_expr(walker, ctx, scope, expr)?;
         }
+        Stmt::ExternObj(obj) => {
+            walker.visit_ident(ctx, scope, *ctx[obj].ident)?;
+            ctx[obj].type_sig =
+                walk_type_sig(walker, ctx, scope, (*ctx[obj].type_sig).clone())?.into();
+        }
     };
     walker.visit_stmt(ctx, scope, stmt)?;
 

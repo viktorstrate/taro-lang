@@ -92,6 +92,12 @@ impl<'a> IrWalker<'a> for SymbolCollector {
                     .insert(ctx, SymbolValueItem::VarDecl(decl))
                     .map(|_| ())
             }
+            Stmt::ExternObj(obj) => {
+                let ext_obj = *obj;
+                scope
+                    .insert(ctx, SymbolValueItem::ExternalObject(ext_obj))
+                    .map(|_| ())
+            }
             _ => Ok(()),
         }
     }

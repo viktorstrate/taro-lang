@@ -13,6 +13,7 @@ use super::{
     enumeration::{Enum, EnumInit, EnumValue},
     escape_block::EscapeBlock,
     expression::Expr,
+    external::ExternalObject,
     function::{Function, FunctionArg, FunctionCall},
     identifier::{Ident, IdentParent},
     member_access::UnresolvedMemberAccess,
@@ -82,6 +83,7 @@ pub enum TypeSignatureParent<'a> {
     },
     EscapeBlock(NodeRef<'a, EscapeBlock<'a>>),
     MemberAccess(NodeRef<'a, UnresolvedMemberAccess<'a>>),
+    ExternObjType(NodeRef<'a, ExternalObject<'a>>),
 }
 
 impl<'a> Into<Id<TypeSignatureValue<'a>>> for TypeSignature<'a> {
@@ -142,6 +144,7 @@ impl<'a> Spanned<'a> for TypeSignature<'a> {
             } => todo!(),
             TypeSignatureParent::EscapeBlock(esc) => esc.get_span(ctx),
             TypeSignatureParent::MemberAccess(_) => todo!(),
+            TypeSignatureParent::ExternObjType(obj) => obj.get_span(ctx),
         };
 
         if node_span.is_some() {

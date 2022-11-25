@@ -17,13 +17,8 @@ use crate::{
 };
 
 use super::{
-    comment::{comment},
-    enumeration::enumeration,
-    function::function_decl,
-    identifier::identifier,
-    spaced, span,
-    structure::structure,
-    type_signature::type_signature,
+    comment::comment, enumeration::enumeration, external::external_object, function::function_decl,
+    identifier::identifier, spaced, span, structure::structure, type_signature::type_signature,
     Input, Res,
 };
 
@@ -62,6 +57,7 @@ pub fn single_statement(i: Input<'_>) -> Res<Input<'_>, Stmt<'_>> {
                 map(function_decl, StmtValue::FunctionDecl),
                 map(structure, StmtValue::StructDecl),
                 map(enumeration, StmtValue::EnumDecl),
+                map(external_object, StmtValue::ExternObj),
                 stmt_return,
                 map(expression, StmtValue::Expression),
             ))),

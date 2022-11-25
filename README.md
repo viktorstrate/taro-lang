@@ -152,3 +152,12 @@ This can be solved by explicitly stating the type signature of the variable.
 ```
 let num: Number = @{ 1 + 2 }
 ```
+
+#### Exposing external Javascript
+
+The `external` keyword can be added in front of a variable to indicate that the object exists somewhere else.
+
+```
+external add: (Number, Number) -> Number
+let x = add(1, 2)
+```
