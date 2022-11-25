@@ -29,6 +29,12 @@ trait Printable {
   func print()
 }
 
+extend Printable {
+  func foo() {
+    this.print()
+  }
+}
+
 extend Test: Printable {
   func print() {
     console.log("Test struct: " + self.defaultVal)
@@ -37,10 +43,17 @@ extend Test: Printable {
 
 ----
 
-Object.assign(Test.protocol, {
+let Printable = {
+  foo() {
+    this.print()
+  }
+}
+
+Object.assign(Test.prototype, {
   print() {
     console.log("Test struct: " + self.defaultVal)
-  }
+  },
+  ...Printable
 })
 ```
 

@@ -2,7 +2,6 @@
 #![feature(iter_intersperse)]
 #![feature(associated_type_defaults)]
 #![feature(assert_matches)]
-#![feature(let_else)]
 #![feature(hash_set_entry)]
 #![deny(rust_2018_idioms)]
 #![feature(iter_advance_by)]
