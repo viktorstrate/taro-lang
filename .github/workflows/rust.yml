@@ -14,12 +14,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      
       - name: Install nightly rust
         uses: actions-rs/toolchain@v1
         with:
             toolchain: nightly
             override: true
             components: rustc
+            
+      - uses: Swatinem/rust-cache@v2
 
       - name: Run cargo build
         uses: actions-rs/cargo@v1
