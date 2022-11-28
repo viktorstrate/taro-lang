@@ -46,7 +46,13 @@ where
 
 impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (), W> for ParserError<'a> {
     fn err_msg(&self, _ctx: ()) -> ErrMsg<'a, 'ret, W> {
-        panic!("PARSER ERROR: {}", self.to_string());
+        let err_msg = self.to_string();
+
+        ErrMsg {
+            span: None,
+            title: Box::new(|w| write!(w, "Parser error")),
+            msg: Box::new(move |w| writeln!(w, "\n{}", err_msg)),
+        }
     }
 }
 

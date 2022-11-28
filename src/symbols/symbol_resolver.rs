@@ -182,7 +182,9 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
 
                         Expr::EnumInit(enm_init)
                     }
-                    _ => unreachable!("Expression can never be a member access"),
+                    expr => {
+                        unreachable!("Expression can never be a member access: {:?}", expr)
+                    }
                 };
 
                 ctx[expr] = new_expr;
