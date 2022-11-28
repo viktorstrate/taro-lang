@@ -161,7 +161,7 @@ impl<'a> Spanned<'a> for NodeRef<'a, Expr<'a>> {
             Expr::Assignment(_) => todo!(),
             Expr::Tuple(_) => todo!(),
             Expr::EnumInit(_) => todo!(),
-            Expr::UnresolvedMemberAccess(_) => todo!(),
+            Expr::UnresolvedMemberAccess(mem_acc) => Some(ctx[mem_acc].span.clone()),
         }
     }
 }

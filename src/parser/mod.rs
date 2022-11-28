@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt::Display};
 
 use nom::{
     bytes::complete::tag,
@@ -31,7 +31,20 @@ pub fn parse_ast(input: &str) -> Result<AST<'_>, ParserError<'_>> {
     }
 }
 
-pub type ParserError<'a> = VerboseError<Input<'a>>;
+#[derive(Debug)]
+pub enum ParserError<'a> {
+    NomErr(VerboseError<Input<'a>>),
+    EarlyTermination(),
+}
+
+impl<'a> Display for ParserError<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParserError::NomErr(err) => err.fmt(f),
+            ParserError::EarlyTermination() => write!(f, "early termination"),
+        }
+    }
+}
 
 pub type Res<I, O> = IResult<I, O, VerboseError<I>>;
 

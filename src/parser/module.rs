@@ -1,12 +1,17 @@
-use nom::{combinator::eof, sequence::terminated, Finish};
+use nom::{combinator::eof, sequence::terminated};
 
 use crate::ast::node::module::Module;
 
 use super::{spaced, statement::statement, Input, ParserError};
 
 pub fn module<'a>(i: Input<'a>) -> Result<Module<'a>, ParserError<'a>> {
-    let (_i, stmt) = terminated(spaced(statement), eof)(i).finish()?;
-    return Ok(Module { stmt });
+    match terminated(spaced(statement), eof)(i) {
+        Ok((_, stmt)) => Ok(Module { stmt }),
+        Err(err) => match err {
+            nom::Err::Incomplete(_size) => Err(ParserError::EarlyTermination()),
+            nom::Err::Error(e) | nom::Err::Failure(e) => Err(ParserError::NomErr(e)),
+        },
+    }
 }
 
 #[cfg(test)]

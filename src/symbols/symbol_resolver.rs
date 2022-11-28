@@ -8,8 +8,9 @@ use crate::ir::{
         expression::Expr,
         function::FunctionCall,
         identifier::{Ident, IdentParent, IdentValue, Identifiable},
+        member_access::UnresolvedMemberAccess,
         structure::StructAccess,
-        type_signature::{TypeEvalError, TypeSignatureValue, Typed},
+        type_signature::{TypeEvalError, TypeSignature, TypeSignatureValue, Typed},
         IrAlloc, NodeRef,
     },
 };
@@ -34,6 +35,10 @@ pub enum SymbolResolutionError<'a> {
     UnknownEnumValue {
         enm: NodeRef<'a, Enum<'a>>,
         enum_value: Ident<'a>,
+    },
+    InvalidMemberAccessType {
+        mem_acc: NodeRef<'a, UnresolvedMemberAccess<'a>>,
+        obj_type: TypeSignature<'a>,
     },
 }
 
@@ -182,8 +187,11 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
 
                         Expr::EnumInit(enm_init)
                     }
-                    expr => {
-                        unreachable!("Expression can never be a member access: {:?}", expr)
+                    _ => {
+                        return Err(SymbolResolutionError::InvalidMemberAccessType {
+                            mem_acc,
+                            obj_type,
+                        });
                     }
                 };
 

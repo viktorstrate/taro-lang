@@ -23,6 +23,7 @@ html, body {
   flex: 1;
   border: 1px solid #888;
   padding: 12px;
+  resize: none;
 }
 
 #output-region {
