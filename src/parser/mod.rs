@@ -12,6 +12,7 @@ use nom_locate::{position, LocatedSpan};
 use crate::ast::AST;
 
 pub mod comment;
+pub mod control_flow;
 pub mod enumeration;
 pub mod escape_block;
 pub mod expression;

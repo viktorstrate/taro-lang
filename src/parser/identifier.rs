@@ -10,8 +10,9 @@ use crate::ast::node::identifier::Ident;
 
 use super::{span, Input, Res};
 
-const RESERVED_KEYWORDS: &'static [&str] =
-    &["struct", "func", "return", "let", "var", "true", "false"];
+const RESERVED_KEYWORDS: &'static [&str] = &[
+    "struct", "func", "return", "let", "var", "true", "false", "if", "else",
+];
 
 pub fn identifier(i: Input<'_>) -> Res<Input<'_>, Ident<'_>> {
     let ident_base = recognize(pair(

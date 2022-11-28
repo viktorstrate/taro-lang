@@ -56,6 +56,9 @@ impl<'a> IrWalker<'a> for SymbolCollector {
                     new_scope.insert(ctx, SymbolValueItem::EnumValue(val))?;
                 }
             }
+            ScopeValue::IfBranch(ifb, branch) => {
+                parent.insert(ctx, SymbolValueItem::IfBranch(ifb, branch))?;
+            }
         }
 
         Ok(new_scope)
@@ -76,6 +79,9 @@ impl<'a> IrWalker<'a> for SymbolCollector {
                 .insert_scope(ctx, *ctx[st_init].scope_name, child)
                 .map(|_| ()),
             ScopeValue::Enum(enm) => parent.insert_scope(ctx, *ctx[enm].name, child).map(|_| ()),
+            ScopeValue::IfBranch(ifb, branch) => parent
+                .insert_scope(ctx, ctx[ifb].branch_ident(branch), child)
+                .map(|_| ()),
         }
     }
 

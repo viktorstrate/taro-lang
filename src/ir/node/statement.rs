@@ -4,6 +4,7 @@ use crate::{
 };
 
 use super::{
+    control_flow::IfStmt,
     enumeration::Enum,
     expression::Expr,
     external::ExternalObject,
@@ -26,6 +27,7 @@ pub enum Stmt<'a> {
     Expression(NodeRef<'a, Expr<'a>>),
     Return(NodeRef<'a, Expr<'a>>),
     ExternObj(NodeRef<'a, ExternalObject<'a>>),
+    IfBranch(NodeRef<'a, IfStmt<'a>>),
 }
 
 #[derive(Debug)]

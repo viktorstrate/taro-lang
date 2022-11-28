@@ -6,6 +6,7 @@ use super::{
     ast_lowering::LowerAstResult,
     context::IrCtx,
     node::{
+        control_flow::{IfBranchBody, IfStmt},
         enumeration::Enum,
         expression::Expr,
         function::Function,
@@ -24,28 +25,24 @@ pub enum ScopeValue<'a> {
     Struct(NodeRef<'a, Struct<'a>>),
     StructInit(NodeRef<'a, StructInit<'a>>),
     Enum(NodeRef<'a, Enum<'a>>),
+    IfBranch(NodeRef<'a, IfStmt<'a>>, IfBranchBody),
 }
 
 impl<'a> ScopeValue<'a> {
     pub fn visit_scope_begin(&self, ctx: &IrCtx<'a>, symbols: &mut SymbolTableZipper<'a>) {
-        match self {
-            ScopeValue::Func(func) => {
-                symbols
-                    .enter_scope(ctx, *ctx[*func].name)
-                    .expect("scope should exist");
-            }
-            ScopeValue::Struct(st) => {
-                symbols
-                    .enter_scope(ctx, *ctx[*st].name)
-                    .expect("scope should exist");
-            }
-            ScopeValue::StructInit(st_init) => symbols
-                .enter_scope(ctx, *ctx[*st_init].scope_name)
-                .expect("scope should exist"),
-            ScopeValue::Enum(enm) => symbols
-                .enter_scope(ctx, *ctx[*enm].name)
-                .expect("scope should exist"),
-        }
+        let scope_ident = match self {
+            ScopeValue::Func(func) => *ctx[*func].name,
+            ScopeValue::Struct(st) => *ctx[*st].name,
+            ScopeValue::StructInit(st_init) => *ctx[*st_init].scope_name,
+
+            ScopeValue::Enum(enm) => *ctx[*enm].name,
+
+            ScopeValue::IfBranch(ifb, branch) => ctx[*ifb].branch_ident(*branch),
+        };
+
+        symbols
+            .enter_scope(ctx, scope_ident)
+            .expect("scope should exist");
     }
 }
 
@@ -249,7 +246,6 @@ pub fn walk_stmt<'a, W: IrWalker<'a>>(
 ) -> Result<(), W::Error> {
     match ctx[stmt].clone() {
         Stmt::VariableDecl(decl) => {
-            let decl = decl;
             let decl_name = *ctx[decl].name;
 
             walker.visit_ordered_symbol(ctx, scope)?;
@@ -260,29 +256,27 @@ pub fn walk_stmt<'a, W: IrWalker<'a>>(
                 walk_type_sig(walker, ctx, scope, (*ctx[decl].type_sig).clone())?.into();
         }
         Stmt::Expression(expr) => {
-            let expr = expr;
             walk_expr(walker, ctx, scope, expr)?;
         }
         Stmt::FunctionDecl(func) => {
-            let func = func;
             walk_func_decl(walker, ctx, scope, func)?;
         }
         Stmt::StructDecl(st) => {
-            let st = st;
             walk_struct(walker, ctx, scope, st)?;
         }
         Stmt::EnumDecl(enm) => {
-            let enm = enm;
             walk_enum(walker, ctx, scope, enm)?;
         }
         Stmt::Return(expr) => {
-            let expr = expr;
             walk_expr(walker, ctx, scope, expr)?;
         }
         Stmt::ExternObj(obj) => {
             walker.visit_ident(ctx, scope, *ctx[obj].ident)?;
             ctx[obj].type_sig =
                 walk_type_sig(walker, ctx, scope, (*ctx[obj].type_sig).clone())?.into();
+        }
+        Stmt::IfBranch(ifb) => {
+            walk_if_branch(walker, ctx, scope, ifb)?;
         }
     };
     walker.visit_stmt(ctx, scope, stmt)?;
@@ -316,6 +310,45 @@ pub fn walk_func_decl<'a, W: IrWalker<'a>>(
     walker.visit_func_decl(ctx, &mut func_scope, func)?;
 
     walker.visit_scope_end(ctx, scope, func_scope, ScopeValue::Func(func))?;
+
+    Ok(())
+}
+
+pub fn walk_if_branch<'a, W: IrWalker<'a>>(
+    walker: &mut W,
+    ctx: &mut IrCtx<'a>,
+    scope: &mut W::Scope,
+    ifb: NodeRef<'a, IfStmt<'a>>,
+) -> Result<(), W::Error> {
+    walk_expr(walker, ctx, scope, ctx[ifb].condition)?;
+
+    let mut if_main_scope = walker.visit_scope_begin(
+        ctx,
+        scope,
+        ScopeValue::IfBranch(ifb, IfBranchBody::MainBody),
+    )?;
+    walk_stmt_block(walker, ctx, &mut if_main_scope, ctx[ifb].body)?;
+    walker.visit_scope_end(
+        ctx,
+        scope,
+        if_main_scope,
+        ScopeValue::IfBranch(ifb, IfBranchBody::MainBody),
+    )?;
+
+    if let Some(else_body) = ctx[ifb].else_body {
+        let mut if_else_scope = walker.visit_scope_begin(
+            ctx,
+            scope,
+            ScopeValue::IfBranch(ifb, IfBranchBody::ElseBody),
+        )?;
+        walk_stmt_block(walker, ctx, &mut if_else_scope, else_body)?;
+        walker.visit_scope_end(
+            ctx,
+            scope,
+            if_else_scope,
+            ScopeValue::IfBranch(ifb, IfBranchBody::ElseBody),
+        )?;
+    }
 
     Ok(())
 }

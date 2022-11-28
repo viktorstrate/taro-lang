@@ -358,6 +358,12 @@ impl<'a> TypeInferrer<'a, '_> {
                             .map_err(TypeCheckerError::TypeEval)?;
                         acc.push(expr_type)
                     }
+                    Stmt::IfBranch(ifb) => {
+                        collect_return_types(inferrer, ctx, ctx[ifb].body, acc)?;
+                        if let Some(else_block) = ctx[ifb].else_body {
+                            collect_return_types(inferrer, ctx, else_block, acc)?;
+                        }
+                    }
                     _ => {}
                 };
             }
@@ -543,6 +549,18 @@ mod tests {
             type_check(&mut ir),
             ir.ctx.get_builtin_type_sig(BuiltinType::Number),
             ir.ctx.get_builtin_type_sig(BuiltinType::Void),
+        );
+    }
+
+    #[test]
+    fn test_inconsistent_if_returns() {
+        let mut ir =
+            lowered_ir("func test() -> Number { if true { return 1 } else { return false } }")
+                .unwrap();
+        assert_type_mismatch(
+            type_check(&mut ir),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Number),
+            ir.ctx.get_builtin_type_sig(BuiltinType::Boolean),
         );
     }
 

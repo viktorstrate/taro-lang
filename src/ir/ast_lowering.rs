@@ -3,6 +3,7 @@ use crate::{
     ir::{
         late_init::LateInit,
         node::{
+            control_flow::IfStmt,
             external::ExternalObject,
             identifier::IdentParent,
             statement::Stmt,
@@ -258,6 +259,31 @@ impl<'a> IrCtx<'a> {
                         .into();
 
                     acc.push(Stmt::ExternObj(obj).allocate(ctx));
+                }
+                crate::ast::node::statement::StmtValue::IfBranch(ifb) => {
+                    let condition = ctx.lower_expr(ifb.condition);
+                    let body = ctx.lower_stmt(*ifb.body);
+                    let else_body = ifb.else_body.map(|bdy| ctx.lower_stmt(*bdy));
+
+                    let if_branch = IfStmt {
+                        condition,
+                        body,
+                        else_body,
+                        span: ifb.span,
+                        body_scope_ident: LateInit::empty(),
+                        else_scope_ident: LateInit::empty(),
+                    }
+                    .allocate(ctx);
+
+                    ctx[if_branch].body_scope_ident = ctx
+                        .make_anon_ident(IdentParent::IfBranchScope(if_branch))
+                        .into();
+
+                    ctx[if_branch].else_scope_ident = ctx
+                        .make_anon_ident(IdentParent::IfBranchScope(if_branch))
+                        .into();
+
+                    acc.push(Stmt::IfBranch(if_branch).allocate(ctx))
                 }
             };
         }

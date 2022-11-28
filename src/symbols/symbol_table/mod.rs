@@ -5,6 +5,7 @@ use id_arena::Id;
 use crate::ir::{
     context::{IrArenaType, IrCtx},
     node::{
+        control_flow::{IfBranchBody, IfStmt},
         enumeration::{Enum, EnumValue},
         external::ExternalObject,
         function::{Function, FunctionArg},
@@ -74,6 +75,7 @@ pub enum SymbolValueItem<'a> {
     EnumDecl(NodeRef<'a, Enum<'a>>),
     EnumValue(NodeRef<'a, EnumValue<'a>>),
     ExternalObject(NodeRef<'a, ExternalObject<'a>>),
+    IfBranch(NodeRef<'a, IfStmt<'a>>, IfBranchBody),
 }
 
 impl<'a> Into<Id<SymbolValueItem<'a>>> for SymbolValue<'a> {
@@ -113,6 +115,7 @@ impl<'a> Identifiable<'a> for SymbolValueItem<'a> {
             SymbolValueItem::EnumDecl(enm) => ctx[*enm].name(ctx),
             SymbolValueItem::EnumValue(enm_val) => ctx[*enm_val].name(ctx),
             SymbolValueItem::ExternalObject(obj) => ctx[*obj].name(ctx),
+            SymbolValueItem::IfBranch(ifb, branch) => ctx[*ifb].branch_ident(*branch),
         }
     }
 }
@@ -158,6 +161,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValueItem::EnumDecl(enm) => enm.eval_type(symbols, ctx),
             SymbolValueItem::EnumValue(enm_val) => enm_val.eval_type(symbols, ctx),
             SymbolValueItem::ExternalObject(obj) => obj.eval_type(symbols, ctx),
+            SymbolValueItem::IfBranch(_, _) => unreachable!(),
         }
     }
 
@@ -173,6 +177,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValueItem::EnumDecl(enm) => enm.specified_type(ctx),
             SymbolValueItem::EnumValue(enm_val) => enm_val.specified_type(ctx),
             SymbolValueItem::ExternalObject(obj) => obj.specified_type(ctx),
+            SymbolValueItem::IfBranch(_, _) => unreachable!(),
         }
     }
 
@@ -192,6 +197,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValueItem::EnumDecl(enm) => enm.specify_type(ctx, new_type),
             SymbolValueItem::EnumValue(enm_val) => enm_val.specify_type(ctx, new_type),
             SymbolValueItem::ExternalObject(obj) => obj.specify_type(ctx, new_type),
+            SymbolValueItem::IfBranch(_, _) => unreachable!(),
         }
     }
 }

@@ -4,6 +4,7 @@ use crate::{
     ir::{
         context::IrCtx,
         node::{
+            control_flow::IfStmt,
             expression::Expr,
             function::{Function, FunctionArg},
             identifier::{Ident, IdentKey, IdentValue, ResolvedIdentValue},
@@ -164,6 +165,7 @@ fn format_stmt<'a, 'ctx, W: Write>(
             gen.write(";")
         }
         Stmt::ExternObj(_) => Ok(()),
+        Stmt::IfBranch(ifb) => format_if_branch(gen, ifb),
     }
 }
 
@@ -200,13 +202,34 @@ fn format_func_decl<'a, 'ctx, W: Write>(
 
     format_func_args(gen, gen.ctx[func].args.clone())?;
 
-    gen.write(" {")?;
+    gen.write(" {\n")?;
 
     format_stmt_block(gen, gen.ctx[func].body)?;
 
     gen.symbols.exit_scope(&gen.ctx).unwrap();
 
     gen.write("}")?;
+
+    Ok(())
+}
+
+fn format_if_branch<'a, 'ctx, W: Write>(
+    gen: &mut CodeGenCtx<'a, 'ctx, W>,
+    ifb: NodeRef<'a, IfStmt<'a>>,
+) -> CodeGenResult {
+    gen.write("if (")?;
+    format_expr(gen, gen.ctx[ifb].condition)?;
+    gen.write(" ) {\n")?;
+    format_stmt_block(gen, gen.ctx[ifb].body)?;
+    gen.write("\n}")?;
+
+    if let Some(else_body) = gen.ctx[ifb].else_body {
+        gen.write(" else {\n")?;
+        format_stmt_block(gen, else_body)?;
+        gen.write("}\n")?;
+    } else {
+        gen.write("\n")?;
+    }
 
     Ok(())
 }
@@ -402,7 +425,7 @@ mod tests {
     fn test_func_call() {
         assert_eq!(
             final_codegen("func f() {}; f()").unwrap(),
-            "function f() {}\nf();\n"
+            "function f() {\n}\nf();\n"
         );
     }
 
@@ -414,7 +437,7 @@ mod tests {
         assert_matches!(output2, Ok(_));
         assert_eq!(
             output1.unwrap(),
-            "function f() {return true;}\nconst x = f();\n"
+            "function f() {\nreturn true;}\nconst x = f();\n"
         );
         assert_eq!(
             output2.unwrap(),
