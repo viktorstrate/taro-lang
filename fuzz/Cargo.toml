@@ -1,0 +1,27 @@
+[package]
+edition = "2021"
+name = "taro-fuzz"
+publish = false
+version = "0.0.0"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.taro]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[profile.release]
+debug = 1
+
+[[bin]]
+doc = false
+name = "transpiler"
+path = "fuzz_targets/transpiler.rs"
+test = false
