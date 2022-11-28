@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    
+    <title>Taro Playground</title>
+    <script type="module" crossorigin src="/assets/index.f8485e2e.js"></script>
+    <link rel="stylesheet" href="/assets/index.d68d084c.css">
+  </head>
+  <body>
+    <div class="container">
+      <h1>Taro Playground</h1>
+      <div class="code-wrapper">
+        <textarea id="code-textarea">
+// declaring variables
+let greeting = "Hello, World!"
+
+// structures
+struct Car {
+  let maxSpeed: Number
+  let model: String
+  let wheels = 4
+}
+
+let deLorean = Car { maxSpeed: 100, model: "DMC DeLorean" }
+let model: String = deLorean.model
+
+// tuples
+let a: (String, Number, Boolean) = ("hello", 42, true)
+let first: String = a.0
+
+// functions
+func sum(a: Number, b: Number) -> Number {
+  return @{ a + b }
+}
+
+// enumeration
+enum IP {
+  v4(Number, Number, Number, Number)
+  v6(String)
+}
+
+let my_ip: IP = .v4(127, 0, 0, 1)
+
+// javascript interoperability
+let num: String = @{ 1 + 2 }
+        </textarea>
+        <pre id="output-region"></pre>
+      </div>
+    </div>
+  </body>
+</html>
