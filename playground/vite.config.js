@@ -4,4 +4,5 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [wasm(), topLevelAwait()],
+  base: process.env.SITE_URL_PREFIX,
 })

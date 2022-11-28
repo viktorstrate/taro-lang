@@ -16,7 +16,6 @@ nom_locate = "4.0.0"
 [profile.release]
 lto = true # substantially improves speed of `nom` parsers
 
-# WASM Library
 [lib]
 crate-type = ["cdylib", "rlib"]
 
