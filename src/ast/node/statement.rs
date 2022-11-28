@@ -2,6 +2,7 @@ use crate::parser::Span;
 
 use super::{
     comment::Comment,
+    control_flow::IfStmt,
     enumeration::Enum,
     expression::Expr,
     external::ExternalObject,
@@ -28,6 +29,7 @@ pub enum StmtValue<'a> {
     Return(Expr<'a>),
     Comment(Comment<'a>),
     ExternObj(ExternalObject<'a>),
+    IfBranch(IfStmt<'a>),
 }
 
 #[derive(Debug, Clone)]

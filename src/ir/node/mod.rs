@@ -2,6 +2,7 @@ use id_arena::{Arena, Id};
 
 use self::{
     assignment::Assignment,
+    control_flow::IfStmt,
     enumeration::{Enum, EnumInit, EnumValue},
     escape_block::EscapeBlock,
     expression::Expr,
@@ -17,6 +18,7 @@ use std::{convert::Into, marker::PhantomData};
 use super::context::{IrArenaType, IrCtx};
 
 pub mod assignment;
+pub mod control_flow;
 pub mod enumeration;
 pub mod escape_block;
 pub mod expression;
@@ -131,7 +133,8 @@ register_nodes![
     (esc_blks, EscapeBlock<'a>),
     (var_decls, VarDecl<'a>),
     (mem_accs, UnresolvedMemberAccess<'a>),
-    (extern_obj, ExternalObject<'a>)
+    (extern_obj, ExternalObject<'a>),
+    (if_branch, IfStmt<'a>)
 ];
 
 pub trait IrAlloc<'a>

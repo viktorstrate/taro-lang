@@ -8,6 +8,7 @@ use crate::{
 use std::{fmt::Debug, hash::Hash};
 
 use super::{
+    control_flow::IfStmt,
     enumeration::{Enum, EnumInit, EnumValue},
     expression::Expr,
     external::ExternalObject,
@@ -134,6 +135,7 @@ pub enum IdentParent<'a> {
     MemberAccessMemberName(NodeRef<'a, UnresolvedMemberAccess<'a>>),
     ExternObjName(NodeRef<'a, ExternalObject<'a>>),
     BuiltinIdent,
+    IfBranchScope(NodeRef<'a, IfStmt<'a>>),
 }
 
 impl<'a> IdentParent<'a> {
@@ -176,6 +178,7 @@ impl<'a> IdentParent<'a> {
             }
             IdentParent::BuiltinIdent => panic!("builtin ident cannot be changed"),
             IdentParent::ExternObjName(obj) => ctx[*obj].ident = new_ident.into(),
+            IdentParent::IfBranchScope(_) => unreachable!(),
         }
     }
 }
