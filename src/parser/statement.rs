@@ -5,7 +5,7 @@ use nom::{
     combinator::{map, opt},
     error::context,
     multi::separated_list0,
-    sequence::{preceded, tuple},
+    sequence::{preceded, terminated, tuple},
 };
 
 use crate::{
@@ -19,7 +19,7 @@ use crate::{
 use super::{
     comment::comment, control_flow::if_branch, enumeration::enumeration, external::external_object,
     function::function_decl, identifier::identifier, spaced, span, structure::structure,
-    type_signature::type_signature, Input, Res,
+    type_signature::type_signature, ws, Input, Res,
 };
 
 pub fn statement<'a>(i: Input<'a>) -> Res<Input<'a>, Stmt<'a>> {
@@ -76,7 +76,10 @@ pub fn variable_decl(i: Input<'_>) -> Res<Input<'_>, VarDecl<'_>> {
             tuple((
                 mutability_specifier,
                 identifier,
-                opt(preceded(spaced(char(':')), type_signature)),
+                alt((
+                    map(ws, |_| None),
+                    opt(preceded(spaced(char(':')), type_signature)),
+                )),
                 preceded(spaced(char('=')), expression),
             )),
             |(mutability, name, type_sig, value)| VarDecl {
@@ -92,25 +95,15 @@ pub fn variable_decl(i: Input<'_>) -> Res<Input<'_>, VarDecl<'_>> {
 pub fn mutability_specifier(i: Input<'_>) -> Res<Input<'_>, Mutability> {
     spaced(context(
         "mutability specifier",
-        alt((
-            map(tag("let"), |_| Mutability::Immutable),
-            map(tag("var"), |_| Mutability::Mutable),
-        )),
+        terminated(
+            alt((
+                map(tag("let"), |_| Mutability::Immutable),
+                map(tag("var"), |_| Mutability::Mutable),
+            )),
+            ws,
+        ),
     ))(i)
 }
-
-// pub fn let_specifier(i: Input<'_>) -> Res<Input<'_>, ()> {
-//     map(spaced(tuple((tag("let"), ws))), |_| ())(i)
-// }
-
-// pub fn mut_specifier(i: Input<'_>) -> Res<Input<'_>, Mutability> {
-//     context(
-//         "mut specifier",
-//         map(opt(spaced(tuple((tag("mut"), ws)))), |val| {
-//             val.is_some().into()
-//         }),
-//     )(i)
-// }
 
 pub fn stmt_return(i: Input<'_>) -> Res<Input<'_>, StmtValue<'_>> {
     context(
