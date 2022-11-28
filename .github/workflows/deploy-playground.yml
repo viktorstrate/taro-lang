@@ -1,0 +1,55 @@
+name: Deploy playground
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  SITE_URL_PREFIX: taro-lang
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: Swatinem/rust-cache@v2
+      with:
+        prefix-key: v0-rust-playground
+
+    - name: Install nightly rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        override: true
+        target: wasm32-unknown-unknown
+
+    - name: Install wasm-pack
+      uses: jetli/wasm-pack-action@v0.4.0
+
+    - name: Build library
+      run: wasm-pack build
+
+    - uses: actions/setup-node@v3
+      with:
+        node-version: 16
+        cache: 'npm'
+        cache-dependency-path: ./playground/package-lock.json
+
+    - name: Install playground dependencies
+      run: npm ci
+      working-directory: ./playground
+
+    - name: Build playground
+      run: npm run build
+      working-directory: ./playground
+
+    - name: Deploy playground to Github Pages
+      uses: JamesIves/github-pages-deploy-action@v4
+      if: github.event_name == 'push'
+      with:
+        folder: playground/dist

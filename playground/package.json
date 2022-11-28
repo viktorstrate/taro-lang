@@ -1,0 +1,26 @@
+{
+  "name": "taro-playground",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:wasm && tsc && vite build",
+    "build:wasm": "cd .. && wasm-pack build",
+    "preview": "vite preview",
+    "test": "tsc --noEmit"
+  },
+  "dependencies": {
+    "typescript": "^4.6.4",
+    "vite": "^3.2.3",
+    "vite-plugin-top-level-await": "^1.2.2",
+    "vite-plugin-wasm": "^3.1.0"
+  },
+  "devDependencies": {
+    "prettier": "^2.8.0"
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true
+  }
+}

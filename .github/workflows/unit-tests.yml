@@ -1,0 +1,40 @@
+name: Unit tests
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: Swatinem/rust-cache@v2
+      with:
+        prefix-key: v0-rust-tests
+
+    - name: Install nightly rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        override: true
+
+    - name: "Run cargo build"
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+
+    - name: "Run tests"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
