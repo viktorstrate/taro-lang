@@ -28,11 +28,6 @@ impl<'a, 'b> TypeInferrer<'a, 'b> {
         type_checker.symbols.reset(ctx);
         Self(type_checker)
     }
-
-    #[inline]
-    fn add_constraint(&mut self, a: TypeSignature<'a>, b: TypeSignature<'a>) {
-        self.0.constraints.push_back(TypeConstraint(a, b))
-    }
 }
 
 impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
@@ -96,7 +91,8 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
                     .eval_type(&mut self.0.symbols, ctx)
                     .map_err(TypeCheckerError::TypeEval)?;
 
-                self.add_constraint((*ctx[var_decl].type_sig).clone(), val_type)
+                self.0
+                    .add_constraint((*ctx[var_decl].type_sig).clone(), val_type)
             }
             Stmt::StructDecl(st) => {
                 for attr in ctx[st].attrs.clone() {
@@ -105,7 +101,8 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
                             .eval_type(&mut self.0.symbols, ctx)
                             .map_err(TypeCheckerError::TypeEval)?;
 
-                        self.add_constraint((*ctx[attr].type_sig).clone(), default_val_type)
+                        self.0
+                            .add_constraint((*ctx[attr].type_sig).clone(), default_val_type)
                     }
                 }
             }
@@ -158,7 +155,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
                         .eval_type(&mut self.0.symbols, ctx)
                         .map_err(TypeCheckerError::TypeEval)?;
 
-                    self.add_constraint(arg, param_type)
+                    self.0.add_constraint(arg, param_type)
                 }
             }
             Expr::Identifier(_, _) => {}
@@ -189,7 +186,8 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
                         .eval_type(&mut self.0.symbols, ctx)
                         .map_err(TypeCheckerError::TypeEval)?;
 
-                    self.add_constraint((*ctx[st_attr].type_sig).clone(), val_type);
+                    self.0
+                        .add_constraint((*ctx[st_attr].type_sig).clone(), val_type);
                 }
             }
             Expr::StructAccess(_) => {}
@@ -207,7 +205,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
                     .eval_type(&mut self.0.symbols, ctx)
                     .map_err(TypeCheckerError::TypeEval)?;
 
-                self.add_constraint(lhs, rhs);
+                self.0.add_constraint(lhs, rhs);
             }
             Expr::Tuple(_) => {}
             Expr::EnumInit(enm_init) => {
@@ -234,7 +232,7 @@ impl<'a> IrWalker<'a> for TypeInferrer<'a, '_> {
                     let arg_type = arg
                         .eval_type(&mut self.0.symbols, ctx)
                         .map_err(TypeCheckerError::TypeEval)?;
-                    self.add_constraint(arg_type, item_type);
+                    self.0.add_constraint(arg_type, item_type);
                 }
             }
             Expr::UnresolvedMemberAccess(_) => {}
@@ -272,10 +270,10 @@ impl<'a> TypeInferrer<'a, '_> {
                 (TypeSignatureValue::TypeVariable(_), TypeSignatureValue::TypeVariable(_)) => {
                     if unresolvable_count < self.0.constraints.len() {
                         unresolvable_count += 1;
-                        self.add_constraint(type_a, type_b);
+                        self.0.add_constraint(type_a, type_b);
                     } else {
                         // No more constraints can be resolved
-                        self.add_constraint(type_a, type_b);
+                        self.0.add_constraint(type_a, type_b);
                         self.0.found_undeterminable_types = true;
                         return Ok(());
                     }
@@ -294,7 +292,7 @@ impl<'a> TypeInferrer<'a, '_> {
                         return Err(TypeCheckerError::ConflictingTypes(type_a, type_b));
                     }
                     for (val_a, val_b) in (*tup_a).iter().zip((*tup_b).iter()) {
-                        self.add_constraint(val_a.clone(), val_b.clone());
+                        self.0.add_constraint(val_a.clone(), val_b.clone());
                     }
                 }
                 (
@@ -313,13 +311,14 @@ impl<'a> TypeInferrer<'a, '_> {
                         ));
                     }
 
-                    self.add_constraint((*return_type_a).clone(), (*return_type_b).clone());
+                    self.0
+                        .add_constraint((*return_type_a).clone(), (*return_type_b).clone());
                     for (arg_a, arg_b) in (*args_a)
                         .clone()
                         .into_iter()
                         .zip((*args_b).clone().into_iter())
                     {
-                        self.add_constraint(arg_a, arg_b);
+                        self.0.add_constraint(arg_a, arg_b);
                     }
                 }
                 _ => {
@@ -376,14 +375,15 @@ impl<'a> TypeInferrer<'a, '_> {
         collect_return_types(self, ctx, ctx[func].body, &mut return_types)?;
 
         if return_types.len() == 1 {
-            self.add_constraint(
+            self.0.add_constraint(
                 return_types[0].clone(),
                 ctx.get_builtin_type_sig(BuiltinType::Void),
             )
         }
 
         for i in 1..return_types.len() {
-            self.add_constraint(return_types[i - 1].clone(), return_types[i].clone());
+            self.0
+                .add_constraint(return_types[i - 1].clone(), return_types[i].clone());
         }
 
         Ok(())

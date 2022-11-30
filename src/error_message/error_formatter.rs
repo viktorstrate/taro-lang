@@ -60,13 +60,13 @@ pub fn format_span_items<'a>(
 
     if !items.is_empty() {
         let mut lines = items[0].span.source.lines();
-        let mut current_line = 0;
-        let mut current_col = 0;
+        let mut current_line: usize = 0;
+        let mut current_col: usize = 0;
         let mut line = "";
         let mut line_msgs = VecDeque::new();
 
-        let max_lines = items[0].span.source.chars().filter(|c| *c == '\n').count();
-        let line_decimals = max_lines.to_string().chars().count();
+        let line_count = items[0].span.source.chars().filter(|c| *c == '\n').count() + 1;
+        let line_decimals = line_count.to_string().chars().count();
 
         for (i, item) in items.iter().enumerate() {
             if item.span.line > current_line {
@@ -84,10 +84,18 @@ pub fn format_span_items<'a>(
                     writeln!(w, "{}{} | {}", line_padding, item.span.line, line)?;
                 }
 
-                let start_offset = line_decimals + 2 + item.span.offset - current_col;
-                let span_len = item.span.fragment.len();
+                let mut start_offset: isize =
+                    (line_decimals + 2 + item.span.offset) as isize - current_col as isize;
 
-                debug_assert!(start_offset > 0);
+                if start_offset < 0 {
+                    current_line += 1;
+                    start_offset = (line_decimals + 2 + item.span.offset) as isize;
+                    write!(w, "\n")?;
+                }
+
+                let start_offset: usize = start_offset as usize;
+
+                let span_len = item.span.fragment.len();
 
                 write!(w, "{}{}", " ".repeat(start_offset), "^".repeat(span_len))?;
                 current_col += start_offset + span_len;
@@ -96,8 +104,7 @@ pub fn format_span_items<'a>(
                     line_msgs.push_back((msg, start_offset));
                 }
             } else {
-                dbg!(&item);
-                todo!()
+                write!(w, "TODO: MULTILINE: {:?}", item)?;
             }
 
             if item == items.last().unwrap() || items[i + 1].span.line > item.span.line {

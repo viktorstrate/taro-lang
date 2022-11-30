@@ -495,6 +495,7 @@ impl<'a> IrCtx<'a> {
                         .map(|val| self.lower_expr(val))
                         .collect(),
                     type_sig: LateInit::empty(),
+                    span: tup.span,
                 }
                 .allocate(self);
 

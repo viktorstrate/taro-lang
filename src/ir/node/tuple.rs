@@ -1,5 +1,7 @@
 use crate::{
+    error_message::error_formatter::Spanned,
     ir::{context::IrCtx, late_init::LateInit},
+    parser::Span,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
@@ -16,12 +18,19 @@ use super::{
 pub struct Tuple<'a> {
     pub values: Vec<NodeRef<'a, Expr<'a>>>,
     pub type_sig: LateInit<TypeSignature<'a>>,
+    pub span: Span<'a>,
 }
 
 #[derive(Debug)]
 pub struct TupleAccess<'a> {
     pub tuple_expr: NodeRef<'a, Expr<'a>>,
     pub attr: usize,
+}
+
+impl<'a> Spanned<'a> for NodeRef<'a, Tuple<'a>> {
+    fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+        Some(ctx[*self].span.clone())
+    }
 }
 
 impl<'a> Typed<'a> for NodeRef<'a, Tuple<'a>> {

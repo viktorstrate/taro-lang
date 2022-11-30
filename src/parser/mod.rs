@@ -37,6 +37,12 @@ pub enum ParserError<'a> {
     EarlyTermination(),
 }
 
+impl<'a> From<VerboseError<Input<'a>>> for ParserError<'a> {
+    fn from(value: VerboseError<Input<'a>>) -> Self {
+        ParserError::NomErr(value)
+    }
+}
+
 impl<'a> Display for ParserError<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

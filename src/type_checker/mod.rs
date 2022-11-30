@@ -106,4 +106,9 @@ impl<'a> TypeChecker<'a> {
 
         Ok(())
     }
+
+    #[inline]
+    fn add_constraint(&mut self, a: TypeSignature<'a>, b: TypeSignature<'a>) {
+        self.constraints.push_back(TypeConstraint(a, b))
+    }
 }

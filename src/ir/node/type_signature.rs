@@ -137,13 +137,13 @@ impl<'a> Spanned<'a> for TypeSignature<'a> {
             TypeSignatureParent::Struct(st) => st.get_span(ctx),
             TypeSignatureParent::StructInit(_) => todo!(),
             TypeSignatureParent::StructAttr(_) => todo!(),
-            TypeSignatureParent::Tuple(_) => todo!(),
+            TypeSignatureParent::Tuple(tup) => tup.get_span(ctx),
             TypeSignatureParent::TupleItem {
                 attr: _,
                 parent_tuple: _,
             } => todo!(),
             TypeSignatureParent::EscapeBlock(esc) => esc.get_span(ctx),
-            TypeSignatureParent::MemberAccess(_) => todo!(),
+            TypeSignatureParent::MemberAccess(mem_acc) => mem_acc.get_span(ctx),
             TypeSignatureParent::ExternObjType(obj) => obj.get_span(ctx),
         };
 

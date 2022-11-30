@@ -1,3 +1,5 @@
+use std::num::ParseIntError;
+
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until},
@@ -153,7 +155,12 @@ fn tail_member_access(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
 
 fn tail_tuple_access(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
     let (i, digit) = preceded(spaced(tag(".")), digit1)(i)?;
-    let num = digit.parse().unwrap();
+    let num: usize = digit
+        .parse()
+        .unwrap_or_else(|err: ParseIntError| match err.kind() {
+            std::num::IntErrorKind::PosOverflow => usize::MAX,
+            _ => panic!(),
+        });
 
     Ok((i, ExprTailChain::TupleAccess(num)))
 }
@@ -185,10 +192,11 @@ pub fn expr_boolean_literal(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
 pub fn expr_tuple(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
     context(
         "tuple expression",
-        map(expr_args, |exprs| {
+        map(span(expr_args), |(span, exprs)| {
             ExprValue::Tuple(Tuple {
                 values: exprs,
                 type_sig: None,
+                span,
             })
         }),
     )(i)
@@ -364,6 +372,7 @@ mod tests {
                     ExprValue::Tuple(Tuple {
                         values,
                         type_sig: None,
+                        span: _,
                     }),
             } => {
                 assert_eq!(values.len(), 2);
