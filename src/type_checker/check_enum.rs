@@ -58,7 +58,7 @@ mod tests {
         .unwrap();
 
         assert_matches!(
-            type_check(&mut ir),
+            type_check(&mut ir).1,
             Err(TypeCheckerError::EnumInitArgCountMismatch(_, _))
         );
     }
@@ -74,6 +74,6 @@ mod tests {
         )
         .unwrap();
 
-        assert_matches!(type_check(&mut ir), Ok(_));
+        assert_matches!(type_check(&mut ir).1, Ok(_));
     }
 }

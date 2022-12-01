@@ -63,7 +63,7 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (&'ret TypeChecker<'a>, &'
                     Ok(())
                 }),
             },
-            TypeCheckerError::UndeterminableTypes => ErrMsg {
+            TypeCheckerError::UnresolvableTypeConstraints(_) => ErrMsg {
                 span: type_checker
                     .constraints
                     .front()
@@ -361,6 +361,32 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (&'ret TypeChecker<'a>, &'
                 }),
             },
             TypeCheckerError::SymbolResolutionError(sym_res_err) => sym_res_err.err_msg(ctx),
+            TypeCheckerError::UndeterminableTypes(undeterminable_types) => ErrMsg {
+                span: Some(undeterminable_types.first().unwrap().span.clone()),
+                title: Box::new(move |w| write!(w, "undeterminable types")),
+                msg: Box::new(move |w| {
+                    let mut items = undeterminable_types
+                        .iter()
+                        .map(|x| SpanItem {
+                            span: x.span.clone(),
+                            msg: Some(format!(
+                                "could not determine type, expected type {}",
+                                x.expected
+                            )),
+                            err_type: ErrMsgType::Err,
+                        })
+                        .collect::<Vec<_>>();
+
+                    format_span_items(
+                        w,
+                        &mut items,
+                        &[ErrRemark {
+                            msg: format!("consider adding an explicit type for the object"),
+                            err_type: ErrMsgType::Hint,
+                        }],
+                    )
+                }),
+            },
         }
     }
 }

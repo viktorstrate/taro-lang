@@ -1,5 +1,7 @@
 #[cfg(test)]
 pub mod utils {
+    use std::assert_matches::assert_matches;
+
     use crate::{
         code_gen::format_ir,
         ir::{
@@ -48,7 +50,7 @@ pub mod utils {
 
     pub fn type_check<'a>(
         ir_result: &mut LowerAstResult<'a>,
-    ) -> Result<TypeChecker<'a>, TypeCheckerError<'a>> {
+    ) -> (TypeChecker<'a>, Result<(), TypeCheckerError<'a>>) {
         let symbols = collect_symbols(ir_result).unwrap();
 
         let mut sym_resolver = SymbolResolver::new(symbols);
@@ -57,20 +59,15 @@ pub mod utils {
         let mut type_checker = TypeChecker::new(&mut ir_result.ctx, sym_resolver);
         let result = type_checker.type_check(ir_result);
 
-        match result {
-            Ok(_) => Ok(type_checker),
-            Err(err) => Err(err),
-        }
+        return (type_checker, result);
     }
 
     pub fn final_codegen<'a>(input: &'a str) -> Result<String, TranspilerError<'a>> {
         let ast = parse_ast(&input).map_err(TranspilerError::Parse)?;
         let mut lowered_ast = lower_ast(ast);
 
-        let type_checker = match type_check(&mut lowered_ast) {
-            Ok(type_checker) => type_checker,
-            Err(err) => panic!("TYPE CHECK ERROR: {:?}", err),
-        };
+        let (type_checker, result) = type_check(&mut lowered_ast);
+        assert_matches!(result, Ok(()));
 
         let ctx = &mut lowered_ast.ctx;
         let ir = &mut lowered_ast.ir;

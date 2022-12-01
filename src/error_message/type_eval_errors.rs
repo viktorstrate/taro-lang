@@ -41,7 +41,24 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W> for Ty
                 actual: _,
             } => todo!(),
             TypeEvalError::AccessNonStruct(_) => todo!(),
-            TypeEvalError::AccessNonTuple(_) => todo!(),
+            TypeEvalError::AccessNonTuple(type_sig) => ErrMsg {
+                span: type_sig.get_span(ctx),
+                title: Box::new(|w| write!(w, "access non-tuple")),
+                msg: Box::new(|w| {
+                    format_span_items(
+                        w,
+                        &mut [SpanItem {
+                            span: type_sig.get_span(ctx).unwrap(),
+                            msg: Some(format!(
+                                "type of accessed object is `{}`, expected tuple",
+                                type_sig.format(ctx)
+                            )),
+                            err_type: ErrMsgType::Err,
+                        }],
+                        &[],
+                    )
+                }),
+            },
             TypeEvalError::AccessNonEnum(_) => todo!(),
             TypeEvalError::TupleAccessOutOfBounds {
                 tuple_len: _,

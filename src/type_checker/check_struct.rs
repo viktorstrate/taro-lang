@@ -1,4 +1,5 @@
 use crate::{
+    error_message::error_formatter::Spanned,
     ir::{
         context::IrCtx,
         node::{
@@ -14,7 +15,7 @@ use crate::{
     },
 };
 
-use super::TypeCheckerError;
+use super::{TypeCheckerError, UndeterminableType};
 
 #[derive(Debug)]
 pub enum StructTypeError<'a> {
@@ -27,7 +28,12 @@ pub fn check_struct_init<'a>(
     symbols: &mut SymbolTableZipper<'a>,
     st_init: NodeRef<'a, StructInit<'a>>,
 ) -> Result<(), TypeCheckerError<'a>> {
-    let st_name = st_init.struct_name(ctx).expect("should be resolved by now");
+    let st_name = st_init.struct_name(ctx).ok_or_else(|| {
+        TypeCheckerError::UndeterminableTypes(vec![UndeterminableType {
+            span: st_init.get_span(ctx).unwrap(),
+            expected: super::ExpectedType::Struct,
+        }])
+    })?;
     // .struct_name
     // .expect("struct_name should have been resolved by now");
     let st = st_init

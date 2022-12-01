@@ -1,4 +1,5 @@
 use crate::{
+    error_message::error_formatter::Spanned,
     ir::{
         context::IrCtx,
         ir_walker::{IrWalker, ScopeValue},
@@ -13,7 +14,9 @@ use crate::{
     symbols::symbol_resolver::SymbolResolutionError,
 };
 
-use super::{type_inference::TypeInferrer, TypeChecker, TypeCheckerError};
+use super::{
+    type_inference::TypeInferrer, ExpectedType, TypeChecker, TypeCheckerError, UndeterminableType,
+};
 
 #[derive(Debug)]
 pub struct TypeResolver<'a, 'b>(pub &'b mut TypeChecker<'a>);
@@ -127,7 +130,25 @@ impl<'a, 'b> TypeResolver<'a, 'b> {
                 .allocate(ctx)
             }
             TypeSignatureValue::TypeVariable(_) => {
-                self.0.found_undeterminable_types = true;
+                let span = (*ctx[mem_acc].type_sig).get_span(ctx).unwrap();
+
+                if !self
+                    .0
+                    .previous_undeterminable_types
+                    .iter()
+                    .find(|x| x.span == span)
+                    .is_some()
+                {
+                    self.0.needs_rerun = true;
+                }
+
+                self.0
+                    .immediate_undeterminable_types
+                    .push(UndeterminableType {
+                        span,
+                        expected: ExpectedType::Enum,
+                    });
+
                 return Ok(());
             }
             _ => {
@@ -197,7 +218,7 @@ mod tests {
         ",
         )
         .unwrap();
-        assert_matches!(type_check(&mut ir), Ok(_));
+        assert_matches!(type_check(&mut ir).1, Ok(_));
     }
 
     #[test]
@@ -216,6 +237,6 @@ mod tests {
         ",
         )
         .unwrap();
-        assert_matches!(type_check(&mut ir), Ok(_));
+        assert_matches!(type_check(&mut ir).1, Ok(_));
     }
 }

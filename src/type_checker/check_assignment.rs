@@ -104,14 +104,14 @@ mod tests {
     #[test]
     fn test_assign_variable() {
         let mut ir = lowered_ir("var foo = 1; foo = 2").unwrap();
-        assert_matches!(type_check(&mut ir), Ok(_))
+        assert_matches!(type_check(&mut ir).1, Ok(_))
     }
 
     #[test]
     fn test_assign_variable_immutable() {
         let mut ir = lowered_ir("let foo = 1; foo = 2").unwrap();
         assert_matches!(
-            type_check(&mut ir),
+            type_check(&mut ir).1,
             Err(TypeCheckerError::AssignmentError(
                 _,
                 AssignmentError::ImmutableAssignment(_)
@@ -128,7 +128,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_matches!(type_check(&mut ir), Ok(_));
+        assert_matches!(type_check(&mut ir).1, Ok(_));
     }
 
     #[test]
@@ -140,7 +140,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_matches!(type_check(&mut ir), Err(_));
+        assert_matches!(type_check(&mut ir).1, Err(_));
     }
 
     #[test]
@@ -152,7 +152,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_matches!(type_check(&mut ir), Err(_));
+        assert_matches!(type_check(&mut ir).1, Err(_));
     }
 
     #[test]
@@ -172,6 +172,6 @@ mod tests {
         ",
         )
         .unwrap();
-        assert_matches!(type_check(&mut ir), Err(_))
+        assert_matches!(type_check(&mut ir).1, Err(_))
     }
 }

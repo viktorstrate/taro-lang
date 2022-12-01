@@ -268,8 +268,6 @@ mod tests {
         )
         .unwrap();
 
-        let tc = type_check(&mut ir);
-
-        assert_matches!(tc, Ok(_))
+        assert_matches!(type_check(&mut ir).1, Ok(_))
     }
 }

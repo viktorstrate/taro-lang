@@ -274,7 +274,6 @@ impl<'a> TypeInferrer<'a, '_> {
                     } else {
                         // No more constraints can be resolved
                         self.0.add_constraint(type_a, type_b);
-                        self.0.found_undeterminable_types = true;
                         return Ok(());
                     }
                 }
@@ -402,7 +401,7 @@ mod tests {
     use super::*;
 
     fn assert_type_mismatch<'a>(
-        infer_result: Result<TypeChecker<'a>, TypeCheckerError<'a>>,
+        (_, infer_result): (TypeChecker<'a>, Result<(), TypeCheckerError<'a>>),
         type_a: TypeSignature<'a>,
         type_b: TypeSignature<'a>,
     ) {
@@ -412,7 +411,10 @@ mod tests {
                 assert!(type_b == a || type_b == b, "expected B did not match");
                 assert!((a == type_a && b == type_b) || (a == type_b && b == type_a));
             }
-            val => assert!(false, "expected conflicting type error, got {val:?}"),
+            _ => assert!(
+                false,
+                "expected conflicting type error, got {infer_result:?}"
+            ),
         }
     }
 
@@ -440,7 +442,7 @@ mod tests {
     #[test]
     fn test_var_decl_var() {
         let mut ir = lowered_ir("let a = true; let b: Boolean = a").unwrap();
-        assert_matches!(type_check(&mut ir), Ok(_));
+        assert_matches!(type_check(&mut ir), (_, Ok(_)));
     }
 
     #[test]
@@ -472,6 +474,22 @@ mod tests {
     }
 
     #[test]
+    fn test_unknown_member_access() {
+        let mut ir = lowered_ir(".x").unwrap();
+        let (_, result) = type_check(&mut ir);
+
+        match result {
+            Ok(_) => assert!(false),
+            Err(err) => match err {
+                TypeCheckerError::UndeterminableTypes(types) => {
+                    assert_eq!(types.len(), 1)
+                }
+                _ => assert!(false),
+            },
+        }
+    }
+
+    #[test]
     fn test_func_decl_inside_struct() {
         let mut ir = lowered_ir(
             "struct Foo { let attr: () -> Number }
@@ -490,7 +508,7 @@ mod tests {
     fn test_call_non_function() {
         let mut ir = lowered_ir("let val = true; val()").unwrap();
 
-        match type_check(&mut ir) {
+        match type_check(&mut ir).1 {
             Err(TypeCheckerError::TypeEval(TypeEvalError::CallNonFunction(_, expr_type))) => {
                 assert_eq!(expr_type, ir.ctx.get_builtin_type_sig(BuiltinType::Boolean))
             }
@@ -522,7 +540,7 @@ mod tests {
     fn test_func_call_wrong_arg_amount() {
         let mut ir = lowered_ir("func f(a: Number) {}; f(2, 3)").unwrap();
         assert_matches!(
-            type_check(&mut ir),
+            type_check(&mut ir).1,
             Err(TypeCheckerError::FunctionError(
                 FunctionError::FuncCallWrongArgAmount {
                     call: _,
@@ -567,15 +585,15 @@ mod tests {
     #[test]
     fn test_escape_block_typed() {
         let mut ir = lowered_ir("let a: Number = @{ 1 + 2 }").unwrap();
-        assert_matches!(type_check(&mut ir), Ok(_));
+        assert_matches!(type_check(&mut ir).1, Ok(_));
     }
 
     #[test]
     fn test_escape_block_untyped() {
         let mut ir = lowered_ir("let a = @{ 1 + 2 }").unwrap();
         assert_matches!(
-            type_check(&mut ir),
-            Err(TypeCheckerError::UndeterminableTypes)
+            type_check(&mut ir).1,
+            Err(TypeCheckerError::UnresolvableTypeConstraints(_))
         );
     }
 
@@ -583,8 +601,8 @@ mod tests {
     fn test_escape_block_untyped_func() {
         let mut ir = lowered_ir("func foo() { return @{ 123 } }").unwrap();
         assert_matches!(
-            type_check(&mut ir),
-            Err(TypeCheckerError::UndeterminableTypes)
+            type_check(&mut ir).1,
+            Err(TypeCheckerError::UnresolvableTypeConstraints(_))
         );
     }
 

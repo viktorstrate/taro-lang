@@ -92,7 +92,7 @@ mod tests {
     #[test]
     fn test_var_decl_matching_types() {
         let mut ir = lowered_ir("let x: String = \"hello\"").unwrap();
-        assert_matches!(type_check(&mut ir), Ok(_));
+        assert_matches!(type_check(&mut ir).1, Ok(_));
     }
 
     #[test]
@@ -104,7 +104,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_matches!(type_check(&mut ir), Ok(_))
+        assert_matches!(type_check(&mut ir).1, Ok(_))
     }
 
     #[test]
@@ -116,25 +116,25 @@ mod tests {
         )
         .unwrap();
 
-        assert!(type_check(&mut ir).is_err());
+        assert!(type_check(&mut ir).1.is_err());
     }
 
     #[test]
     fn test_escape_block_function_return() {
         let mut ir = lowered_ir("func f() -> Number { return @{ 1 + 2 } }").unwrap();
-        assert_matches!(type_check(&mut ir), Ok(_));
+        assert_matches!(type_check(&mut ir).1, Ok(_));
     }
 
     #[test]
     fn test_escape_block_function_return_coerce() {
         let mut ir = lowered_ir("func f() -> Number { return @{ 1 + 2 }; return 2 }").unwrap();
-        assert_matches!(type_check(&mut ir), Ok(_));
+        assert_matches!(type_check(&mut ir).1, Ok(_));
     }
 
     #[test]
     fn test_decl_inside_scope() {
         let mut ir = lowered_ir("let f = () -> Boolean { let a = true; return a }").unwrap();
-        let res = type_check(&mut ir);
+        let (_, res) = type_check(&mut ir);
 
         match res {
             Err(TypeCheckerError::TypeEval(TypeEvalError::UnknownIdent(id))) => {
@@ -149,6 +149,6 @@ mod tests {
     #[test]
     fn test_func_type_deduce() {
         let mut ir = lowered_ir("let f: (Boolean) -> Boolean = (val) { return val }").unwrap();
-        assert_matches!(type_check(&mut ir), Ok(_))
+        assert_matches!(type_check(&mut ir).1, Ok(_))
     }
 }
