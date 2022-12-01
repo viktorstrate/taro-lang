@@ -57,7 +57,10 @@ enum ExprTailChain<'a> {
         items: Option<(Span<'a>, Vec<Expr<'a>>)>,
         span: Span<'a>,
     },
-    TupleAccess(usize),
+    TupleAccess {
+        attr: usize,
+        span: Span<'a>,
+    },
 }
 
 fn expr_tail<'a>(base: &Expr<'a>, i: Input<'a>, i_start: Input<'a>) -> Res<Input<'a>, Expr<'a>> {
@@ -74,9 +77,12 @@ fn tail_assignments<'a>(
     fold_many0(
         pair(preceded(spaced(tag("=")), expression), position),
         || base.clone(),
-        |acc, (rhs, end)| Expr {
-            span: Span::new(i_start.clone(), end),
-            value: ExprValue::Assignment(Box::new(Assignment { lhs: acc, rhs })),
+        |acc, (rhs, end)| {
+            let span = Span::new(i_start.clone(), end);
+            Expr {
+                span: span.clone(),
+                value: ExprValue::Assignment(Box::new(Assignment { lhs: acc, rhs })),
+            }
         },
     )(i)
 }
@@ -111,9 +117,10 @@ fn expr_tail_chain<'a>(
                     items,
                     span,
                 })),
-                ExprTailChain::TupleAccess(attr) => ExprValue::TupleAccess(TupleAccess {
+                ExprTailChain::TupleAccess { attr, span } => ExprValue::TupleAccess(TupleAccess {
                     tuple_expr: Box::new(acc),
                     attr,
+                    span,
                 }),
             };
 
@@ -154,15 +161,15 @@ fn tail_member_access(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
 }
 
 fn tail_tuple_access(i: Input<'_>) -> Res<Input<'_>, ExprTailChain<'_>> {
-    let (i, digit) = preceded(spaced(tag(".")), digit1)(i)?;
-    let num: usize = digit
+    let (i, (span, digit)) = span(preceded(spaced(tag(".")), digit1))(i)?;
+    let attr: usize = digit
         .parse()
         .unwrap_or_else(|err: ParseIntError| match err.kind() {
             std::num::IntErrorKind::PosOverflow => usize::MAX,
             _ => panic!(),
         });
 
-    Ok((i, ExprTailChain::TupleAccess(num)))
+    Ok((i, ExprTailChain::TupleAccess { attr, span }))
 }
 
 pub fn expr_string_literal(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {

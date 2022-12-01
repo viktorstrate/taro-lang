@@ -84,7 +84,7 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W>
                 title: Box::new(|w| {
                     write!(
                         w,
-                        "cannot access member value from type '{}'",
+                        "cannot access member value from type `{}`",
                         obj_type.format(ctx)
                     )
                 }),
@@ -97,7 +97,7 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W>
                                 .and_then(|obj| obj.get_span(ctx))
                                 .or(mem_acc.get_span(ctx))
                                 .unwrap(),
-                            msg: Some(format!("of type '{}'", obj_type.format(ctx))),
+                            msg: Some(format!("of type `{}`", obj_type.format(ctx))),
                             err_type: ErrMsgType::Err,
                         }],
                         &[],

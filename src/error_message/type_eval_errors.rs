@@ -14,25 +14,40 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W> for Ty
                 span: type_sig.get_span(ctx),
                 title: Box::new(|w| write!(w, "call non-function")),
                 msg: Box::new(|w| {
-                    format_span_items(
-                        w,
-                        &mut [
-                            SpanItem {
-                                span: type_sig.get_span(ctx).unwrap(),
+                    if let Some(type_sig_span) = type_sig.get_span(ctx) {
+                        format_span_items(
+                            w,
+                            &mut [
+                                SpanItem {
+                                    span: type_sig_span,
+                                    msg: Some(format!(
+                                        "type of called object is `{}`, expected function",
+                                        type_sig.format(ctx)
+                                    )),
+                                    err_type: ErrMsgType::Err,
+                                },
+                                SpanItem {
+                                    span: ctx[*call].args_span.clone(),
+                                    msg: Some(format!("tried to call it here")),
+                                    err_type: ErrMsgType::Err,
+                                },
+                            ],
+                            &[],
+                        )
+                    } else {
+                        format_span_items(
+                            w,
+                            &mut [SpanItem {
+                                span: ctx[*call].func.get_span(ctx).unwrap(),
                                 msg: Some(format!(
-                                    "type of called object is `{}`, expected function",
+                                    "tried to call object of type `{}`, expected function",
                                     type_sig.format(ctx)
                                 )),
                                 err_type: ErrMsgType::Err,
-                            },
-                            SpanItem {
-                                span: ctx[*call].args_span.clone(),
-                                msg: Some(format!("tried to call it here")),
-                                err_type: ErrMsgType::Err,
-                            },
-                        ],
-                        &[],
-                    )
+                            }],
+                            &[],
+                        )
+                    }
                 }),
             },
             TypeEvalError::FuncWrongNumberOfArgs {
@@ -66,7 +81,7 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W> for Ty
             } => todo!(),
             TypeEvalError::UnknownIdent(id) => ErrMsg {
                 span: id.get_span(ctx),
-                title: Box::new(|w| write!(w, "unknown identifier '{}'", id.value(ctx).unwrap())),
+                title: Box::new(|w| write!(w, "unknown identifier `{}`", id.value(ctx).unwrap())),
                 msg: Box::new(|w| {
                     format_span_items(
                         w,

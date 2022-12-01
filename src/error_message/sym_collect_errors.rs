@@ -20,7 +20,7 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W>
                 title: Box::new(|w| {
                     write!(
                         w,
-                        "symbol '{}' already exists in scope",
+                        "symbol `{}` already exists in scope",
                         new.value(ctx).unwrap()
                     )
                 }),

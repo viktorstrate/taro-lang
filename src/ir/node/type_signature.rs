@@ -6,7 +6,7 @@ use crate::{
     error_message::error_formatter::Spanned,
     ir::{context::IrCtx, late_init::LateInit},
     parser::Span,
-    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
+    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper},
 };
 
 use super::{

@@ -457,6 +457,7 @@ impl<'a> IrCtx<'a> {
                 TupleAccess {
                     tuple_expr: self.lower_expr(*tup_acc.tuple_expr),
                     attr: tup_acc.attr,
+                    span: tup_acc.span,
                 }
                 .allocate(self),
             )
@@ -483,6 +484,7 @@ impl<'a> IrCtx<'a> {
                 Assignment {
                     lhs: self.lower_expr(asg.lhs),
                     rhs: self.lower_expr(asg.rhs),
+                    span: expr.span,
                 }
                 .allocate(self),
             )

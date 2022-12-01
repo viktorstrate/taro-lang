@@ -46,6 +46,13 @@ impl<'a> NodeRef<'a, Expr<'a>> {
             _ => panic!("failed to unwrap expr as function"),
         }
     }
+
+    pub fn unwrap_ident(self, ctx: &IrCtx<'a>) -> Ident<'a> {
+        match &ctx[self] {
+            Expr::Identifier(ident, _span) => *ident.clone(),
+            _ => panic!("failed to unwrap expr as identifier"),
+        }
+    }
 }
 
 impl<'a> Typed<'a> for NodeRef<'a, Expr<'a>> {
@@ -151,16 +158,16 @@ impl<'a> Spanned<'a> for NodeRef<'a, Expr<'a>> {
             Expr::StringLiteral(_, span) => Some(span),
             Expr::NumberLiteral(_, span) => Some(span),
             Expr::BoolLiteral(_, span) => Some(span),
-            Expr::Function(_) => todo!(),
-            Expr::FunctionCall(_) => todo!(),
+            Expr::Function(func) => func.get_span(ctx),
+            Expr::FunctionCall(call) => call.get_span(ctx),
             Expr::Identifier(_, span) => Some(span),
-            Expr::StructInit(_) => todo!(),
-            Expr::StructAccess(_) => todo!(),
-            Expr::TupleAccess(_) => todo!(),
-            Expr::EscapeBlock(_) => todo!(),
-            Expr::Assignment(_) => todo!(),
-            Expr::Tuple(_) => todo!(),
-            Expr::EnumInit(_) => todo!(),
+            Expr::StructInit(st_init) => st_init.get_span(ctx),
+            Expr::StructAccess(st_acc) => st_acc.get_span(ctx),
+            Expr::TupleAccess(tup_acc) => tup_acc.get_span(ctx),
+            Expr::EscapeBlock(esc_blk) => esc_blk.get_span(ctx),
+            Expr::Assignment(asgn) => asgn.get_span(ctx),
+            Expr::Tuple(tup) => tup.get_span(ctx),
+            Expr::EnumInit(enm_init) => enm_init.get_span(ctx),
             Expr::UnresolvedMemberAccess(mem_acc) => Some(ctx[mem_acc].span.clone()),
         }
     }

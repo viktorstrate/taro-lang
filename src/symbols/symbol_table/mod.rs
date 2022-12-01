@@ -1,4 +1,6 @@
-use std::collections::{HashMap, VecDeque};
+use std::{
+    collections::{HashMap, VecDeque},
+};
 
 use id_arena::Id;
 
@@ -116,6 +118,24 @@ impl<'a> Identifiable<'a> for SymbolValueItem<'a> {
             SymbolValueItem::EnumValue(enm_val) => ctx[*enm_val].name(ctx),
             SymbolValueItem::ExternalObject(obj) => ctx[*obj].name(ctx),
             SymbolValueItem::IfBranch(ifb, branch) => ctx[*ifb].branch_ident(*branch),
+        }
+    }
+}
+
+impl<'a> SymbolValue<'a> {
+    pub fn describe_type(&self, ctx: &IrCtx<'a>) -> &'static str {
+        match ctx[*self] {
+            SymbolValueItem::BuiltinType(_) => "builtin type",
+            SymbolValueItem::VarDecl(_) => "variable",
+            SymbolValueItem::FuncDecl(_) => "function",
+            SymbolValueItem::FuncArg(_) => "function argument",
+            SymbolValueItem::StructDecl(_) => "struct declaration",
+            SymbolValueItem::StructAttr(_) => "struct attribute",
+            SymbolValueItem::StructInit(_) => "struct",
+            SymbolValueItem::EnumDecl(_) => "enum",
+            SymbolValueItem::EnumValue(_) => "enum value",
+            SymbolValueItem::ExternalObject(_) => "external object",
+            SymbolValueItem::IfBranch(_, _) => "if branch",
         }
     }
 }

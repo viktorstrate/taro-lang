@@ -35,7 +35,7 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (&'ret TypeChecker<'a>, &'
                     if let Some(span) = a.get_span(ctx) {
                         messages.push(SpanItem {
                             span,
-                            msg: Some(format!("of type '{}'", a_fmt)),
+                            msg: Some(format!("of type `{}`", a_fmt)),
                             err_type: ErrMsgType::Note,
                         });
                     }
@@ -43,7 +43,7 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (&'ret TypeChecker<'a>, &'
                     if let Some(span) = b.get_span(ctx) {
                         messages.push(SpanItem {
                             span,
-                            msg: Some(format!("of type '{}'", b_fmt)),
+                            msg: Some(format!("of type `{}`", b_fmt)),
                             err_type: ErrMsgType::Note,
                         });
                     }
@@ -53,7 +53,7 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (&'ret TypeChecker<'a>, &'
                         &mut messages,
                         &[ErrRemark {
                             msg: format!(
-                                "expected type '{}'\n         found type '{}'",
+                                "expected type `{}`\n         found type `{}`",
                                 a_fmt, b_fmt
                             ),
                             err_type: ErrMsgType::Note,
@@ -387,6 +387,34 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, (&'ret TypeChecker<'a>, &'
                     )
                 }),
             },
+            TypeCheckerError::IdentNotExpression(expr, sym) => {
+                let ident = expr.unwrap_ident(ctx);
+
+                ErrMsg {
+                    span: expr.get_span(ctx),
+                    title: Box::new(move |w| {
+                        write!(
+                            w,
+                            "identifier is not an expression `{}`",
+                            ident.value(ctx).unwrap()
+                        )
+                    }),
+                    msg: Box::new(move |w| {
+                        format_span_items(
+                            w,
+                            &mut [SpanItem {
+                                span: expr.get_span(ctx).unwrap(),
+                                msg: Some(format!(
+                                    "expected expression found symbol `{}`",
+                                    sym.describe_type(ctx)
+                                )),
+                                err_type: ErrMsgType::Err,
+                            }],
+                            &[],
+                        )
+                    }),
+                }
+            }
         }
     }
 }

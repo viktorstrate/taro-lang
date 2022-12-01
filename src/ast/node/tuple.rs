@@ -13,4 +13,5 @@ pub struct Tuple<'a> {
 pub struct TupleAccess<'a> {
     pub tuple_expr: Box<Expr<'a>>,
     pub attr: usize,
+    pub span: Span<'a>,
 }

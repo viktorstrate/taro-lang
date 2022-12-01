@@ -50,6 +50,12 @@ pub struct StructAccess<'a> {
     pub attr_name: Ident<'a>,
 }
 
+impl<'a> Spanned<'a> for NodeRef<'a, StructAccess<'a>> {
+    fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+        ctx[*self].attr_name.get_span(ctx)
+    }
+}
+
 impl<'a> NodeRef<'a, Struct<'a>> {
     pub fn lookup_attr(
         &self,

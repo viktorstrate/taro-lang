@@ -54,6 +54,12 @@ impl<'a> NodeRef<'a, Function<'a>> {
     }
 }
 
+impl<'a> Spanned<'a> for NodeRef<'a, Function<'a>> {
+    fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+        Some(ctx[*self].span.clone())
+    }
+}
+
 #[derive(Debug)]
 pub struct FunctionArg<'a> {
     pub name: LateInit<Ident<'a>>,
@@ -66,6 +72,12 @@ pub struct FunctionCall<'a> {
     pub func: NodeRef<'a, Expr<'a>>,
     pub args: Vec<NodeRef<'a, Expr<'a>>>,
     pub args_span: Span<'a>,
+}
+
+impl<'a> Spanned<'a> for NodeRef<'a, FunctionCall<'a>> {
+    fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+        Some(ctx[*self].args_span.clone())
+    }
 }
 
 impl<'a> Identifiable<'a> for Function<'a> {

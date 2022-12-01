@@ -7,6 +7,7 @@ use crate::{
             enumeration::EnumInit,
             expression::Expr,
             identifier::{Ident, IdentParent, Identifiable},
+            member_access::UnresolvedMemberAccess,
             type_signature::{TypeEvalError, TypeSignature, TypeSignatureValue},
             IrAlloc, NodeRef,
         },
@@ -83,8 +84,10 @@ impl<'a> IrWalker<'a> for TypeResolver<'a, '_> {
         _scope: &mut Self::Scope,
         expr: NodeRef<'a, Expr<'a>>,
     ) -> Result<(), Self::Error> {
-        self.resolve_member_access(ctx, expr)?;
-        Ok(())
+        match ctx[expr] {
+            Expr::UnresolvedMemberAccess(mem_acc) => self.resolve_member_access(ctx, mem_acc, expr),
+            _ => Ok(()),
+        }
     }
 }
 
@@ -101,12 +104,13 @@ impl<'a, 'b> TypeResolver<'a, 'b> {
     fn resolve_member_access(
         &mut self,
         ctx: &mut IrCtx<'a>,
+        mem_acc: NodeRef<'a, UnresolvedMemberAccess<'a>>,
         expr: NodeRef<'a, Expr<'a>>,
     ) -> Result<(), TypeCheckerError<'a>> {
-        let mem_acc = match &ctx[expr] {
-            Expr::UnresolvedMemberAccess(mem_acc) => *mem_acc,
-            _ => return Ok(()),
-        };
+        // let mem_acc = match &ctx[expr] {
+        //     Expr::UnresolvedMemberAccess(mem_acc) => *mem_acc,
+        //     _ => return Ok(()),
+        // };
 
         // Make sure type sig is resolved before proceeding
         ctx[mem_acc].type_sig = self

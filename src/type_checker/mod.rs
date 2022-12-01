@@ -11,6 +11,7 @@ use crate::{
         node::{
             assignment::Assignment,
             enumeration::{EnumInit, EnumValue},
+            expression::Expr,
             function::FunctionCall,
             member_access::UnresolvedMemberAccess,
             structure::Struct,
@@ -21,7 +22,7 @@ use crate::{
     parser::Span,
     symbols::{
         symbol_resolver::{SymbolResolutionError, SymbolResolver},
-        symbol_table::symbol_table_zipper::SymbolTableZipper,
+        symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolValue},
     },
 };
 
@@ -35,6 +36,7 @@ use self::{
 
 pub mod check_assignment;
 pub mod check_enum;
+pub mod check_expr_ident;
 pub mod check_struct;
 pub mod coercion;
 pub mod type_inference;
@@ -53,6 +55,7 @@ pub enum TypeCheckerError<'a> {
     AnonymousEnumInitNonEnum(NodeRef<'a, UnresolvedMemberAccess<'a>>, TypeSignature<'a>),
     UnresolvableTypeConstraints(VecDeque<TypeConstraint<'a>>),
     UndeterminableTypes(Vec<UndeterminableType<'a>>),
+    IdentNotExpression(NodeRef<'a, Expr<'a>>, SymbolValue<'a>),
 }
 
 #[derive(Debug)]

@@ -9,7 +9,8 @@ use crate::{
 
 use super::{
     check_assignment::check_assignment, check_enum::check_enum_init,
-    check_struct::check_struct_init, type_resolver::TypeResolver, TypeCheckerError,
+    check_expr_ident::check_expr_ident, check_struct::check_struct_init,
+    type_resolver::TypeResolver, TypeCheckerError,
 };
 
 #[derive(Debug)]
@@ -72,6 +73,7 @@ impl<'a> IrWalker<'a> for EndTypeChecker<'a, '_> {
             Expr::Assignment(asg) => check_assignment(ctx, &mut self.symbols, asg),
             Expr::StructInit(st_init) => check_struct_init(ctx, &mut self.symbols, st_init),
             Expr::EnumInit(enm_init) => check_enum_init(ctx, &mut self.symbols, enm_init),
+            Expr::Identifier(ident, _) => check_expr_ident(ctx, &mut self.symbols, expr, *ident),
             _ => Ok(()),
         }
     }

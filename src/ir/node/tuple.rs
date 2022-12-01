@@ -25,6 +25,13 @@ pub struct Tuple<'a> {
 pub struct TupleAccess<'a> {
     pub tuple_expr: NodeRef<'a, Expr<'a>>,
     pub attr: usize,
+    pub span: Span<'a>,
+}
+
+impl<'a> Spanned<'a> for NodeRef<'a, TupleAccess<'a>> {
+    fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+        Some(ctx[*self].span.clone())
+    }
 }
 
 impl<'a> Spanned<'a> for NodeRef<'a, Tuple<'a>> {
