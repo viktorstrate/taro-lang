@@ -141,43 +141,46 @@ pub enum IdentParent<'a> {
 impl<'a> IdentParent<'a> {
     pub fn change_ident(&self, ctx: &mut IrCtx<'a>, new_ident: Ident<'a>) {
         match self {
-            IdentParent::StructDeclName(st_decl) => ctx[*st_decl].name = new_ident.into(),
-            IdentParent::StructDeclAttrName(st_attr) => ctx[*st_attr].name = new_ident.into(),
-            IdentParent::StructInitValueName(st_val) => ctx[*st_val].name = new_ident.into(),
+            IdentParent::StructDeclName(st_decl) => ctx[*st_decl].name.id = new_ident.id,
+            IdentParent::StructDeclAttrName(st_attr) => ctx[*st_attr].name.id = new_ident.id,
+            IdentParent::StructInitValueName(st_val) => ctx[*st_val].name.id = new_ident.id,
             IdentParent::StructInitStructName(st_init) => {
                 ctx[*st_init].type_sig = ctx
                     .get_type_sig(
-                        TypeSignatureValue::Struct { name: new_ident },
+                        TypeSignatureValue::Struct {
+                            name: Ident {
+                                id: new_ident.id,
+                                parent: IdentParent::StructInitStructName(*st_init).into(),
+                            },
+                        },
                         ctx[*st_init].type_sig.context.clone(),
                     )
                     .into();
             }
-            IdentParent::StructInitScopeName(st_init) => {
-                ctx[*st_init].scope_name = new_ident.into()
-            }
-            IdentParent::StructAccessAttrName(st_acc) => ctx[*st_acc].attr_name = new_ident,
-            IdentParent::EnumDeclName(enm) => ctx[*enm].name = new_ident.into(),
-            IdentParent::EnumDeclValueName(enm_val) => ctx[*enm_val].name = new_ident.into(),
-            IdentParent::EnumInitValueName(enm_init) => ctx[*enm_init].enum_value = new_ident,
-            IdentParent::EnumInitEnumName(enm_init) => ctx[*enm_init].enum_name = new_ident,
-            IdentParent::VarDeclName(var_decl) => ctx[*var_decl].name = new_ident.into(),
-            IdentParent::FuncDeclName(func) => ctx[*func].name = new_ident.into(),
-            IdentParent::FuncDeclArgName(func_arg) => ctx[*func_arg].name = new_ident.into(),
+            IdentParent::StructInitScopeName(st_init) => ctx[*st_init].scope_name.id = new_ident.id,
+            IdentParent::StructAccessAttrName(st_acc) => ctx[*st_acc].attr_name.id = new_ident.id,
+            IdentParent::EnumDeclName(enm) => ctx[*enm].name.id = new_ident.id,
+            IdentParent::EnumDeclValueName(enm_val) => ctx[*enm_val].name.id = new_ident.id,
+            IdentParent::EnumInitValueName(enm_init) => ctx[*enm_init].enum_value.id = new_ident.id,
+            IdentParent::EnumInitEnumName(enm_init) => ctx[*enm_init].enum_name.id = new_ident.id,
+            IdentParent::VarDeclName(var_decl) => ctx[*var_decl].name.id = new_ident.id,
+            IdentParent::FuncDeclName(func) => ctx[*func].name.id = new_ident.id,
+            IdentParent::FuncDeclArgName(func_arg) => ctx[*func_arg].name.id = new_ident.id,
             IdentParent::IdentExpr(id_expr) => match &mut ctx[*id_expr] {
-                Expr::Identifier(id, _) => *id = new_ident.into(),
+                Expr::Identifier(id, _) => id.id = new_ident.id,
                 _ => unreachable!(),
             },
             IdentParent::TypeSigName(type_sig) => match &mut ctx.types[*type_sig] {
-                TypeSignatureValue::Unresolved(ident) => *ident = new_ident.into(),
-                TypeSignatureValue::Enum { name } => *name = new_ident,
-                TypeSignatureValue::Struct { name } => *name = new_ident,
+                TypeSignatureValue::Unresolved(ident) => ident.id = new_ident.id,
+                TypeSignatureValue::Enum { name } => name.id = new_ident.id,
+                TypeSignatureValue::Struct { name } => name.id = new_ident.id,
                 _ => unreachable!(),
             },
             IdentParent::MemberAccessMemberName(mem_acc) => {
-                ctx[*mem_acc].member_name = new_ident.into()
+                ctx[*mem_acc].member_name.id = new_ident.id
             }
             IdentParent::BuiltinIdent => panic!("builtin ident cannot be changed"),
-            IdentParent::ExternObjName(obj) => ctx[*obj].ident = new_ident.into(),
+            IdentParent::ExternObjName(obj) => ctx[*obj].ident.id = new_ident.id,
             IdentParent::IfBranchScope(_) => unreachable!(),
         }
     }

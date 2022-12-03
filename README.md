@@ -29,6 +29,7 @@ By making a completely new language, inconsistencies and complexities in Javascr
 - [ ] Extensions
 - [ ] Async support
 - [ ] Pattern matching
+- [ ] Error handling
 - [ ] Generate Typescript definitions
 
 ## Documentation
@@ -58,7 +59,7 @@ When specified, this will be used as a default value when initialized.
 
 ```
 struct Car {
-  let maxSpeed: String
+  let maxSpeed: Number
   let model: String
   let wheels = 4
 }

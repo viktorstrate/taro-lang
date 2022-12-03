@@ -104,6 +104,37 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W>
                     )
                 }),
             },
+            SymbolResolutionError::RecursiveDeclaration {
+                var_decl,
+                ident_span,
+            } => ErrMsg {
+                span: ctx[*var_decl].name.get_span(ctx),
+                title: Box::new(|w| {
+                    write!(
+                        w,
+                        "variable used before initialized `{}`",
+                        ctx[*var_decl].name.value(ctx).unwrap()
+                    )
+                }),
+                msg: Box::new(|w| {
+                    format_span_items(
+                        w,
+                        &mut [
+                            SpanItem {
+                                span: ctx[*var_decl].name.get_span(ctx).unwrap(),
+                                msg: Some(format!("variable declared here")),
+                                err_type: ErrMsgType::Err,
+                            },
+                            SpanItem {
+                                span: ident_span.clone(),
+                                msg: Some(format!("used in declaration here")),
+                                err_type: ErrMsgType::Err,
+                            },
+                        ],
+                        &[],
+                    )
+                }),
+            },
         }
     }
 }

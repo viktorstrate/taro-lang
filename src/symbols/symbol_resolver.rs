@@ -1,22 +1,27 @@
 use std::assert_matches::debug_assert_matches;
 
-use crate::ir::{
-    context::IrCtx,
-    ir_walker::{walk_expr, IrWalker, ScopeValue},
-    node::{
-        enumeration::{Enum, EnumInit},
-        expression::Expr,
-        function::FunctionCall,
-        identifier::{Ident, IdentParent, IdentValue, Identifiable},
-        member_access::UnresolvedMemberAccess,
-        structure::StructAccess,
-        type_signature::{TypeEvalError, TypeSignature, TypeSignatureValue, Typed},
-        IrAlloc, NodeRef,
+use crate::{
+    ir::{
+        context::IrCtx,
+        ir_walker::{walk_expr, IrWalker, ScopeValue},
+        node::{
+            enumeration::{Enum, EnumInit},
+            expression::Expr,
+            function::FunctionCall,
+            identifier::{Ident, IdentParent, IdentValue, Identifiable},
+            member_access::UnresolvedMemberAccess,
+            statement::{Stmt, VarDecl},
+            structure::StructAccess,
+            type_signature::{TypeEvalError, TypeSignature, TypeSignatureValue, Typed},
+            IrAlloc, NodeRef,
+        },
     },
+    parser::Span,
 };
 
 use super::symbol_table::{symbol_table_zipper::SymbolTableZipper, SymbolTable};
 
+#[derive(Debug)]
 pub struct SymbolResolver<'a> {
     pub symbols: SymbolTableZipper<'a>,
 }
@@ -39,6 +44,10 @@ pub enum SymbolResolutionError<'a> {
     InvalidMemberAccessType {
         mem_acc: NodeRef<'a, UnresolvedMemberAccess<'a>>,
         obj_type: TypeSignature<'a>,
+    },
+    RecursiveDeclaration {
+        var_decl: NodeRef<'a, VarDecl<'a>>,
+        ident_span: Span<'a>,
     },
 }
 
@@ -118,14 +127,39 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
         Ok(updated_type_sig)
     }
 
+    fn visit_stmt(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        scope: &mut Self::Scope,
+        stmt: NodeRef<'a, Stmt<'a>>,
+    ) -> Result<(), Self::Error> {
+        match ctx[stmt] {
+            Stmt::VariableDecl(var_decl) => {
+                let mut ident_searcher = SearchIdentWalker {
+                    search_ident: *ctx[var_decl].name,
+                };
+                walk_expr(&mut ident_searcher, ctx, scope, ctx[var_decl].value).map_err(
+                    |span| SymbolResolutionError::RecursiveDeclaration {
+                        var_decl: var_decl,
+                        ident_span: span,
+                    },
+                )?;
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+
     fn visit_expr(
         &mut self,
         ctx: &mut IrCtx<'a>,
         scope: &mut Self::Scope,
         expr: NodeRef<'a, Expr<'a>>,
     ) -> Result<(), Self::Error> {
-        match ctx[expr] {
+        match &ctx[expr] {
             Expr::UnresolvedMemberAccess(mem_acc) => {
+                let mem_acc = *mem_acc;
                 let obj = match ctx[mem_acc].object {
                     Some(obj) => obj,
                     None => {
@@ -296,4 +330,65 @@ pub fn resolve_ident<'a>(
     }
 
     Ok(())
+}
+
+/// Walker used to search a subtree for a given identifier expression.
+/// If a match is found the walker returns an "error" with the span of the found identifier.
+struct SearchIdentWalker<'a> {
+    pub search_ident: Ident<'a>,
+}
+
+impl<'a> IrWalker<'a> for SearchIdentWalker<'a> {
+    type Error = Span<'a>;
+
+    fn visit_expr(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        _scope: &mut Self::Scope,
+        expr: NodeRef<'a, Expr<'a>>,
+    ) -> Result<(), Self::Error> {
+        match &ctx[expr] {
+            Expr::Identifier(id, span) => {
+                if **id == self.search_ident {
+                    return Err(span.clone());
+                }
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
+
+    use crate::ir::test_utils::utils::{lowered_ir, resolve_symbols};
+
+    use super::SymbolResolutionError;
+
+    #[test]
+    fn test_self_referencing_var_decl() {
+        let mut ir = lowered_ir("let x = x").unwrap();
+        assert_matches!(
+            resolve_symbols(&mut ir),
+            Err(SymbolResolutionError::RecursiveDeclaration {
+                var_decl: _,
+                ident_span: _
+            })
+        )
+    }
+
+    #[test]
+    fn test_indirect_self_referencing_var_decl() {
+        let mut ir = lowered_ir("let x = (123, x)").unwrap();
+        assert_matches!(
+            resolve_symbols(&mut ir),
+            Err(SymbolResolutionError::RecursiveDeclaration {
+                var_decl: _,
+                ident_span: _
+            })
+        )
+    }
 }

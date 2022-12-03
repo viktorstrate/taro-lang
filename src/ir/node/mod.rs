@@ -32,13 +32,22 @@ pub mod structure;
 pub mod tuple;
 pub mod type_signature;
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, Eq, Hash)]
 pub struct NodeRef<'a, T>
 where
     T: IrArenaType<'a> + ?Sized,
 {
     id: Id<T>,
     _marker: PhantomData<&'a str>,
+}
+
+impl<'a, T> PartialEq for NodeRef<'a, T>
+where
+    T: IrArenaType<'a>,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
 }
 
 impl<'a, T> Copy for NodeRef<'a, T> where T: IrArenaType<'a> {}

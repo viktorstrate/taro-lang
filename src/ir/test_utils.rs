@@ -11,7 +11,7 @@ pub mod utils {
         parser::{parse_ast, ParserError},
         symbols::{
             symbol_collector::SymbolCollector,
-            symbol_resolver::SymbolResolver,
+            symbol_resolver::{SymbolResolutionError, SymbolResolver},
             symbol_table::{SymbolCollectionError, SymbolTable},
         },
         type_checker::{TypeChecker, TypeCheckerError},
@@ -48,13 +48,19 @@ pub mod utils {
         }
     }
 
-    pub fn type_check<'a>(
+    pub fn resolve_symbols<'a>(
         ir_result: &mut LowerAstResult<'a>,
-    ) -> (TypeChecker<'a>, Result<(), TypeCheckerError<'a>>) {
+    ) -> Result<SymbolResolver<'a>, SymbolResolutionError<'a>> {
         let symbols = collect_symbols(ir_result).unwrap();
 
         let mut sym_resolver = SymbolResolver::new(symbols);
-        walk_ir(&mut sym_resolver, ir_result).unwrap();
+        walk_ir(&mut sym_resolver, ir_result).map(|_| sym_resolver)
+    }
+
+    pub fn type_check<'a>(
+        ir_result: &mut LowerAstResult<'a>,
+    ) -> (TypeChecker<'a>, Result<(), TypeCheckerError<'a>>) {
+        let sym_resolver = resolve_symbols(ir_result).unwrap();
 
         let mut type_checker = TypeChecker::new(&mut ir_result.ctx, sym_resolver);
         let result = type_checker.type_check(ir_result);
