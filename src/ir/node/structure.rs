@@ -1,18 +1,18 @@
 use crate::{
     error_message::error_formatter::Spanned,
-    ir::{context::IrCtx, late_init::LateInit},
+    ir::{ast_lowering::IrLowerable, context::IrCtx, late_init::LateInit},
     parser::Span,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
 use super::{
     expression::Expr,
-    identifier::{Ident, IdentKey, Identifiable},
+    identifier::{Ident, IdentKey, IdentParent, Identifiable},
     type_signature::{
         Mutability, TypeEvalError, TypeSignature, TypeSignatureContext, TypeSignatureParent,
         TypeSignatureValue, Typed,
     },
-    NodeRef,
+    IrAlloc, NodeRef,
 };
 
 #[derive(Debug)]
@@ -151,6 +151,119 @@ impl<'a> Typed<'a> for NodeRef<'a, StructAttr<'a>> {
     ) -> Result<(), TypeEvalError<'a>> {
         ctx[*self].type_sig = new_type.into();
         Ok(())
+    }
+}
+
+impl<'a> IrLowerable<'a> for crate::ast::node::structure::Struct<'a> {
+    type IrType = Struct<'a>;
+
+    fn ir_lower(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
+        let ir_attrs: Vec<NodeRef<'a, StructAttr<'a>>> = self
+            .attrs
+            .into_iter()
+            .map(|attr| attr.ir_lower(ctx))
+            .collect();
+
+        let st = Struct {
+            name: LateInit::empty(),
+            attrs: ir_attrs,
+        }
+        .allocate(ctx);
+
+        ctx[st].name = ctx
+            .make_ident(self.name, IdentParent::StructDeclName(st))
+            .into();
+
+        st
+    }
+}
+
+impl<'a> IrLowerable<'a> for crate::ast::node::structure::StructAttr<'a> {
+    type IrType = StructAttr<'a>;
+
+    fn ir_lower(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
+        let st_attr = StructAttr {
+            name: LateInit::empty(),
+            mutability: self.mutability,
+            type_sig: LateInit::empty(),
+            default_value: self.default_value.map(|val| val.ir_lower(ctx)),
+        }
+        .allocate(ctx);
+
+        ctx[st_attr].name = ctx
+            .make_ident(self.name, IdentParent::StructDeclAttrName(st_attr))
+            .into();
+
+        ctx[st_attr].type_sig = self
+            .type_sig
+            .map(|t| t.into_ir_type(ctx, TypeSignatureParent::StructAttr(st_attr)))
+            .unwrap_or_else(|| ctx.make_type_var(TypeSignatureParent::StructAttr(st_attr)))
+            .into();
+
+        st_attr
+    }
+}
+
+impl<'a> IrLowerable<'a> for crate::ast::node::structure::StructInit<'a> {
+    type IrType = StructInit<'a>;
+
+    fn ir_lower(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
+        let struct_init = StructInit {
+            type_sig: LateInit::empty(),
+            scope_name: LateInit::empty(),
+            values: Vec::new(),
+            span: self.span,
+        }
+        .allocate(ctx);
+
+        ctx[struct_init].type_sig = self
+            .struct_name
+            .map(|struct_name| {
+                let st_ident = ctx.make_unresolved_ident(
+                    struct_name.clone(),
+                    IdentParent::StructInitStructName(struct_init).into(),
+                );
+                ctx.get_type_sig(
+                    TypeSignatureValue::Unresolved(st_ident),
+                    TypeSignatureContext {
+                        parent: TypeSignatureParent::StructInit(struct_init),
+                        type_span: Some(struct_name.span.clone()),
+                    }
+                    .alloc(),
+                )
+            })
+            .unwrap_or_else(|| ctx.make_type_var(TypeSignatureParent::StructInit(struct_init)))
+            .into();
+
+        ctx[struct_init].scope_name = ctx
+            .make_anon_ident(IdentParent::StructInitScopeName(struct_init))
+            .into();
+
+        let st_init_vals = self
+            .values
+            .into_iter()
+            .map(|val| {
+                let st_val = StructInitValue {
+                    name: LateInit::empty(),
+                    parent: struct_init,
+                    value: val.value.ir_lower(ctx),
+                }
+                .allocate(ctx);
+
+                ctx[st_val].name = ctx
+                    .make_unresolved_ident(
+                        val.name,
+                        IdentParent::StructInitValueName(st_val).into(),
+                    )
+                    .into();
+
+                st_val
+            })
+            .collect();
+
+        ctx[struct_init].values = st_init_vals;
+
+        struct_init
     }
 }
 

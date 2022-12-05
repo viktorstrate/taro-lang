@@ -166,6 +166,7 @@ fn format_stmt<'a, 'ctx, W: Write>(
         }
         Stmt::ExternObj(_) => Ok(()),
         Stmt::IfBranch(ifb) => format_if_branch(gen, ifb),
+        Stmt::TraitDecl(_) => Ok(()),
     }
 }
 

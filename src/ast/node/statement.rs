@@ -9,6 +9,7 @@ use super::{
     function::Function,
     identifier::Ident,
     structure::Struct,
+    traits::Trait,
     type_signature::{Mutability, TypeSignature},
 };
 
@@ -22,6 +23,7 @@ pub struct Stmt<'a> {
 pub enum StmtValue<'a> {
     VariableDecl(VarDecl<'a>),
     FunctionDecl(Function<'a>),
+    TraitDecl(Trait<'a>),
     StructDecl(Struct<'a>),
     EnumDecl(Enum<'a>),
     Compound(Vec<Stmt<'a>>),

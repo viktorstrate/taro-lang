@@ -9,12 +9,13 @@ use nom::{
 use crate::ast::node::{
     expression::ExprValue,
     function::{Function, FunctionArg},
+    identifier::Ident,
     type_signature::TypeSignature,
 };
 
 use super::{
     identifier::identifier, spaced, span, statement::statement, surround_brackets,
-    type_signature::type_signature, ws, BracketType, Input, Res,
+    type_signature::type_signature, ws, BracketType, Input, Res, Span,
 };
 
 pub fn function_decl(i: Input<'_>) -> Res<Input<'_>, Function<'_>> {
@@ -22,20 +23,13 @@ pub fn function_decl(i: Input<'_>) -> Res<Input<'_>, Function<'_>> {
 
     map(
         pair(
-            span(tuple((
-                preceded(
-                    spaced(tuple((tag("func"), ws))),
-                    context("function name", identifier),
-                ),
-                surround_brackets(BracketType::Round, function_args),
-                return_signature,
-            ))),
+            function_signature,
             context(
                 "function body",
                 surround_brackets(BracketType::Curly, statement),
             ),
         ),
-        |((span, (name, args, return_type)), body)| Function {
+        |((name, args, return_type, span), body)| Function {
             name: Some(name),
             args,
             return_type,
@@ -68,6 +62,32 @@ pub fn function_expr(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
                 span,
             })
         },
+    )(i)
+}
+
+pub fn function_signature(
+    i: Input<'_>,
+) -> Res<
+    Input<'_>,
+    (
+        Ident<'_>,
+        Vec<FunctionArg<'_>>,
+        Option<TypeSignature<'_>>,
+        Span<'_>,
+    ),
+> {
+    // func IDENT "(" FUNC_ARGS ")" [-> RETURN_SIG]
+
+    map(
+        span(tuple((
+            preceded(
+                spaced(tuple((tag("func"), ws))),
+                context("function name", identifier),
+            ),
+            surround_brackets(BracketType::Round, function_args),
+            return_signature,
+        ))),
+        |(span, (name, args, return_type))| (name, args, return_type, span),
     )(i)
 }
 

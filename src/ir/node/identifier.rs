@@ -16,6 +16,7 @@ use super::{
     member_access::UnresolvedMemberAccess,
     statement::VarDecl,
     structure::{Struct, StructAccess, StructAttr, StructInit, StructInitValue},
+    traits::{Trait, TraitFuncAttr},
     type_signature::{BuiltinType, TypeSignatureValue},
     NodeRef,
 };
@@ -136,6 +137,8 @@ pub enum IdentParent<'a> {
     ExternObjName(NodeRef<'a, ExternalObject<'a>>),
     BuiltinIdent,
     IfBranchScope(NodeRef<'a, IfStmt<'a>>),
+    TraitName(NodeRef<'a, Trait<'a>>),
+    TraitFuncAttrName(NodeRef<'a, TraitFuncAttr<'a>>),
 }
 
 impl<'a> IdentParent<'a> {
@@ -182,6 +185,8 @@ impl<'a> IdentParent<'a> {
             IdentParent::BuiltinIdent => panic!("builtin ident cannot be changed"),
             IdentParent::ExternObjName(obj) => ctx[*obj].ident.id = new_ident.id,
             IdentParent::IfBranchScope(_) => unreachable!(),
+            IdentParent::TraitName(tr) => ctx[*tr].name.id = new_ident.id,
+            IdentParent::TraitFuncAttrName(attr) => ctx[*attr].name.id = new_ident.id,
         }
     }
 }

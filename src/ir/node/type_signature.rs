@@ -6,7 +6,7 @@ use crate::{
     error_message::error_formatter::Spanned,
     ir::{context::IrCtx, late_init::LateInit},
     parser::Span,
-    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper},
+    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
 use super::{
@@ -19,6 +19,7 @@ use super::{
     member_access::UnresolvedMemberAccess,
     statement::VarDecl,
     structure::{Struct, StructAttr, StructInit},
+    traits::TraitFuncAttr,
     tuple::Tuple,
     NodeRef,
 };
@@ -84,6 +85,7 @@ pub enum TypeSignatureParent<'a> {
     EscapeBlock(NodeRef<'a, EscapeBlock<'a>>),
     MemberAccess(NodeRef<'a, UnresolvedMemberAccess<'a>>),
     ExternObjType(NodeRef<'a, ExternalObject<'a>>),
+    TraitFuncAttr(NodeRef<'a, TraitFuncAttr<'a>>),
 }
 
 impl<'a> Into<Id<TypeSignatureValue<'a>>> for TypeSignature<'a> {
@@ -145,6 +147,7 @@ impl<'a> Spanned<'a> for TypeSignature<'a> {
             TypeSignatureParent::EscapeBlock(esc) => esc.get_span(ctx),
             TypeSignatureParent::MemberAccess(mem_acc) => mem_acc.get_span(ctx),
             TypeSignatureParent::ExternObjType(obj) => obj.get_span(ctx),
+            TypeSignatureParent::TraitFuncAttr(_) => todo!(),
         };
 
         if node_span.is_some() {

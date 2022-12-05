@@ -1,6 +1,6 @@
 use crate::{
     error_message::error_formatter::Spanned,
-    ir::{context::IrCtx, late_init::LateInit},
+    ir::{ast_lowering::IrLowerable, context::IrCtx, late_init::LateInit},
     parser::Span,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
@@ -10,7 +10,7 @@ use super::{
     enumeration::EnumInit,
     escape_block::EscapeBlock,
     function::{Function, FunctionCall},
-    identifier::Ident,
+    identifier::{Ident, IdentParent},
     member_access::UnresolvedMemberAccess,
     structure::{StructAccess, StructInit},
     tuple::{Tuple, TupleAccess},
@@ -18,7 +18,7 @@ use super::{
         BuiltinType, TypeEvalError, TypeSignature, TypeSignatureContext, TypeSignatureParent,
         TypeSignatureValue, Typed,
     },
-    NodeRef,
+    IrAlloc, NodeRef,
 };
 
 #[derive(Debug, Clone)]
@@ -169,6 +169,67 @@ impl<'a> Spanned<'a> for NodeRef<'a, Expr<'a>> {
             Expr::Tuple(tup) => tup.get_span(ctx),
             Expr::EnumInit(enm_init) => enm_init.get_span(ctx),
             Expr::UnresolvedMemberAccess(mem_acc) => Some(ctx[mem_acc].span.clone()),
+        }
+    }
+}
+
+impl<'a> IrLowerable<'a> for crate::ast::node::expression::Expr<'a> {
+    type IrType = Expr<'a>;
+
+    fn ir_lower(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
+        match self.value {
+            crate::ast::node::expression::ExprValue::StringLiteral(str) => {
+                Expr::StringLiteral(str, self.span).allocate(ctx)
+            }
+            crate::ast::node::expression::ExprValue::NumberLiteral(num) => {
+                Expr::NumberLiteral(num, self.span).allocate(ctx)
+            }
+            crate::ast::node::expression::ExprValue::BoolLiteral(bool) => {
+                Expr::BoolLiteral(bool, self.span).allocate(ctx)
+            }
+            crate::ast::node::expression::ExprValue::Function(func) => {
+                Expr::Function(func.ir_lower(ctx)).allocate(ctx)
+            }
+            crate::ast::node::expression::ExprValue::FunctionCall(func_call) => {
+                Expr::FunctionCall(func_call.ir_lower(ctx)).allocate(ctx)
+            }
+            crate::ast::node::expression::ExprValue::Identifier(id) => {
+                let id_expr = Expr::Identifier(LateInit::empty(), Span::empty()).allocate(ctx);
+
+                let span = id.span.clone();
+
+                let unresolved_ident = ctx
+                    .make_unresolved_ident(id, IdentParent::IdentExpr(id_expr).into())
+                    .into();
+
+                ctx[id_expr] = Expr::Identifier(unresolved_ident, span);
+
+                id_expr
+            }
+            crate::ast::node::expression::ExprValue::StructInit(st_init) => {
+                Expr::StructInit(st_init.ir_lower(ctx)).allocate(ctx)
+            }
+            crate::ast::node::expression::ExprValue::TupleAccess(tup_acc) => {
+                Expr::TupleAccess(tup_acc.ir_lower(ctx)).allocate(ctx)
+            }
+            crate::ast::node::expression::ExprValue::EscapeBlock(esc) => {
+                Expr::EscapeBlock(esc.ir_lower(ctx)).allocate(ctx)
+            }
+            crate::ast::node::expression::ExprValue::Assignment(asg) => Expr::Assignment(
+                Assignment {
+                    lhs: asg.lhs.ir_lower(ctx),
+                    rhs: asg.rhs.ir_lower(ctx),
+                    span: self.span,
+                }
+                .allocate(ctx),
+            )
+            .allocate(ctx),
+            crate::ast::node::expression::ExprValue::Tuple(tup) => {
+                Expr::Tuple(tup.ir_lower(ctx)).allocate(ctx)
+            }
+            crate::ast::node::expression::ExprValue::MemberAccess(mem_acc) => {
+                Expr::UnresolvedMemberAccess(mem_acc.ir_lower(ctx)).allocate(ctx)
+            }
         }
     }
 }

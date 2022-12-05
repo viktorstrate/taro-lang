@@ -14,6 +14,7 @@ use super::{
         module::Module,
         statement::{Stmt, StmtBlock},
         structure::{Struct, StructInit},
+        traits::{Trait, TraitFuncAttr},
         type_signature::{TypeSignature, TypeSignatureValue},
         NodeRef,
     },
@@ -278,6 +279,9 @@ pub fn walk_stmt<'a, W: IrWalker<'a>>(
         Stmt::IfBranch(ifb) => {
             walk_if_branch(walker, ctx, scope, ifb)?;
         }
+        Stmt::TraitDecl(tr_decl) => {
+            walk_trait(walker, ctx, scope, tr_decl)?;
+        }
     };
     walker.visit_stmt(ctx, scope, stmt)?;
 
@@ -527,4 +531,30 @@ pub fn walk_type_sig<'a, W: IrWalker<'a>>(
 
     // let new_type_sig = ctx.get_type_sig(new_type_sig);
     walker.visit_type_sig(ctx, scope, new_type_sig)
+}
+
+pub fn walk_trait<'a, W: IrWalker<'a>>(
+    walker: &mut W,
+    ctx: &mut IrCtx<'a>,
+    scope: &mut W::Scope,
+    tr: NodeRef<'a, Trait<'a>>,
+) -> Result<(), W::Error> {
+    walker.visit_ident(ctx, scope, *ctx[tr].name)?;
+
+    Ok(())
+}
+
+pub fn walk_trait_func_attr<'a, W: IrWalker<'a>>(
+    walker: &mut W,
+    ctx: &mut IrCtx<'a>,
+    scope: &mut W::Scope,
+    attr: NodeRef<'a, TraitFuncAttr<'a>>,
+) -> Result<(), W::Error> {
+    ctx[attr].return_type = ctx[attr]
+        .return_type
+        .clone()
+        .map(|ret_type| walk_type_sig(walker, ctx, scope, ret_type))
+        .map_or(Ok(None), |val| val.map(Some))?;
+
+    todo!("trait func args");
 }

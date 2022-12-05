@@ -1,6 +1,6 @@
 use crate::{
     error_message::error_formatter::Spanned,
-    ir::{context::IrCtx, late_init::LateInit},
+    ir::{ast_lowering::IrLowerable, context::IrCtx, late_init::LateInit},
     parser::Span,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
@@ -11,7 +11,7 @@ use super::{
         TypeEvalError, TypeSignature, TypeSignatureContext, TypeSignatureParent,
         TypeSignatureValue, Typed,
     },
-    NodeRef,
+    IrAlloc, NodeRef,
 };
 
 #[derive(Debug)]
@@ -104,5 +104,43 @@ impl<'a> Typed<'a> for NodeRef<'a, TupleAccess<'a>> {
             }
             _val => Err(TypeEvalError::AccessNonTuple(tuple_type)),
         }
+    }
+}
+
+impl<'a> IrLowerable<'a> for crate::ast::node::tuple::Tuple<'a> {
+    type IrType = Tuple<'a>;
+
+    fn ir_lower(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
+        let tup = Tuple {
+            values: self
+                .values
+                .into_iter()
+                .map(|val| val.ir_lower(ctx))
+                .collect(),
+            type_sig: LateInit::empty(),
+            span: self.span,
+        }
+        .allocate(ctx);
+
+        ctx[tup].type_sig = self
+            .type_sig
+            .map(|t| t.into_ir_type(ctx, TypeSignatureParent::Tuple(tup)))
+            .unwrap_or_else(|| ctx.make_type_var(TypeSignatureParent::Tuple(tup)))
+            .into();
+
+        tup
+    }
+}
+
+impl<'a> IrLowerable<'a> for crate::ast::node::tuple::TupleAccess<'a> {
+    type IrType = TupleAccess<'a>;
+
+    fn ir_lower(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
+        TupleAccess {
+            tuple_expr: self.tuple_expr.ir_lower(ctx),
+            attr: self.attr,
+            span: self.span,
+        }
+        .allocate(ctx)
     }
 }

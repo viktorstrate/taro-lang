@@ -1,13 +1,13 @@
 use crate::{
     error_message::error_formatter::Spanned,
-    ir::{context::IrCtx, late_init::LateInit},
+    ir::{ast_lowering::IrLowerable, context::IrCtx, late_init::LateInit},
     parser::Span,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
 use super::{
-    type_signature::{TypeEvalError, TypeSignature, Typed},
-    NodeRef,
+    type_signature::{TypeEvalError, TypeSignature, TypeSignatureParent, Typed},
+    IrAlloc, NodeRef,
 };
 
 #[derive(Debug, Clone)]
@@ -43,5 +43,26 @@ impl<'a> Typed<'a> for NodeRef<'a, EscapeBlock<'a>> {
 impl<'a> Spanned<'a> for NodeRef<'a, EscapeBlock<'a>> {
     fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
         Some(ctx[*self].span.clone())
+    }
+}
+
+impl<'a> IrLowerable<'a> for crate::ast::node::escape_block::EscapeBlock<'a> {
+    type IrType = EscapeBlock<'a>;
+
+    fn ir_lower(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
+        let esc_blk = EscapeBlock {
+            content: self.content,
+            type_sig: LateInit::empty(),
+            span: self.span,
+        }
+        .allocate(ctx);
+
+        ctx[esc_blk].type_sig = self
+            .type_sig
+            .map(|t| t.into_ir_type(ctx, TypeSignatureParent::EscapeBlock(esc_blk)))
+            .unwrap_or_else(|| ctx.make_type_var(TypeSignatureParent::EscapeBlock(esc_blk)))
+            .into();
+
+        esc_blk
     }
 }
