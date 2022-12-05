@@ -10,6 +10,7 @@ pub struct LateInit<T> {
     inner: Option<T>,
 }
 
+#[inline]
 fn expect_init<U>(opt: Option<U>) -> U {
     debug_assert!(opt.is_some(), "dereferenced uninitialized LateInit value");
     opt.unwrap()
@@ -20,12 +21,21 @@ impl<T> LateInit<T> {
         LateInit { inner: None }
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.inner.is_none()
     }
 }
 
+impl<T: Clone> LateInit<T> {
+    #[inline]
+    pub fn cloned(&self) -> T {
+        expect_init(self.inner.clone())
+    }
+}
+
 impl<T> From<T> for LateInit<T> {
+    #[inline]
     fn from(value: T) -> Self {
         LateInit { inner: Some(value) }
     }
@@ -34,30 +44,35 @@ impl<T> From<T> for LateInit<T> {
 impl<T> Deref for LateInit<T> {
     type Target = T;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         expect_init(self.inner.as_ref())
     }
 }
 
 impl<T> DerefMut for LateInit<T> {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         expect_init(self.inner.as_mut())
     }
 }
 
 impl<T> AsRef<T> for LateInit<T> {
+    #[inline]
     fn as_ref(&self) -> &T {
         expect_init(self.inner.as_ref())
     }
 }
 
 impl<T> AsMut<T> for LateInit<T> {
+    #[inline]
     fn as_mut(&mut self) -> &mut T {
         expect_init(self.inner.as_mut())
     }
 }
 
 impl<'a> Into<Ident<'a>> for LateInit<Ident<'a>> {
+    #[inline]
     fn into(self) -> Ident<'a> {
         expect_init(self.inner)
     }
@@ -81,6 +96,7 @@ impl<T: Debug> Debug for LateInit<T> {
 }
 
 impl<T: Clone> Clone for LateInit<T> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),

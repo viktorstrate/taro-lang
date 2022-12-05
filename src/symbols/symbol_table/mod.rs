@@ -1,6 +1,4 @@
-use std::{
-    collections::{HashMap, VecDeque},
-};
+use std::collections::{HashMap, VecDeque};
 
 use id_arena::Id;
 
@@ -14,6 +12,7 @@ use crate::ir::{
         identifier::{Ident, IdentKey, Identifiable, ResolvedIdentValue},
         statement::VarDecl,
         structure::{Struct, StructAttr, StructInit},
+        traits::Trait,
         type_signature::{TypeEvalError, TypeSignature, Typed},
         NodeRef,
     },
@@ -78,6 +77,7 @@ pub enum SymbolValueItem<'a> {
     EnumValue(NodeRef<'a, EnumValue<'a>>),
     ExternalObject(NodeRef<'a, ExternalObject<'a>>),
     IfBranch(NodeRef<'a, IfStmt<'a>>, IfBranchBody),
+    TraitDecl(NodeRef<'a, Trait<'a>>),
 }
 
 impl<'a> Into<Id<SymbolValueItem<'a>>> for SymbolValue<'a> {
@@ -118,6 +118,7 @@ impl<'a> Identifiable<'a> for SymbolValueItem<'a> {
             SymbolValueItem::EnumValue(enm_val) => ctx[*enm_val].name(ctx),
             SymbolValueItem::ExternalObject(obj) => ctx[*obj].name(ctx),
             SymbolValueItem::IfBranch(ifb, branch) => ctx[*ifb].branch_ident(*branch),
+            SymbolValueItem::TraitDecl(tr) => ctx[*tr].name(ctx),
         }
     }
 }
@@ -136,6 +137,7 @@ impl<'a> SymbolValue<'a> {
             SymbolValueItem::EnumValue(_) => "enum value",
             SymbolValueItem::ExternalObject(_) => "external object",
             SymbolValueItem::IfBranch(_, _) => "if branch",
+            SymbolValueItem::TraitDecl(_) => "trait",
         }
     }
 }
@@ -182,6 +184,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValueItem::EnumValue(enm_val) => enm_val.eval_type(symbols, ctx),
             SymbolValueItem::ExternalObject(obj) => obj.eval_type(symbols, ctx),
             SymbolValueItem::IfBranch(_, _) => unreachable!(),
+            SymbolValueItem::TraitDecl(_) => todo!(),
         }
     }
 
@@ -198,6 +201,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValueItem::EnumValue(enm_val) => enm_val.specified_type(ctx),
             SymbolValueItem::ExternalObject(obj) => obj.specified_type(ctx),
             SymbolValueItem::IfBranch(_, _) => unreachable!(),
+            SymbolValueItem::TraitDecl(_) => todo!(),
         }
     }
 
@@ -218,6 +222,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValueItem::EnumValue(enm_val) => enm_val.specify_type(ctx, new_type),
             SymbolValueItem::ExternalObject(obj) => obj.specify_type(ctx, new_type),
             SymbolValueItem::IfBranch(_, _) => unreachable!(),
+            SymbolValueItem::TraitDecl(_) => todo!(),
         }
     }
 }

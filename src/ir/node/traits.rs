@@ -1,13 +1,19 @@
 use crate::{
     ir::{
         ast_lowering::IrLowerable,
+        context::IrCtx,
         late_init::LateInit,
         node::{identifier::IdentParent, type_signature::TypeSignatureParent, IrAlloc},
     },
     parser::Span,
 };
 
-use super::{function::FunctionArg, identifier::Ident, type_signature::TypeSignature, NodeRef};
+use super::{
+    function::FunctionArg,
+    identifier::{Ident, Identifiable},
+    type_signature::TypeSignature,
+    NodeRef,
+};
 
 #[derive(Debug, Clone)]
 pub struct Trait<'a> {
@@ -24,10 +30,16 @@ pub struct TraitFuncAttr<'a> {
     pub span: Span<'a>,
 }
 
+impl<'a> Identifiable<'a> for Trait<'a> {
+    fn name(&self, _ctx: &IrCtx<'a>) -> Ident<'a> {
+        *self.name
+    }
+}
+
 impl<'a> IrLowerable<'a> for crate::ast::node::traits::Trait<'a> {
     type IrType = Trait<'a>;
 
-    fn ir_lower(self, ctx: &mut crate::ir::context::IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
+    fn ir_lower(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
         let tr = Trait {
             name: LateInit::empty(),
             attrs: self
@@ -48,7 +60,7 @@ impl<'a> IrLowerable<'a> for crate::ast::node::traits::Trait<'a> {
 impl<'a> IrLowerable<'a> for crate::ast::node::traits::TraitFuncAttr<'a> {
     type IrType = TraitFuncAttr<'a>;
 
-    fn ir_lower(self, ctx: &mut crate::ir::context::IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
+    fn ir_lower(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
         let f = TraitFuncAttr {
             name: LateInit::empty(),
             args: Vec::new(),
