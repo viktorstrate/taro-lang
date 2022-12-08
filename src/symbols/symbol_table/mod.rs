@@ -184,7 +184,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValueItem::EnumValue(enm_val) => enm_val.eval_type(symbols, ctx),
             SymbolValueItem::ExternalObject(obj) => obj.eval_type(symbols, ctx),
             SymbolValueItem::IfBranch(_, _) => unreachable!(),
-            SymbolValueItem::TraitDecl(_) => todo!(),
+            SymbolValueItem::TraitDecl(tr) => tr.eval_type(symbols, ctx),
         }
     }
 
@@ -201,7 +201,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValueItem::EnumValue(enm_val) => enm_val.specified_type(ctx),
             SymbolValueItem::ExternalObject(obj) => obj.specified_type(ctx),
             SymbolValueItem::IfBranch(_, _) => unreachable!(),
-            SymbolValueItem::TraitDecl(_) => todo!(),
+            SymbolValueItem::TraitDecl(tr) => tr.specified_type(ctx),
         }
     }
 
@@ -222,7 +222,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
             SymbolValueItem::EnumValue(enm_val) => enm_val.specify_type(ctx, new_type),
             SymbolValueItem::ExternalObject(obj) => obj.specify_type(ctx, new_type),
             SymbolValueItem::IfBranch(_, _) => unreachable!(),
-            SymbolValueItem::TraitDecl(_) => todo!(),
+            SymbolValueItem::TraitDecl(tr) => tr.specify_type(ctx, new_type),
         }
     }
 }

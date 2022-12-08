@@ -593,6 +593,10 @@ impl<'a> IrWalkable<'a> for TypeSignature<'a> {
                 walker.visit_ident(ctx, scope, name)?;
                 self
             }
+            TypeSignatureValue::Trait { name } => {
+                walker.visit_ident(ctx, scope, name)?;
+                self
+            }
             TypeSignatureValue::Tuple(types) => {
                 let mut new_items = Vec::with_capacity(types.len());
                 for item in &*types {

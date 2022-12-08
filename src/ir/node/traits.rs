@@ -1,4 +1,5 @@
 use crate::{
+    error_message::error_formatter::Spanned,
     ir::{
         ast_lowering::IrLowerable,
         context::IrCtx,
@@ -6,12 +7,15 @@ use crate::{
         node::{identifier::IdentParent, type_signature::TypeSignatureParent, IrAlloc},
     },
     parser::Span,
+    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
 use super::{
     function::FunctionArg,
     identifier::{Ident, Identifiable},
-    type_signature::TypeSignature,
+    type_signature::{
+        TypeEvalError, TypeSignature, TypeSignatureContext, TypeSignatureValue, Typed,
+    },
     NodeRef,
 };
 
@@ -80,5 +84,29 @@ impl<'a> IrLowerable<'a> for crate::ast::node::traits::TraitFuncAttr<'a> {
         ctx[f].args = self.args.into_iter().map(|arg| arg.ir_lower(ctx)).collect();
 
         f
+    }
+}
+
+impl<'a> Typed<'a> for NodeRef<'a, Trait<'a>> {
+    fn eval_type(
+        &self,
+        _symbols: &mut SymbolTableZipper<'a>,
+        ctx: &mut IrCtx<'a>,
+    ) -> Result<TypeSignature<'a>, TypeEvalError<'a>> {
+        let name = *ctx[*self].name;
+        Ok(ctx.get_type_sig(
+            TypeSignatureValue::Trait { name },
+            TypeSignatureContext {
+                parent: TypeSignatureParent::Trait(*self),
+                type_span: None,
+            }
+            .alloc(),
+        ))
+    }
+}
+
+impl<'a> Spanned<'a> for NodeRef<'a, Trait<'a>> {
+    fn get_span(&self, ctx: &IrCtx<'a>) -> Option<Span<'a>> {
+        Some(ctx[*self].span.clone())
     }
 }
