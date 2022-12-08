@@ -75,10 +75,32 @@ impl<'a: 'ret, 'ret, W: Write> ErrorMessage<'a, 'ret, &'ret IrCtx<'a>, W> for Ty
                 }),
             },
             TypeEvalError::AccessNonEnum(_) => todo!(),
-            TypeEvalError::TupleAccessOutOfBounds {
-                tuple_len: _,
-                access_item: _,
-            } => todo!(),
+            TypeEvalError::TupleAccessOutOfBounds(tup_acc, tuple_type) => ErrMsg {
+                span: tup_acc.get_span(ctx),
+                title: Box::new(|w| write!(w, "tuple access index out of bounds")),
+                msg: Box::new(move |w| {
+                    let tuple_type_span = tuple_type
+                        .get_span(ctx)
+                        .unwrap_or(ctx[*tup_acc].tuple_expr.get_span(ctx).unwrap());
+
+                    format_span_items(
+                        w,
+                        &mut [
+                            SpanItem {
+                                span: tuple_type_span,
+                                msg: Some(format!("tuple of type `{}`", tuple_type.format(ctx))),
+                                err_type: ErrMsgType::Err,
+                            },
+                            SpanItem {
+                                span: ctx[*tup_acc].span.clone(),
+                                msg: Some(format!("has no index {}", ctx[*tup_acc].attr)),
+                                err_type: ErrMsgType::Err,
+                            },
+                        ],
+                        &[],
+                    )
+                }),
+            },
             TypeEvalError::UnknownIdent(id) => ErrMsg {
                 span: id.get_span(ctx),
                 title: Box::new(|w| write!(w, "unknown identifier `{}`", id.value(ctx).unwrap())),

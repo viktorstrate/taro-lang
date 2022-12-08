@@ -93,15 +93,10 @@ impl<'a> Typed<'a> for NodeRef<'a, TupleAccess<'a>> {
         let tuple_type = ctx[*self].tuple_expr.clone().eval_type(symbols, ctx)?;
         let attr = ctx[*self].attr;
         match &ctx[&tuple_type] {
-            TypeSignatureValue::Tuple(tuple) => {
-                tuple
-                    .get(attr)
-                    .cloned()
-                    .ok_or(TypeEvalError::TupleAccessOutOfBounds {
-                        tuple_len: tuple.len(),
-                        access_item: attr,
-                    })
-            }
+            TypeSignatureValue::Tuple(tuple) => tuple
+                .get(attr)
+                .cloned()
+                .ok_or(TypeEvalError::TupleAccessOutOfBounds(*self, tuple_type)),
             _val => Err(TypeEvalError::AccessNonTuple(tuple_type)),
         }
     }

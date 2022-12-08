@@ -41,16 +41,16 @@ pub enum Expr<'a> {
 
 impl<'a> NodeRef<'a, Expr<'a>> {
     pub fn unwrap_func(self, ctx: &IrCtx<'a>) -> NodeRef<'a, Function<'a>> {
-        match ctx[self] {
-            Expr::Function(func) => func,
-            _ => panic!("failed to unwrap expr as function"),
+        match &ctx[self] {
+            Expr::Function(func) => *func,
+            expr => panic!("failed to unwrap expr as function, found {:?}", expr),
         }
     }
 
     pub fn unwrap_ident(self, ctx: &IrCtx<'a>) -> Ident<'a> {
         match &ctx[self] {
             Expr::Identifier(ident, _span) => *ident.clone(),
-            _ => panic!("failed to unwrap expr as identifier"),
+            expr => panic!("failed to unwrap expr as identifier, found {:?}", expr),
         }
     }
 }

@@ -20,7 +20,7 @@ use super::{
     statement::VarDecl,
     structure::{Struct, StructAttr, StructInit},
     traits::{Trait, TraitFuncAttr},
-    tuple::Tuple,
+    tuple::{Tuple, TupleAccess},
     NodeRef,
 };
 
@@ -141,8 +141,8 @@ impl<'a> Spanned<'a> for TypeSignature<'a> {
             TypeSignatureParent::FunctionDefArg(arg) => arg.get_span(ctx),
             TypeSignatureParent::FunctionDefReturn(_) => todo!(),
             TypeSignatureParent::Struct(st) => st.get_span(ctx),
-            TypeSignatureParent::StructInit(_) => todo!(),
-            TypeSignatureParent::StructAttr(_) => todo!(),
+            TypeSignatureParent::StructInit(st_init) => st_init.get_span(ctx),
+            TypeSignatureParent::StructAttr(st_attr) => st_attr.get_span(ctx),
             TypeSignatureParent::Tuple(tup) => tup.get_span(ctx),
             TypeSignatureParent::TupleItem {
                 attr: _,
@@ -186,10 +186,7 @@ pub enum TypeEvalError<'a> {
     AccessNonStruct(TypeSignature<'a>),
     AccessNonTuple(TypeSignature<'a>),
     AccessNonEnum(TypeSignature<'a>),
-    TupleAccessOutOfBounds {
-        tuple_len: usize,
-        access_item: usize,
-    },
+    TupleAccessOutOfBounds(NodeRef<'a, TupleAccess<'a>>, TypeSignature<'a>),
     UnknownIdent(Ident<'a>),
 }
 
