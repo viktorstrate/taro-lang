@@ -11,6 +11,7 @@ use self::{
     member_access::UnresolvedMemberAccess,
     statement::{Stmt, StmtBlock, VarDecl},
     structure::{Struct, StructAccess, StructAttr, StructInit, StructInitValue},
+    traits::{Trait, TraitFuncAttr},
     tuple::{Tuple, TupleAccess},
 };
 use std::{convert::Into, marker::PhantomData};
@@ -29,6 +30,7 @@ pub mod member_access;
 pub mod module;
 pub mod statement;
 pub mod structure;
+pub mod traits;
 pub mod tuple;
 pub mod type_signature;
 
@@ -138,6 +140,8 @@ register_nodes![
     (st_accs, StructAccess<'a>),
     (tup_accs, TupleAccess<'a>),
     (tups, Tuple<'a>),
+    (traits, Trait<'a>),
+    (tr_attr, TraitFuncAttr<'a>),
     (asgns, Assignment<'a>),
     (esc_blks, EscapeBlock<'a>),
     (var_decls, VarDecl<'a>),

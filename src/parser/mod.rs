@@ -22,6 +22,7 @@ pub mod identifier;
 pub mod module;
 pub mod statement;
 pub mod structure;
+pub mod traits;
 pub mod type_signature;
 
 pub fn parse_ast(input: &str) -> Result<AST<'_>, ParserError<'_>> {

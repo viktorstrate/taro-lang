@@ -1,19 +1,21 @@
 use crate::{
     error_message::error_formatter::Spanned,
     ir::context::IrCtx,
-    ir::{late_init::LateInit, node::type_signature::TypeSignatureValue},
+    ir::{
+        ast_lowering::IrLowerable, late_init::LateInit, node::type_signature::TypeSignatureValue,
+    },
     parser::Span,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
 use super::{
     expression::Expr,
-    identifier::{Ident, Identifiable},
+    identifier::{Ident, IdentParent, Identifiable},
     statement::StmtBlock,
     type_signature::{
         TypeEvalError, TypeSignature, TypeSignatureContext, TypeSignatureParent, Typed,
     },
-    NodeRef,
+    IrAlloc, NodeRef,
 };
 
 #[derive(Debug)]
@@ -198,5 +200,80 @@ impl<'a> Typed<'a> for NodeRef<'a, FunctionCall<'a>> {
             } => Ok((**return_type).clone()),
             _wrong_type => Err(TypeEvalError::CallNonFunction(*self, type_sig)),
         }
+    }
+}
+
+impl<'a> IrLowerable<'a> for crate::ast::node::function::Function<'a> {
+    type IrType = Function<'a>;
+
+    fn ir_lower(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
+        let ir_args: Vec<NodeRef<'a, FunctionArg<'a>>> =
+            self.args.into_iter().map(|arg| arg.ir_lower(ctx)).collect();
+
+        let func = Function {
+            name: LateInit::empty(),
+            args: ir_args,
+            return_type: LateInit::empty(),
+            body: self.body.ir_lower(ctx),
+            span: self.span,
+        }
+        .allocate(ctx);
+
+        let name = self
+            .name
+            .map(|name| ctx.make_ident(name, IdentParent::FuncDeclName(func)))
+            .unwrap_or_else(|| ctx.make_anon_ident(IdentParent::FuncDeclName(func)));
+
+        ctx[func].name = name.into();
+
+        ctx[func].return_type = self
+            .return_type
+            .map(|t| t.into_ir_type(ctx, TypeSignatureParent::FunctionDefReturn(func)))
+            .unwrap_or_else(|| ctx.make_type_var(TypeSignatureParent::FunctionDefReturn(func)))
+            .into();
+
+        func
+    }
+}
+
+impl<'a> IrLowerable<'a> for crate::ast::node::function::FunctionArg<'a> {
+    type IrType = FunctionArg<'a>;
+
+    fn ir_lower(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
+        let func_arg = FunctionArg {
+            name: LateInit::empty(),
+            type_sig: LateInit::empty(),
+            span: self.span,
+        }
+        .allocate(ctx);
+
+        ctx[func_arg].name = ctx
+            .make_ident(self.name, IdentParent::FuncDeclArgName(func_arg))
+            .into();
+
+        ctx[func_arg].type_sig = self
+            .type_sig
+            .map(|t| t.into_ir_type(ctx, TypeSignatureParent::FunctionDefArg(func_arg)))
+            .unwrap_or_else(|| ctx.make_type_var(TypeSignatureParent::FunctionDefArg(func_arg)))
+            .into();
+
+        func_arg
+    }
+}
+
+impl<'a> IrLowerable<'a> for crate::ast::node::function::FunctionCall<'a> {
+    type IrType = FunctionCall<'a>;
+
+    fn ir_lower(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
+        FunctionCall {
+            func: self.func.ir_lower(ctx),
+            args: self
+                .args
+                .into_iter()
+                .map(|param| param.ir_lower(ctx))
+                .collect(),
+            args_span: self.args_span,
+        }
+        .allocate(ctx)
     }
 }

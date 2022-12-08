@@ -11,5 +11,6 @@ pub mod member_access;
 pub mod module;
 pub mod statement;
 pub mod structure;
+pub mod traits;
 pub mod tuple;
 pub mod type_signature;

@@ -19,7 +19,7 @@ use crate::{
 use super::{
     comment::comment, control_flow::if_branch, enumeration::enumeration, external::external_object,
     function::function_decl, identifier::identifier, spaced, span, structure::structure,
-    type_signature::type_signature, ws, Input, Res,
+    traits::trait_decl, type_signature::type_signature, ws, Input, Res,
 };
 
 pub fn statement<'a>(i: Input<'a>) -> Res<Input<'a>, Stmt<'a>> {
@@ -61,6 +61,7 @@ pub fn single_statement(i: Input<'_>) -> Res<Input<'_>, Stmt<'_>> {
                 stmt_return,
                 map(if_branch, StmtValue::IfBranch),
                 map(expression, StmtValue::Expression),
+                map(trait_decl, StmtValue::TraitDecl),
             ))),
             |(span, value)| Stmt { span, value },
         ),

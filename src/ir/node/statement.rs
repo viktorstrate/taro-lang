@@ -1,5 +1,5 @@
 use crate::{
-    ir::{context::IrCtx, late_init::LateInit},
+    ir::{ast_lowering::IrLowerable, context::IrCtx, late_init::LateInit},
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
@@ -9,10 +9,11 @@ use super::{
     expression::Expr,
     external::ExternalObject,
     function::Function,
-    identifier::{Ident, Identifiable},
+    identifier::{Ident, IdentParent, Identifiable},
     structure::Struct,
-    type_signature::{Mutability, TypeEvalError, TypeSignature, Typed},
-    NodeRef,
+    traits::Trait,
+    type_signature::{Mutability, TypeEvalError, TypeSignature, TypeSignatureParent, Typed},
+    IrAlloc, NodeRef,
 };
 
 #[derive(Debug, Clone)]
@@ -24,6 +25,7 @@ pub enum Stmt<'a> {
     FunctionDecl(NodeRef<'a, Function<'a>>),
     StructDecl(NodeRef<'a, Struct<'a>>),
     EnumDecl(NodeRef<'a, Enum<'a>>),
+    TraitDecl(NodeRef<'a, Trait<'a>>),
     Expression(NodeRef<'a, Expr<'a>>),
     Return(NodeRef<'a, Expr<'a>>),
     ExternObj(NodeRef<'a, ExternalObject<'a>>),
@@ -64,5 +66,31 @@ impl<'a> Typed<'a> for NodeRef<'a, VarDecl<'a>> {
     ) -> Result<(), TypeEvalError<'a>> {
         ctx[*self].type_sig = new_type.into();
         Ok(())
+    }
+}
+
+impl<'a> IrLowerable<'a> for crate::ast::node::statement::VarDecl<'a> {
+    type IrType = VarDecl<'a>;
+
+    fn ir_lower(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
+        let var_decl = VarDecl {
+            name: LateInit::empty(),
+            mutability: self.mutability,
+            type_sig: LateInit::empty(),
+            value: self.value.ir_lower(ctx),
+        }
+        .allocate(ctx);
+
+        ctx[var_decl].name = ctx
+            .make_ident(self.name, IdentParent::VarDeclName(var_decl))
+            .into();
+
+        ctx[var_decl].type_sig = self
+            .type_sig
+            .map(|type_sig| type_sig.into_ir_type(ctx, TypeSignatureParent::VarDeclSig(var_decl)))
+            .unwrap_or_else(|| ctx.make_type_var(TypeSignatureParent::VarDeclSig(var_decl)))
+            .into();
+
+        var_decl
     }
 }

@@ -11,7 +11,7 @@ use crate::ast::node::identifier::Ident;
 use super::{span, Input, Res};
 
 const RESERVED_KEYWORDS: &'static [&str] = &[
-    "struct", "func", "return", "let", "var", "true", "false", "if", "else",
+    "trait", "struct", "func", "return", "let", "var", "true", "false", "if", "else",
 ];
 
 pub fn identifier(i: Input<'_>) -> Res<Input<'_>, Ident<'_>> {

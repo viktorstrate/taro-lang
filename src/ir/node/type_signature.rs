@@ -6,7 +6,7 @@ use crate::{
     error_message::error_formatter::Spanned,
     ir::{context::IrCtx, late_init::LateInit},
     parser::Span,
-    symbols::symbol_table::{symbol_table_zipper::SymbolTableZipper},
+    symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
 use super::{
@@ -19,6 +19,7 @@ use super::{
     member_access::UnresolvedMemberAccess,
     statement::VarDecl,
     structure::{Struct, StructAttr, StructInit},
+    traits::{Trait, TraitFuncAttr},
     tuple::Tuple,
     NodeRef,
 };
@@ -76,6 +77,7 @@ pub enum TypeSignatureParent<'a> {
     Struct(NodeRef<'a, Struct<'a>>),
     StructInit(NodeRef<'a, StructInit<'a>>),
     StructAttr(NodeRef<'a, StructAttr<'a>>),
+    Trait(NodeRef<'a, Trait<'a>>),
     Tuple(NodeRef<'a, Tuple<'a>>),
     TupleItem {
         attr: usize,
@@ -84,6 +86,7 @@ pub enum TypeSignatureParent<'a> {
     EscapeBlock(NodeRef<'a, EscapeBlock<'a>>),
     MemberAccess(NodeRef<'a, UnresolvedMemberAccess<'a>>),
     ExternObjType(NodeRef<'a, ExternalObject<'a>>),
+    TraitFuncAttr(NodeRef<'a, TraitFuncAttr<'a>>),
 }
 
 impl<'a> Into<Id<TypeSignatureValue<'a>>> for TypeSignature<'a> {
@@ -114,6 +117,9 @@ pub enum TypeSignatureValue<'a> {
         name: Ident<'a>,
     },
     Tuple(LateInit<Vec<TypeSignature<'a>>>),
+    Trait {
+        name: Ident<'a>,
+    },
 }
 
 impl<'a> Spanned<'a> for TypeSignature<'a> {
@@ -145,6 +151,8 @@ impl<'a> Spanned<'a> for TypeSignature<'a> {
             TypeSignatureParent::EscapeBlock(esc) => esc.get_span(ctx),
             TypeSignatureParent::MemberAccess(mem_acc) => mem_acc.get_span(ctx),
             TypeSignatureParent::ExternObjType(obj) => obj.get_span(ctx),
+            TypeSignatureParent::TraitFuncAttr(_) => todo!(),
+            TypeSignatureParent::Trait(tr) => tr.get_span(ctx),
         };
 
         if node_span.is_some() {
@@ -162,6 +170,7 @@ impl<'a> Spanned<'a> for TypeSignature<'a> {
             TypeSignatureValue::Struct { name } => name.get_span(ctx),
             TypeSignatureValue::Enum { name } => name.get_span(ctx),
             TypeSignatureValue::Tuple(_) => todo!(),
+            TypeSignatureValue::Trait { name } => name.get_span(ctx),
         }
     }
 }
@@ -356,6 +365,7 @@ impl<'a> TypeSignature<'a> {
                     .intersperse(", ".to_owned())
                     .collect::<String>()
             ),
+            TypeSignatureValue::Trait { name } => format!("[trait {}]", name.value(ctx).unwrap()),
         }
     }
 }

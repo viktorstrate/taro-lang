@@ -59,6 +59,9 @@ impl<'a> IrWalker<'a> for SymbolCollector {
             ScopeValue::IfBranch(ifb, branch) => {
                 parent.insert(ctx, SymbolValueItem::IfBranch(ifb, branch))?;
             }
+            ScopeValue::Trait(tr) => {
+                parent.insert(ctx, SymbolValueItem::TraitDecl(tr))?;
+            }
         }
 
         Ok(new_scope)
@@ -82,6 +85,7 @@ impl<'a> IrWalker<'a> for SymbolCollector {
             ScopeValue::IfBranch(ifb, branch) => parent
                 .insert_scope(ctx, ctx[ifb].branch_ident(branch), child)
                 .map(|_| ()),
+            ScopeValue::Trait(tr) => parent.insert_scope(ctx, *ctx[tr].name, child).map(|_| ()),
         }
     }
 

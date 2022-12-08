@@ -3,7 +3,7 @@ use std::assert_matches::debug_assert_matches;
 use crate::{
     ir::{
         context::IrCtx,
-        ir_walker::{walk_expr, IrWalker, ScopeValue},
+        ir_walker::{IrWalkable, IrWalker, ScopeValue},
         node::{
             enumeration::{Enum, EnumInit},
             expression::Expr,
@@ -138,12 +138,14 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
                 let mut ident_searcher = SearchIdentWalker {
                     search_ident: *ctx[var_decl].name,
                 };
-                walk_expr(&mut ident_searcher, ctx, scope, ctx[var_decl].value).map_err(
-                    |span| SymbolResolutionError::RecursiveDeclaration {
+
+                ctx[var_decl]
+                    .value
+                    .walk(&mut ident_searcher, ctx, scope)
+                    .map_err(|span| SymbolResolutionError::RecursiveDeclaration {
                         var_decl: var_decl,
                         ident_span: span,
-                    },
-                )?;
+                    })?;
             }
             _ => {}
         }
@@ -231,7 +233,7 @@ impl<'a> IrWalker<'a> for SymbolResolver<'a> {
 
                 ctx[expr] = new_expr;
                 // walk the new expression
-                walk_expr(self, ctx, scope, expr)?;
+                expr.walk(self, ctx, scope)?;
 
                 Ok(())
             }

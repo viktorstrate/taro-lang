@@ -1,18 +1,18 @@
 use crate::{
     error_message::error_formatter::Spanned,
-    ir::{context::IrCtx, late_init::LateInit},
+    ir::{ast_lowering::IrLowerable, context::IrCtx, late_init::LateInit},
     parser::Span,
     symbols::symbol_table::symbol_table_zipper::SymbolTableZipper,
 };
 
 use super::{
     expression::Expr,
-    identifier::{Ident, IdentKey, Identifiable},
+    identifier::{Ident, IdentKey, IdentParent, Identifiable},
     type_signature::{
         TypeEvalError, TypeSignature, TypeSignatureContext, TypeSignatureParent,
         TypeSignatureValue, Typed,
     },
-    NodeRef,
+    IrAlloc, NodeRef,
 };
 
 #[derive(Debug, Clone)]
@@ -151,5 +151,66 @@ impl<'a> Typed<'a> for NodeRef<'a, EnumInit<'a>> {
             }
             .alloc(),
         ))
+    }
+}
+
+impl<'a> IrLowerable<'a> for crate::ast::node::enumeration::Enum<'a> {
+    type IrType = Enum<'a>;
+
+    fn ir_lower(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
+        let values = self
+            .values
+            .into_iter()
+            .map(|val| val.ir_lower(ctx))
+            .collect();
+
+        let enm_decl = Enum {
+            name: LateInit::empty(),
+            values,
+            type_sig: LateInit::empty(),
+        }
+        .allocate(ctx);
+
+        let enm_name_span = self.name.span.clone();
+
+        let enm_name = ctx.make_ident(self.name, IdentParent::EnumDeclName(enm_decl));
+        ctx[enm_decl].name = enm_name.into();
+        ctx[enm_decl].type_sig = ctx
+            .get_type_sig(
+                TypeSignatureValue::Enum { name: enm_name },
+                TypeSignatureContext {
+                    parent: TypeSignatureParent::Enum(enm_decl),
+                    type_span: Some(enm_name_span),
+                }
+                .alloc(),
+            )
+            .into();
+
+        enm_decl
+    }
+}
+
+impl<'a> IrLowerable<'a> for crate::ast::node::enumeration::EnumValue<'a> {
+    type IrType = EnumValue<'a>;
+
+    fn ir_lower(self, ctx: &mut IrCtx<'a>) -> NodeRef<'a, Self::IrType> {
+        let enm_val = EnumValue {
+            name: LateInit::empty(),
+            items: LateInit::empty(),
+        }
+        .allocate(ctx);
+
+        ctx[enm_val].name = ctx
+            .make_ident(self.name, IdentParent::EnumDeclValueName(enm_val))
+            .into();
+
+        ctx[enm_val].items = self
+            .items
+            .into_iter()
+            .map(|t| t.into_ir_type(ctx, TypeSignatureParent::EnumValue(enm_val)))
+            .collect::<Vec<TypeSignature<'a>>>()
+            .into();
+
+        enm_val
     }
 }
