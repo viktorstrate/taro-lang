@@ -15,6 +15,7 @@ use super::{
     expression::Expr,
     external::ExternalObject,
     function::{Function, FunctionArg, FunctionCall},
+    generics::GenericsDecl,
     identifier::{Ident, IdentParent},
     member_access::UnresolvedMemberAccess,
     statement::VarDecl,
@@ -60,6 +61,7 @@ impl<'a> TypeSignatureContext<'a> {
 #[derive(Debug, Clone)]
 pub enum TypeSignatureParent<'a> {
     Builtin,
+    Generic(NodeRef<'a, GenericsDecl<'a>>),
     VarDeclSig(NodeRef<'a, VarDecl<'a>>),
     Enum(NodeRef<'a, Enum<'a>>),
     EnumValue(NodeRef<'a, EnumValue<'a>>),
@@ -130,6 +132,7 @@ impl<'a> Spanned<'a> for TypeSignature<'a> {
 
         let node_span = match &self.context.parent {
             TypeSignatureParent::Builtin => None,
+            TypeSignatureParent::Generic(gen_decl) => gen_decl.get_span(ctx),
             TypeSignatureParent::VarDeclSig(var) => ctx[*var].name.get_span(ctx),
             TypeSignatureParent::Enum(_) => todo!(),
             TypeSignatureParent::EnumValue(_) => todo!(),

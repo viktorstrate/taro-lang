@@ -8,6 +8,7 @@ use self::{
     expression::Expr,
     external::ExternalObject,
     function::{Function, FunctionArg, FunctionCall},
+    generics::GenericsDecl,
     member_access::UnresolvedMemberAccess,
     statement::{Stmt, StmtBlock, VarDecl},
     structure::{Struct, StructAccess, StructAttr, StructInit, StructInitValue},
@@ -25,6 +26,7 @@ pub mod escape_block;
 pub mod expression;
 pub mod external;
 pub mod function;
+pub mod generics;
 pub mod identifier;
 pub mod member_access;
 pub mod module;
@@ -147,7 +149,8 @@ register_nodes![
     (var_decls, VarDecl<'a>),
     (mem_accs, UnresolvedMemberAccess<'a>),
     (extern_obj, ExternalObject<'a>),
-    (if_branch, IfStmt<'a>)
+    (if_branch, IfStmt<'a>),
+    (gen_decls, GenericsDecl<'a>)
 ];
 
 pub trait IrAlloc<'a>

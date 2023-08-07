@@ -1,19 +1,8 @@
-use crate::{
-    ast::AST,
-    ir::{
-        node::{
-            statement::Stmt,
-        },
-    },
-};
+use crate::{ast::AST, ir::node::statement::Stmt};
 
 use super::{
     context::{IrArenaType, IrCtx},
-    node::{
-        module::Module,
-        statement::{StmtBlock},
-        IrAlloc, NodeRef,
-    },
+    node::{module::Module, statement::StmtBlock, IrAlloc, NodeRef},
     IR,
 };
 
