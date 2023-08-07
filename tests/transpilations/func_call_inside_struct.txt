@@ -1,0 +1,14 @@
+struct Foo {
+  let bar: () -> Void
+}
+
+let x = Foo { bar: () {} }
+x.bar()
+
+---
+
+function Foo (bar) {
+this.bar = bar
+}
+const x = new Foo((() => {}));
+x.bar();
