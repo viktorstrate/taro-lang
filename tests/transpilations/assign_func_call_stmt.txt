@@ -1,0 +1,6 @@
+func f() -> Boolean { return true }
+let x: Boolean = f()
+---
+function f() {
+return true;}
+const x = f();

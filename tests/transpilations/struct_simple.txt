@@ -1,0 +1,16 @@
+struct Test {
+  let defaultVal = 123
+  var noDefault: Boolean
+}
+
+let testVar = Test { noDefault: false }
+let val: Number = testVar.defaultVal
+
+---
+
+function Test (defaultVal, noDefault) {
+this.defaultVal = defaultVal ?? 123;
+this.noDefault = noDefault
+}
+const testVar = new Test(null, false);
+const val = testVar.defaultVal;

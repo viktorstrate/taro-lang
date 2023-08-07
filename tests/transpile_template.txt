@@ -1,0 +1,22 @@
+#[test]
+fn {name}() {{
+    let data = include_str!("{path}");
+
+    let mut splits = data.split("\n---\n");
+
+    let before = splits.next().unwrap().trim();
+    let after = splits
+        .next()
+        .expect("Expected test file to contain line with three dashes (---)")
+        .trim();
+
+    assert!(
+        splits.next() == None,
+        "Test file contains more than one dash separator"
+    );
+
+    let transpiled = final_codegen(before).unwrap();
+    let transpiled = transpiled.trim();
+
+    assert_eq!(transpiled, after);
+}}

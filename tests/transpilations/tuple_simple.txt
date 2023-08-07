@@ -1,0 +1,5 @@
+let val: (Boolean, Number) = (true, 42)
+let val2: Number = val.1
+---
+const val = [true, 42];
+const val2 = val[1];

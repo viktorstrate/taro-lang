@@ -1,4 +1,4 @@
-#[cfg(test)]
+//#[cfg(test)]
 pub mod utils {
     use std::assert_matches::assert_matches;
 
