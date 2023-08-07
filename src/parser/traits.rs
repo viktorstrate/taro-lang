@@ -35,14 +35,15 @@ pub fn trait_attrs<'a>(i: Input<'a>) -> Res<Input<'a>, Vec<TraitFuncAttr<'a>>> {
 
     separated_list0(
         alt((tag(";"), tag("\n"))),
-        map(function_signature, |(ident, func_args, ret_type, span)| {
-            TraitFuncAttr {
+        map(
+            function_signature,
+            |(ident, _generics, func_args, ret_type, span)| TraitFuncAttr {
                 name: ident,
                 args: func_args,
                 return_type: ret_type,
                 span,
-            }
-        }),
+            },
+        ),
     )(i)
 }
 

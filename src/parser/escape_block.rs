@@ -42,7 +42,7 @@ pub fn escape_block_content<'a>(i: Input<'a>) -> Res<Input<'a>, &'a str> {
             )),
             take_till(|c| c == '}'),
         )),
-        |(content, _)| content.as_ref(),
+        |(content, _)| *content,
     )(i)
 }
 

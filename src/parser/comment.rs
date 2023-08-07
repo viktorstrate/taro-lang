@@ -17,7 +17,7 @@ pub fn comment(i: Input<'_>) -> Res<Input<'_>, Comment<'_>> {
 pub fn line_comment<'a>(i: Input<'a>) -> Res<Input<'a>, Comment<'a>> {
     map(
         preceded(pair(multispace0, tag("//")), not_line_ending),
-        |val: Input<'a>| Comment::Line(val.as_ref()),
+        |val: Input<'a>| Comment::Line(&val),
     )(i)
 }
 
@@ -28,6 +28,6 @@ pub fn block_comment(i: Input<'_>) -> Res<Input<'_>, Comment<'_>> {
             not_line_ending::<Input<'_>, _>,
             tag("*/"),
         ))),
-        |(_, content, _)| Comment::Line(content.as_ref()),
+        |(_, content, _)| Comment::Line(&content),
     )(i)
 }

@@ -18,6 +18,7 @@ pub mod escape_block;
 pub mod expression;
 pub mod external;
 pub mod function;
+pub mod generics;
 pub mod identifier;
 pub mod module;
 pub mod statement;
@@ -89,6 +90,7 @@ pub enum BracketType {
     Round,
     Square,
     Curly,
+    Diamond,
 }
 
 impl BracketType {
@@ -97,6 +99,7 @@ impl BracketType {
             BracketType::Round => "(",
             BracketType::Square => "[",
             BracketType::Curly => "{",
+            BracketType::Diamond => "<",
         }
     }
 
@@ -105,6 +108,7 @@ impl BracketType {
             BracketType::Round => ")",
             BracketType::Square => "]",
             BracketType::Curly => "}",
+            BracketType::Diamond => ">",
         }
     }
 }

@@ -1,10 +1,14 @@
 use crate::parser::Span;
 
-use super::{expression::Expr, identifier::Ident, statement::Stmt, type_signature::TypeSignature};
+use super::{
+    expression::Expr, generics::GenericsDecl, identifier::Ident, statement::Stmt,
+    type_signature::TypeSignature,
+};
 
 #[derive(Debug, Clone)]
 pub struct Function<'a> {
     pub name: Option<Ident<'a>>,
+    pub generics: Option<GenericsDecl<'a>>,
     pub args: Vec<FunctionArg<'a>>,
     pub return_type: Option<TypeSignature<'a>>,
     pub body: Box<Stmt<'a>>,

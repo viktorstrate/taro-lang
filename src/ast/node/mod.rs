@@ -6,6 +6,7 @@ pub mod escape_block;
 pub mod expression;
 pub mod external;
 pub mod function;
+pub mod generics;
 pub mod identifier;
 pub mod member_access;
 pub mod module;

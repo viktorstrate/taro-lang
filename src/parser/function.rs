@@ -9,13 +9,14 @@ use nom::{
 use crate::ast::node::{
     expression::ExprValue,
     function::{Function, FunctionArg},
+    generics::GenericsDecl,
     identifier::Ident,
     type_signature::TypeSignature,
 };
 
 use super::{
-    identifier::identifier, spaced, span, statement::statement, surround_brackets,
-    type_signature::type_signature, ws, BracketType, Input, Res, Span,
+    generics::generics_decl, identifier::identifier, spaced, span, statement::statement,
+    surround_brackets, type_signature::type_signature, ws, BracketType, Input, Res, Span,
 };
 
 pub fn function_decl(i: Input<'_>) -> Res<Input<'_>, Function<'_>> {
@@ -29,8 +30,9 @@ pub fn function_decl(i: Input<'_>) -> Res<Input<'_>, Function<'_>> {
                 surround_brackets(BracketType::Curly, statement),
             ),
         ),
-        |((name, args, return_type, span), body)| Function {
+        |((name, generics, args, return_type, span), body)| Function {
             name: Some(name),
+            generics,
             args,
             return_type,
             body: Box::new(body),
@@ -40,22 +42,24 @@ pub fn function_decl(i: Input<'_>) -> Res<Input<'_>, Function<'_>> {
 }
 
 pub fn function_expr(i: Input<'_>) -> Res<Input<'_>, ExprValue<'_>> {
-    // "(" FUNC_ARGS ")" [-> RETURN_SIG] "{" BODY "}"
+    // [GENERICS_DECL] "(" FUNC_ARGS ")" [-> RETURN_SIG] "{" BODY "}"
 
     map(
         pair(
-            span(pair(
+            span(tuple((
+                opt(generics_decl),
                 surround_brackets(BracketType::Round, function_args),
                 return_signature,
-            )),
+            ))),
             context(
                 "function body",
                 surround_brackets(BracketType::Curly, statement),
             ),
         ),
-        |((span, (args, return_type)), body)| {
+        |((span, (generics, args, return_type)), body)| {
             ExprValue::Function(Function {
                 name: None,
+                generics,
                 args,
                 return_type,
                 body: Box::new(body),
@@ -71,12 +75,13 @@ pub fn function_signature(
     Input<'_>,
     (
         Ident<'_>,
+        Option<GenericsDecl<'_>>,
         Vec<FunctionArg<'_>>,
         Option<TypeSignature<'_>>,
         Span<'_>,
     ),
 > {
-    // func IDENT "(" FUNC_ARGS ")" [-> RETURN_SIG]
+    // func IDENT [GENERICS_DECL] "(" FUNC_ARGS ")" [-> RETURN_SIG]
 
     map(
         span(tuple((
@@ -84,10 +89,11 @@ pub fn function_signature(
                 spaced(tuple((tag("func"), ws))),
                 context("function name", identifier),
             ),
+            opt(generics_decl),
             surround_brackets(BracketType::Round, function_args),
             return_signature,
         ))),
-        |(span, (name, args, return_type))| (name, args, return_type, span),
+        |(span, (name, generics, args, return_type))| (name, generics, args, return_type, span),
     )(i)
 }
 
