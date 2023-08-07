@@ -1,0 +1,12 @@
+struct Foo {
+    let x: Number
+}
+
+let a: Foo = { x: 32 }
+
+---
+
+function Foo (x) {
+this.x = x
+}
+const a = new Foo(32);
