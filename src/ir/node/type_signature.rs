@@ -15,7 +15,7 @@ use super::{
     expression::Expr,
     external::ExternalObject,
     function::{Function, FunctionArg, FunctionCall},
-    generics::GenericsDecl,
+    generics::GenericType,
     identifier::{Ident, IdentParent},
     member_access::UnresolvedMemberAccess,
     statement::VarDecl,
@@ -61,7 +61,7 @@ impl<'a> TypeSignatureContext<'a> {
 #[derive(Debug, Clone)]
 pub enum TypeSignatureParent<'a> {
     Builtin,
-    Generic(NodeRef<'a, GenericsDecl<'a>>),
+    GenericType(NodeRef<'a, GenericType<'a>>),
     VarDeclSig(NodeRef<'a, VarDecl<'a>>),
     Enum(NodeRef<'a, Enum<'a>>),
     EnumValue(NodeRef<'a, EnumValue<'a>>),
@@ -108,6 +108,9 @@ pub enum TypeSignatureValue<'a> {
     Builtin(BuiltinType),
     Unresolved(Ident<'a>),
     TypeVariable(Id<TypeSignatureValue<'a>>),
+    Generic {
+        name: Ident<'a>,
+    },
     Function {
         args: LateInit<Vec<TypeSignature<'a>>>,
         return_type: LateInit<TypeSignature<'a>>,
@@ -132,7 +135,7 @@ impl<'a> Spanned<'a> for TypeSignature<'a> {
 
         let node_span = match &self.context.parent {
             TypeSignatureParent::Builtin => None,
-            TypeSignatureParent::Generic(gen_decl) => gen_decl.get_span(ctx),
+            TypeSignatureParent::GenericType(gen) => gen.get_span(ctx),
             TypeSignatureParent::VarDeclSig(var) => ctx[*var].name.get_span(ctx),
             TypeSignatureParent::Enum(_) => todo!(),
             TypeSignatureParent::EnumValue(_) => todo!(),
@@ -164,6 +167,7 @@ impl<'a> Spanned<'a> for TypeSignature<'a> {
 
         match &ctx[self] {
             TypeSignatureValue::Builtin(_) => None,
+            TypeSignatureValue::Generic { name } => name.get_span(ctx),
             TypeSignatureValue::Unresolved(id) => id.get_span(ctx),
             TypeSignatureValue::TypeVariable(_) => todo!(),
             TypeSignatureValue::Function {
@@ -344,6 +348,9 @@ impl<'a> TypeSignature<'a> {
             TypeSignatureValue::Builtin(builtin) => builtin.name().to_owned(),
             TypeSignatureValue::Unresolved(id) => id.value(ctx).unwrap().to_owned(),
             TypeSignatureValue::TypeVariable(_var) => "[unknown]".to_owned(),
+            TypeSignatureValue::Generic { name } => {
+                format!("[generic {}]", name.value(ctx).unwrap())
+            }
             TypeSignatureValue::Function { args, return_type } => format!(
                 "({}) -> {}",
                 (*args)

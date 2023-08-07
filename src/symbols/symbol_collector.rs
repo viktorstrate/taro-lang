@@ -1,7 +1,7 @@
 use crate::ir::{
     context::IrCtx,
     ir_walker::{IrWalker, ScopeValue},
-    node::{statement::Stmt, type_signature::BUILTIN_TYPES, NodeRef},
+    node::{generics::GenericsDecl, statement::Stmt, type_signature::BUILTIN_TYPES, NodeRef},
 };
 
 use super::symbol_table::{SymbolCollectionError, SymbolTable, SymbolValueItem};
@@ -110,6 +110,21 @@ impl<'a> IrWalker<'a> for SymbolCollector {
             }
             _ => Ok(()),
         }
+    }
+
+    fn visit_generics_decl(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        scope: &mut Self::Scope,
+        gen_decl: NodeRef<'a, GenericsDecl<'a>>,
+    ) -> Result<(), Self::Error> {
+        for gen_type in ctx[gen_decl].generics.clone() {
+            scope
+                .insert(ctx, SymbolValueItem::GenericType(gen_type))
+                .map(|_| ())?;
+        }
+
+        Ok(())
     }
 }
 

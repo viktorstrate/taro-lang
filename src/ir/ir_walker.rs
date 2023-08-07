@@ -11,6 +11,7 @@ use super::{
         expression::Expr,
         external::ExternalObject,
         function::{Function, FunctionArg},
+        generics::GenericsDecl,
         identifier::Ident,
         module::Module,
         statement::{Stmt, StmtBlock, VarDecl},
@@ -161,6 +162,15 @@ pub trait IrWalker<'a> {
         type_sig: TypeSignature<'a>,
     ) -> Result<TypeSignature<'a>, Self::Error> {
         Ok(type_sig)
+    }
+
+    fn visit_generics_decl(
+        &mut self,
+        ctx: &mut IrCtx<'a>,
+        scope: &mut Self::Scope,
+        gen_decl: NodeRef<'a, GenericsDecl<'a>>,
+    ) -> Result<(), Self::Error> {
+        Ok(())
     }
 }
 
@@ -354,6 +364,10 @@ impl<'a> IrWalkable<'a> for NodeRef<'a, Function<'a>> {
         scope: &mut W::Scope,
     ) -> Result<Self::Output, W::Error> {
         let mut func_scope = walker.visit_scope_begin(ctx, scope, ScopeValue::Func(self))?;
+
+        if let Some(gen_decl) = ctx[self].generics {
+            walker.visit_generics_decl(ctx, &mut func_scope, gen_decl)?;
+        }
 
         for arg in ctx[self].args.clone() {
             arg.walk(walker, ctx, &mut func_scope)?;
@@ -567,6 +581,10 @@ impl<'a> IrWalkable<'a> for TypeSignature<'a> {
             TypeSignatureValue::Builtin(_) => self,
             TypeSignatureValue::Unresolved(ident) => {
                 walker.visit_ident(ctx, scope, ident)?;
+                self
+            }
+            TypeSignatureValue::Generic { name } => {
+                walker.visit_ident(ctx, scope, name)?;
                 self
             }
             TypeSignatureValue::Function { args, return_type } => {

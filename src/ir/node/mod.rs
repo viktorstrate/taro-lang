@@ -8,7 +8,7 @@ use self::{
     expression::Expr,
     external::ExternalObject,
     function::{Function, FunctionArg, FunctionCall},
-    generics::GenericsDecl,
+    generics::{GenericType, GenericsDecl},
     member_access::UnresolvedMemberAccess,
     statement::{Stmt, StmtBlock, VarDecl},
     structure::{Struct, StructAccess, StructAttr, StructInit, StructInitValue},
@@ -150,7 +150,8 @@ register_nodes![
     (mem_accs, UnresolvedMemberAccess<'a>),
     (extern_obj, ExternalObject<'a>),
     (if_branch, IfStmt<'a>),
-    (gen_decls, GenericsDecl<'a>)
+    (gen_decls, GenericsDecl<'a>),
+    (gen_vals, GenericType<'a>)
 ];
 
 pub trait IrAlloc<'a>

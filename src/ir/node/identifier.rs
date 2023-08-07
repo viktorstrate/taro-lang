@@ -13,6 +13,7 @@ use super::{
     expression::Expr,
     external::ExternalObject,
     function::{Function, FunctionArg},
+    generics::GenericType,
     member_access::UnresolvedMemberAccess,
     statement::VarDecl,
     structure::{Struct, StructAccess, StructAttr, StructInit, StructInitValue},
@@ -139,6 +140,7 @@ pub enum IdentParent<'a> {
     IfBranchScope(NodeRef<'a, IfStmt<'a>>),
     TraitName(NodeRef<'a, Trait<'a>>),
     TraitFuncAttrName(NodeRef<'a, TraitFuncAttr<'a>>),
+    GenericValueName(NodeRef<'a, GenericType<'a>>),
 }
 
 impl<'a> IdentParent<'a> {
@@ -187,6 +189,7 @@ impl<'a> IdentParent<'a> {
             IdentParent::IfBranchScope(_) => unreachable!(),
             IdentParent::TraitName(tr) => ctx[*tr].name.id = new_ident.id,
             IdentParent::TraitFuncAttrName(attr) => ctx[*attr].name.id = new_ident.id,
+            IdentParent::GenericValueName(gen) => ctx[*gen].name.id = new_ident.id,
         }
     }
 }

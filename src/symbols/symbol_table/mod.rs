@@ -9,6 +9,7 @@ use crate::ir::{
         enumeration::{Enum, EnumValue},
         external::ExternalObject,
         function::{Function, FunctionArg},
+        generics::GenericType,
         identifier::{Ident, IdentKey, Identifiable, ResolvedIdentValue},
         statement::VarDecl,
         structure::{Struct, StructAttr, StructInit},
@@ -67,6 +68,7 @@ impl<'a> SymbolValue<'a> {
 #[derive(Debug, Clone, Copy)]
 pub enum SymbolValueItem<'a> {
     BuiltinType(Ident<'a>),
+    GenericType(NodeRef<'a, GenericType<'a>>),
     VarDecl(NodeRef<'a, VarDecl<'a>>),
     FuncDecl(NodeRef<'a, Function<'a>>),
     FuncArg(NodeRef<'a, FunctionArg<'a>>),
@@ -108,6 +110,7 @@ impl<'a> Identifiable<'a> for SymbolValueItem<'a> {
     fn name(&self, ctx: &IrCtx<'a>) -> Ident<'a> {
         match self {
             SymbolValueItem::BuiltinType(builtin) => *builtin,
+            SymbolValueItem::GenericType(gen) => gen.name(ctx),
             SymbolValueItem::VarDecl(var) => ctx[*var].name(ctx),
             SymbolValueItem::FuncDecl(func) => ctx[*func].name(ctx),
             SymbolValueItem::FuncArg(arg) => ctx[*arg].name(ctx),
@@ -127,6 +130,7 @@ impl<'a> SymbolValue<'a> {
     pub fn describe_type(&self, ctx: &IrCtx<'a>) -> &'static str {
         match ctx[*self] {
             SymbolValueItem::BuiltinType(_) => "builtin type",
+            SymbolValueItem::GenericType(_) => "generic type",
             SymbolValueItem::VarDecl(_) => "variable",
             SymbolValueItem::FuncDecl(_) => "function",
             SymbolValueItem::FuncArg(_) => "function argument",
@@ -174,6 +178,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
                 ) => Ok(ctx.get_builtin_type_sig(*builtin_type)),
                 _ => unreachable!("ident should resolve to builtin type"),
             },
+            SymbolValueItem::GenericType(gen) => gen.eval_type(symbols, ctx),
             SymbolValueItem::VarDecl(var) => var.eval_type(symbols, ctx),
             SymbolValueItem::FuncDecl(decl) => decl.eval_type(symbols, ctx),
             SymbolValueItem::FuncArg(arg) => arg.eval_type(symbols, ctx),
@@ -191,6 +196,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
     fn specified_type(&self, ctx: &IrCtx<'a>) -> Option<TypeSignature<'a>> {
         match ctx[*self].clone() {
             SymbolValueItem::BuiltinType(_) => None,
+            SymbolValueItem::GenericType(gen) => gen.specified_type(ctx),
             SymbolValueItem::VarDecl(var) => var.specified_type(ctx),
             SymbolValueItem::FuncDecl(decl) => decl.specified_type(ctx),
             SymbolValueItem::FuncArg(arg) => arg.specified_type(ctx),
@@ -212,6 +218,7 @@ impl<'a> Typed<'a> for SymbolValue<'a> {
     ) -> Result<(), TypeEvalError<'a>> {
         match ctx[*self].clone() {
             SymbolValueItem::BuiltinType(_) => Ok(()),
+            SymbolValueItem::GenericType(gen) => gen.specify_type(ctx, new_type),
             SymbolValueItem::VarDecl(var) => var.specify_type(ctx, new_type),
             SymbolValueItem::FuncDecl(decl) => decl.specify_type(ctx, new_type),
             SymbolValueItem::FuncArg(arg) => arg.specify_type(ctx, new_type),

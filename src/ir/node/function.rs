@@ -10,6 +10,7 @@ use crate::{
 
 use super::{
     expression::Expr,
+    generics::GenericsDecl,
     identifier::{Ident, IdentParent, Identifiable},
     statement::StmtBlock,
     type_signature::{
@@ -21,6 +22,7 @@ use super::{
 #[derive(Debug)]
 pub struct Function<'a> {
     pub name: LateInit<Ident<'a>>,
+    pub generics: Option<NodeRef<'a, GenericsDecl<'a>>>,
     pub args: Vec<NodeRef<'a, FunctionArg<'a>>>,
     pub return_type: LateInit<TypeSignature<'a>>,
     pub body: NodeRef<'a, StmtBlock<'a>>,
@@ -212,6 +214,7 @@ impl<'a> IrLowerable<'a> for crate::ast::node::function::Function<'a> {
 
         let func = Function {
             name: LateInit::empty(),
+            generics: self.generics.map(|gen| gen.ir_lower(ctx)),
             args: ir_args,
             return_type: LateInit::empty(),
             body: self.body.ir_lower(ctx),
